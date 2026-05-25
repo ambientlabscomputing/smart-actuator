@@ -16,11 +16,11 @@ setup: install proto
 proto:
 	python -m grpc_tools.protoc \
 		--proto_path=proto \
-		--python_out=interface \
-		--pyi_out=interface \
-		--grpc_python_out=interface \
+		--python_out=actuator_sim/interface \
+		--pyi_out=actuator_sim/interface \
+		--grpc_python_out=actuator_sim/interface \
 		proto/actuator.proto
-	sed -i '' 's/^import actuator_pb2/from actuator_sim.interface import actuator_pb2/' interface/actuator_pb2_grpc.py
+	sed -i '' 's/^import actuator_pb2/from actuator_sim.interface import actuator_pb2/' actuator_sim/interface/actuator_pb2_grpc.py
 
 ## run: Run the simulator
 run:

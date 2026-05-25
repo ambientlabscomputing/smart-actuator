@@ -1,7 +1,8 @@
 import sys
 
-from actuator_sim.utils.config import ActuatorConfig
 from loguru import logger
+
+from actuator_sim.utils.config import ActuatorConfig
 
 
 def setup_logger(config: ActuatorConfig):
