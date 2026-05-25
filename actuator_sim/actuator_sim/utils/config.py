@@ -28,8 +28,18 @@ class GrpcConfig(BaseModel):
     max_workers: int = Field(default=10, description="Thread-pool size for the gRPC server")
 
 
+class IdentityConfig(BaseModel):
+    id: str = Field(
+        default="actuator-simulator-001", description="Unique identifier for the actuator"
+    )
+    name: str = Field(default="sim 1", description="Name of the actuator")
+
+
 class ActuatorConfig(BaseModel):
     log_settings: LogSettings = Field(
         default_factory=LogSettings, description="Logging configuration"
     )
     grpc: GrpcConfig = Field(default_factory=GrpcConfig, description="gRPC server configuration")
+    identity: IdentityConfig = Field(
+        default_factory=IdentityConfig, description="Identity configuration"
+    )

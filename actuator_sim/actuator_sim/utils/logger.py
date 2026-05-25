@@ -12,6 +12,7 @@ def setup_logger(config: ActuatorConfig):
         rotation="10 MB",
         retention="7 days",
         level=config.log_settings.level,
+        serialize=True,
     )
     if config.log_settings.log_to_stderr:
         logger.add(sys.stderr, level=config.log_settings.level)

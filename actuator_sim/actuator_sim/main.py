@@ -33,7 +33,8 @@ def run_command():
     """Run the actuator simulator service."""
     config = _load_runtime_config()
     try:
-        asyncio.run(run(config))
+        with logger.contextualize(config=config.model_dump(mode="json")):
+            asyncio.run(run(config))
     except KeyboardInterrupt:
         pass
 
