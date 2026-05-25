@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package actuator;
+
+option go_package = "actuator_sim/proto";
+
+// ActuatorService provides control and telemetry for a simulated actuator.
+service ActuatorService {
+  // Command RPCs — write control targets
+  rpc SetPosition (SetPositionRequest) returns (CommandResponse);
+  rpc SetVelocity (SetVelocityRequest) returns (CommandResponse);
+  rpc SetTorque   (SetTorqueRequest)   returns (CommandResponse);
+
+  // Telemetry RPCs — read current state
+  rpc ReadPosition (ReadRequest) returns (PositionResponse);
+  rpc ReadVelocity (ReadRequest) returns (VelocityResponse);
+  rpc ReadCurrent  (ReadRequest) returns (CurrentResponse);
+}
+
+// ── Request messages ───────────────────────────────────────────────────────
+
+message SetPositionRequest {
+  double angle = 1;  // Target angle in radians
+}
+
+message SetVelocityRequest {
+  double velocity = 1;  // Target velocity in rad/s
+}
+
+message SetTorqueRequest {
+  double torque = 1;  // Target torque in N·m
+}
+
+// Empty sentinel used by all read RPCs
+message ReadRequest {}
+
+// ── Response messages ──────────────────────────────────────────────────────
+
+message CommandResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message PositionResponse {
+  double angle = 1;  // Current angle in radians
+}
+
+message VelocityResponse {
+  double velocity = 1;  // Current velocity in rad/s
+}
+
+message CurrentResponse {
+  double current = 1;  // Current draw in amperes
+}

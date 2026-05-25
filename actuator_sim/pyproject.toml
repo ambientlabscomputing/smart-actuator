@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "actuator_sim"
+version = "0.1.0"
+description = "Actuator simulation CLI"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.4.1",
+    "pydantic==2.13.4",
+    "loguru==0.7.3",
+    "PyYAML==6.0.3",
+    "grpcio>=1.68.0",
+    "grpcio-tools>=1.68.0",
+]
+
+[project.scripts]
+actuator_sim = "main:cli"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["interface", "models", "service"]
