@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
-
 # ── Command requests ────────────────────────────────────────────────────────
+
 
 class SetPositionRequest(BaseModel):
     angle: float = Field(..., description="Target angle in radians")
@@ -16,6 +16,7 @@ class SetTorqueRequest(BaseModel):
 
 
 # ── Responses ────────────────────────────────────────────────────────────────
+
 
 class CommandResponse(BaseModel):
     success: bool

@@ -1,15 +1,15 @@
 import grpc
 import grpc.aio
 
-from actuator_sim.utils.config import ActuatorConfig
 from actuator_sim import logger
-from actuator_sim.service.service import Service
 from actuator_sim.interface import actuator_pb2, actuator_pb2_grpc
 from actuator_sim.models import (
     SetPositionRequest,
-    SetVelocityRequest,
     SetTorqueRequest,
+    SetVelocityRequest,
 )
+from actuator_sim.service.service import Service
+from actuator_sim.utils.config import ActuatorConfig
 
 
 class ActuatorServicer(actuator_pb2_grpc.ActuatorServiceServicer):
@@ -102,4 +102,3 @@ class Interface:
 def new_interface(config: ActuatorConfig, service: Service) -> Interface:
     """Factory method to create a new Interface instance."""
     return Interface(config, service)
-

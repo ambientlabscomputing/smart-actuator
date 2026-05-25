@@ -1,15 +1,16 @@
 from abc import ABC, abstractmethod
-from actuator_sim.utils.config import ActuatorConfig
+
 from actuator_sim import logger
 from actuator_sim.models import (
-    SetPositionRequest,
-    SetVelocityRequest,
-    SetTorqueRequest,
     CommandResponse,
-    PositionResponse,
-    VelocityResponse,
     CurrentResponse,
+    PositionResponse,
+    SetPositionRequest,
+    SetTorqueRequest,
+    SetVelocityRequest,
+    VelocityResponse,
 )
+from actuator_sim.utils.config import ActuatorConfig
 
 
 class Service(ABC):

@@ -1,12 +1,13 @@
 """Data models for the actuator simulator."""
+
 from actuator_sim.models.api import (
-    SetPositionRequest,
-    SetVelocityRequest,
-    SetTorqueRequest,
     CommandResponse,
-    PositionResponse,
-    VelocityResponse,
     CurrentResponse,
+    PositionResponse,
+    SetPositionRequest,
+    SetTorqueRequest,
+    SetVelocityRequest,
+    VelocityResponse,
 )
 
 __all__ = [

@@ -1,9 +1,12 @@
-from actuator_sim.utils.config import ActuatorConfig, load_config, get_config_location
-from actuator_sim.utils.logger import setup_logger
-from actuator_sim import logger, service
-import click
-from actuator_sim.interface import new_interface
 import asyncio
+
+import click
+
+from actuator_sim import logger, service
+from actuator_sim.interface import new_interface
+from actuator_sim.utils.config import ActuatorConfig, get_config_location, load_config
+from actuator_sim.utils.logger import setup_logger
+
 
 @click.group()
 def cli():
