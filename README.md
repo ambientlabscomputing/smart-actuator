@@ -2,20 +2,6 @@
 
 The Ambient Labs Smart Actuator is a motor for the new generation of makers providing a wide variety of data and control interfaces.
 
-Here's the current list of target interfaces:
-
-- position
-- velocity
-- torque/current limit
-- temperature estimate
-- soft limits
-- hard limits
-- command queue
-- local controller
-- neighbor links
-- latency/jitter
-- fault modes
-
 ## Repository Conventions
 
 - We practice document-driven development. See [RFC 3](https://datatracker.ietf.org/doc/html/rfc3). Specifically:
