@@ -1,4 +1,4 @@
-# RFD-1 : The Smart Actuator
+# RFD-1: The Smart Actuator
 Author: Jose Catarino
 
 The vision:

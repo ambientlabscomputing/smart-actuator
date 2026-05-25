@@ -33,3 +33,9 @@ The Ambient Labs Smart Actuator is a motor for the new generation of makers prov
 We use Request for Discussion (RFD) instead of Request for Comment(RFC) to avoid confusion with the IETF's actual RFC's
 
 The purpose is to ensure that we are thinking through our architectural decisions, and if the future allows, perhaps so that fellow engineers can discuss via PRs.
+
+## RFD Table of Contents
+
+- [RFD-1: The Smart Actuator, foundational RFD](RFDs/RFD-1.md)
+- [RFD-2: Actuator Simulator](RFDs/RFD-2.md)
+- [RFD-3: Proposed Architecture](RFDs/RFD-3.md)
