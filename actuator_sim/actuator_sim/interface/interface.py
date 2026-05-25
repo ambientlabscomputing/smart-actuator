@@ -80,7 +80,7 @@ class Interface:
         self._server: grpc.aio.Server | None = None
 
     async def start(self):
-        """Start the gRPC server and block until shutdown."""
+        """Start the gRPC server (non-blocking)."""
         self._server = grpc.aio.server()
         actuator_pb2_grpc.add_ActuatorServiceServicer_to_server(
             ActuatorServicer(self.service), self._server
@@ -89,7 +89,6 @@ class Interface:
         self._server.add_insecure_port(listen_addr)
         logger.info("gRPC server listening on {}", listen_addr)
         await self._server.start()
-        await self._server.wait_for_termination()
 
     async def stop(self):
         """Gracefully stop the gRPC server."""

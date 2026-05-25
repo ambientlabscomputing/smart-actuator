@@ -1,4 +1,5 @@
 import asyncio
+import signal
 
 import click
 
@@ -31,7 +32,10 @@ def main():
 def run_command():
     """Run the actuator simulator service."""
     config = _load_runtime_config()
-    asyncio.run(run(config))
+    try:
+        asyncio.run(run(config))
+    except KeyboardInterrupt:
+        pass
 
 
 async def run(config: ActuatorConfig):
@@ -41,6 +45,18 @@ async def run(config: ActuatorConfig):
     await svc.start()
     interface = new_interface(config, svc)
     await interface.start()
+
+    loop = asyncio.get_running_loop()
+    stop = asyncio.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+
+    await stop.wait()
+
+    logger.info("Shutting down gracefully...")
+    await interface.stop()
+    await svc.stop()
+    logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":
