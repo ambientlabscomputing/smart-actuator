@@ -6,11 +6,12 @@ from brain.utils.config import Config
 from brain.utils.logger import logger
 
 _VALID_TRANSITIONS: dict[MachineMode, set[MachineMode]] = {
-    MachineMode.OFFLINE: {MachineMode.IDLE},
-    MachineMode.IDLE: {MachineMode.OFFLINE, MachineMode.MANUAL, MachineMode.RUN, MachineMode.FAULT},
-    MachineMode.MANUAL: {MachineMode.IDLE, MachineMode.FAULT},
-    MachineMode.RUN: {MachineMode.IDLE, MachineMode.FAULT},
-    MachineMode.FAULT: {MachineMode.IDLE},
+    MachineMode.OFFLINE:  {MachineMode.IDLE},
+    MachineMode.IDLE:     {MachineMode.OFFLINE, MachineMode.MANUAL, MachineMode.RUN, MachineMode.FAULT, MachineMode.ESTOPPED},
+    MachineMode.MANUAL:   {MachineMode.IDLE, MachineMode.FAULT, MachineMode.ESTOPPED},
+    MachineMode.RUN:      {MachineMode.IDLE, MachineMode.FAULT, MachineMode.ESTOPPED},
+    MachineMode.FAULT:    {MachineMode.IDLE, MachineMode.ESTOPPED},
+    MachineMode.ESTOPPED: {MachineMode.IDLE},
 }
 
 

@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from brain.interface.rest.deps import get_service
 from brain.models.motion import Pose
+from brain.models.state import MachineMode
 from brain.service.service import BrainService
 
 router = APIRouter(prefix="/move", tags=["motion"])
@@ -30,8 +31,21 @@ class FollowPathBody(BaseModel):
 @router.post("/joint")
 async def move_joint(body: MoveJointBody, svc: Service) -> dict:
     """Move one or more joints to target angles (radians)."""
+    mode = svc.lifecycle.get_mode(body.machine_id)
+
+    # Auto-transition IDLE → MANUAL on first jog.
+    if mode == MachineMode.IDLE:
+        await svc.lifecycle.request_mode(body.machine_id, MachineMode.MANUAL, "jog started")
+        mode = MachineMode.MANUAL
+
+    if not svc.safety.gate_capability(mode, "move_joint"):
+        raise HTTPException(
+            status_code=409,
+            detail={"mode": mode, "reason": f"move_joint not permitted in mode '{mode}'"},
+        )
+
     await svc.motion.move_joint(body.machine_id, body.joint_targets)
-    return {"status": "executing"}
+    return {"status": "executing", "mode": mode}
 
 
 @router.post("/linear")
@@ -64,6 +78,10 @@ async def stop(machine_id: str, svc: Service) -> dict:
 
 @router.post("/estop")
 async def estop(machine_id: str, svc: Service) -> dict:
-    """Trigger an emergency stop. Fan-out is handled by the sidecar."""
+    """
+    Emergency stop.  Flips mode to ESTOPPED first (gates further commands),
+    then fans out Abort to all actuators via the sidecar.
+    Recovery requires POST /mode {mode: 'idle'}.
+    """
     await svc.safety.estop(machine_id)
-    return {"status": "estopped"}
+    return {"status": "estopped", "mode": MachineMode.ESTOPPED}

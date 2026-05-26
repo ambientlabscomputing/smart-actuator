@@ -163,8 +163,34 @@ class SidecarBridge:
 
     async def estop(self) -> None:
         """Fan-out E-stop to all actuators via the sidecar's critical path."""
+        if self._stub is None:
+            logger.warning("EStop called but sidecar not connected — skipping")
+            return
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+        from brain.utils.context import journey_id_var  # noqa: PLC0415
+
         logger.warning("E-stop sent to sidecar")
-        # TODO: call sidecar.EStop RPC
+        metadata = [("x-journey-id", journey_id_var.get())]
+        await self._stub.EStop(sidecar_pb2.EStopRequest(), metadata=metadata)
+
+    async def send_command(self, actuator_id: str, *, position: float) -> dict[str, object]:
+        """
+        Send a direct position command to a single actuator via the sidecar.
+        Returns {"success": bool, "message": str, "refusal_code": int}.
+        """
+        if self._stub is None:
+            raise RuntimeError("SidecarBridge: not connected — call connect() first")
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+        from brain.utils.context import journey_id_var  # noqa: PLC0415
+
+        metadata = [("x-journey-id", journey_id_var.get())]
+        req = sidecar_pb2.SendCommandRequest(actuator_id=actuator_id, position=position)
+        resp = await self._stub.SendCommand(req, metadata=metadata)
+        return {
+            "success": resp.success,
+            "message": resp.message,
+            "refusal_code": resp.refusal_code,
+        }
 
     async def calibrate_actuator(self, actuator_id: str) -> dict[str, object]:
         """Trigger per-actuator calibration and return results."""

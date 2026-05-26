@@ -63,10 +63,19 @@ class MotionService:
         # TODO: send abort command via sidecar
 
     async def move_joint(self, machine_id: str, joint_targets: dict[str, float]) -> None:
-        """Move one or more joints to target angles (rad)."""
-        cmd = MoveCommand(primitive=MovePrimitive.MOVE_J, joint_targets=joint_targets)
-        traj = await self.generate_trajectory(machine_id, cmd)
-        await self.execute(machine_id, traj)
+        """
+        Send direct position commands to one or more joints (raw jog, J2).
+        Each key in *joint_targets* is a joint/actuator name; the value is the
+        target angle in radians.  No trajectory generation — commands go
+        straight to the sidecar's SendCommand RPC.
+        """
+        for joint_name, angle_rad in joint_targets.items():
+            result = await self._sidecar.send_command(joint_name, position=angle_rad)
+            if not result["success"]:
+                logger.warning(
+                    "move_joint: actuator %s refused command (code=%s): %s",
+                    joint_name, result["refusal_code"], result["message"],
+                )
 
     async def move_linear(self, machine_id: str, target: Pose) -> None:
         """Move the end-effector in a straight Cartesian line to *target*."""

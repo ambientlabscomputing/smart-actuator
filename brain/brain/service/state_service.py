@@ -1,12 +1,16 @@
+import asyncio
 from collections import deque
 from collections.abc import Callable
 
-from brain.models.state import JointState, MachineState
+from brain.models.state import JointState, MachineMode, MachineState
 from brain.repository.repository import Repository
 from brain.service.kinematics_service import KinematicsService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.utils.config import Config
 from brain.utils.logger import logger
+
+if False:  # TYPE_CHECKING guard
+    from brain.service.lifecycle_service import LifecycleService
 
 _STATE_BUFFER_SECONDS = 30
 _STATE_BUFFER_MAX = 1000
@@ -28,11 +32,13 @@ class StateService:
         repository: Repository,
         sidecar: SidecarBridge,
         kinematics: KinematicsService,
+        lifecycle: "LifecycleService",
         config: Config,
     ) -> None:
         self._repository = repository
         self._sidecar = sidecar
         self._kinematics = kinematics
+        self._lifecycle = lifecycle
         self._config = config
         self._states: dict[str, MachineState] = {}
         self._buffer: dict[str, deque[MachineState]] = {}
@@ -44,11 +50,18 @@ class StateService:
 
     def _on_joint_states(self, raw: list[JointState], machine_id: str) -> None:
         """Internal callback invoked for each sidecar joint-state batch."""
+        # Auto-transition OFFLINE → IDLE the first time joint states arrive.
+        if self._lifecycle.get_mode(machine_id) == MachineMode.OFFLINE:
+            asyncio.ensure_future(
+                self._lifecycle.request_mode(machine_id, MachineMode.IDLE, "sidecar connected")
+            )
+
         state = self._states.get(machine_id)
         if state is None:
             state = MachineState(machine_id=machine_id)
         state.measured = raw
         state.modeled = self._kinematics.forward_kinematics(machine_id, raw)
+        state.mode = self._lifecycle.get_mode(machine_id)
         self._states[machine_id] = state
 
         buf = self._buffer.setdefault(machine_id, deque(maxlen=_STATE_BUFFER_MAX))

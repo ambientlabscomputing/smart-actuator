@@ -143,7 +143,7 @@ async fn run(cfg: config::SidecarConfig, config_path: String) -> anyhow::Result<
 
     // ── Watchdog ───────────────────────────────────────────────────────────
     let heartbeat = watchdog::HeartbeatHandle::new();
-    let watchdog = watchdog::Watchdog::new(heartbeat.clone(), estop.clone(), cfg.watchdog);
+    let watchdog = watchdog::Watchdog::new(heartbeat.clone(), cfg.watchdog);
 
     // ── Aggregator ─────────────────────────────────────────────────────────
     let aggregator = Arc::new(aggregator::JointStateAggregator::new(

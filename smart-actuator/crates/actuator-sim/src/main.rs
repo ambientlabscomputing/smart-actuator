@@ -213,23 +213,6 @@ async fn run(config: config::ActuatorConfig, config_path: String) -> anyhow::Res
         });
     }
 
-    // J1 demo: sine-drive joint0 at 0.5 Hz so position visibly changes without
-    // any external command.  The PD loop in AppService tracks the moving target.
-    {
-        let demo_service = service.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(20));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            let start = std::time::Instant::now();
-            loop {
-                interval.tick().await;
-                let t = start.elapsed().as_secs_f64();
-                let angle = (2.0 * std::f64::consts::PI * 0.5 * t).sin();
-                demo_service.set_position(angle).await;
-            }
-        });
-    }
-
     // Optional backdoor server
     if config.grpc.enable_backdoor {
         let bd_plant = plant.clone();

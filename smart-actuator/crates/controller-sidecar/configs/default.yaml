@@ -9,7 +9,7 @@ listen:
   socket_path: /tmp/sidecar.sock
 
 watchdog:
-  timeout_secs: 5
+  timeout_secs: 3
   check_interval_secs: 1
   enabled: true
 

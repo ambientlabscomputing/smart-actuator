@@ -21,7 +21,8 @@ service SidecarService {
   rpc Abort                  (ActuatorRequest)        returns (CommandResponse);
 
   // ── Safety ────────────────────────────────────────────────────────────────
-  rpc EStop (EStopRequest) returns (CommandResponse);
+  rpc EStop       (EStopRequest)       returns (CommandResponse);
+  rpc SendCommand (SendCommandRequest) returns (CommandResponse);
 
   // ── Calibration ───────────────────────────────────────────────────────────
   rpc CalibrateActuator (CalibrateActuatorRequest) returns (CalibrateActuatorResponse);
@@ -35,8 +36,9 @@ service SidecarService {
 // ── Shared ────────────────────────────────────────────────────────────────────
 
 message CommandResponse {
-  bool   success = 1;
-  string message = 2;
+  bool   success      = 1;
+  string message      = 2;
+  int32  refusal_code = 3;  // mirrors actuator RefusalCode; 0=none, 8=watchdog_stale
 }
 
 message ActuatorRequest {
@@ -102,6 +104,11 @@ message SendTrajectoryRequest {
 // ── Safety messages ───────────────────────────────────────────────────────────
 
 message EStopRequest {}
+
+message SendCommandRequest {
+  string actuator_id = 1;
+  double position    = 2;  // target angle in radians (position command)
+}
 
 // ── Calibration messages ──────────────────────────────────────────────────────
 

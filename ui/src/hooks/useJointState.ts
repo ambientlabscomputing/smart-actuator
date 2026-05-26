@@ -14,6 +14,7 @@ export interface JointState {
 
 export interface MachineState {
   machine_id: string
+  mode: string
   measured: JointState[]
   modeled: unknown[]
   timestamp: string
@@ -80,4 +81,65 @@ export function useJointState(): UseJointStateResult {
   }, [])
 
   return { state, connected }
+}
+
+// ---------------------------------------------------------------------------
+// useMachineControl — REST actions: jog, estop, resume
+// ---------------------------------------------------------------------------
+
+const BRAIN_BASE = '/api/v1'
+
+function journeyId(): string {
+  return crypto.randomUUID()
+}
+
+async function brainPost(path: string, body: unknown): Promise<unknown> {
+  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Journey-Id': journeyId(),
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BRAIN_BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
+  }
+  return res.json()
+}
+
+export interface MachineControl {
+  /** Jog a single joint by deltaDeg degrees (positive = extend). */
+  jog: (machineId: string, jointName: string, deltaDeg: number, currentDeg: number) => Promise<void>
+  estop: (machineId: string) => Promise<void>
+  resume: (machineId: string) => Promise<void>
+}
+
+export function useMachineControl(): MachineControl {
+  const jog = async (
+    machineId: string,
+    jointName: string,
+    deltaDeg: number,
+    currentDeg: number,
+  ) => {
+    const targetRad = ((currentDeg + deltaDeg) * Math.PI) / 180
+    await brainPost('/move/joint', {
+      machine_id: machineId,
+      joint_targets: { [jointName]: targetRad },
+    })
+  }
+
+  const estop = async (machineId: string) => {
+    await brainPost(`/move/estop?machine_id=${encodeURIComponent(machineId)}`, {})
+  }
+
+  const resume = async (machineId: string) => {
+    await brainPost(`/mode?machine_id=${encodeURIComponent(machineId)}`, { mode: 'idle' })
+  }
+
+  return { jog, estop, resume }
 }

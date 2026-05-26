@@ -1,12 +1,13 @@
 //! Deadman watchdog.
 //!
 //! If the Brain stops sending heartbeats for longer than the configured
-//! timeout, the watchdog triggers an E-stop across all connected actuators.
+//! timeout, the watchdog sets the `armed` flag to false, causing the sidecar
+//! to reject new motion commands until heartbeats resume.  Existing setpoints
+//! remain active in the actuators (hold-last-position).
 
 use crate::config::WatchdogConfig;
-use crate::estop::EStopBroadcaster;
 use std::sync::{
-    atomic::{AtomicI64, Ordering},
+    atomic::{AtomicBool, AtomicI64, Ordering},
     Arc,
 };
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -19,34 +20,53 @@ fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
-/// Shared atomic timestamp (Unix seconds) of the last received heartbeat.
+struct HeartbeatState {
+    last_seen_secs: AtomicI64,
+    armed: AtomicBool,
+}
+
+/// Shared state updated by heartbeat RPCs and read by motion-command handlers.
 #[derive(Clone)]
-pub struct HeartbeatHandle(Arc<AtomicI64>);
+pub struct HeartbeatHandle(Arc<HeartbeatState>);
 
 impl HeartbeatHandle {
     pub fn new() -> Self {
-        Self(Arc::new(AtomicI64::new(now_secs())))
+        Self(Arc::new(HeartbeatState {
+            last_seen_secs: AtomicI64::new(now_secs()),
+            armed: AtomicBool::new(true),
+        }))
     }
 
     /// Call this whenever a Heartbeat RPC is received from the Brain.
     pub fn touch(&self) {
-        self.0.store(now_secs(), Ordering::Relaxed);
+        self.0.last_seen_secs.store(now_secs(), Ordering::Relaxed);
+        self.0.armed.store(true, Ordering::Relaxed);
     }
 
     pub fn elapsed_secs(&self) -> i64 {
-        now_secs() - self.0.load(Ordering::Relaxed)
+        now_secs() - self.0.last_seen_secs.load(Ordering::Relaxed)
+    }
+
+    /// Returns false when the watchdog has timed out; motion commands should
+    /// be refused until the Brain reconnects and sends a new heartbeat.
+    pub fn is_armed(&self) -> bool {
+        self.0.armed.load(Ordering::Relaxed)
+    }
+
+    /// Disarm — called by the watchdog when timeout is exceeded.
+    fn disarm(&self) {
+        self.0.armed.store(false, Ordering::Relaxed);
     }
 }
 
 pub struct Watchdog {
     handle: HeartbeatHandle,
-    estop: Arc<EStopBroadcaster>,
     config: WatchdogConfig,
 }
 
 impl Watchdog {
-    pub fn new(handle: HeartbeatHandle, estop: Arc<EStopBroadcaster>, config: WatchdogConfig) -> Self {
-        Self { handle, estop, config }
+    pub fn new(handle: HeartbeatHandle, config: WatchdogConfig) -> Self {
+        Self { handle, config }
     }
 
     /// Run the watchdog loop until the cancellation watch fires.
@@ -68,19 +88,27 @@ impl Watchdog {
             let elapsed = self.handle.elapsed_secs();
             if elapsed > timeout {
                 if enabled {
-                    warn!(
-                        elapsed_secs = elapsed,
-                        timeout_secs = timeout,
-                        "Brain heartbeat timeout — triggering E-stop"
-                    );
-                    self.estop.broadcast("watchdog timeout").await;
+                    if self.handle.is_armed() {
+                        warn!(
+                            elapsed_secs = elapsed,
+                            timeout_secs = timeout,
+                            "Brain heartbeat timeout — disarming command intake (hold last position)"
+                        );
+                        self.handle.disarm();
+                    }
+                    // Disarmed state is logged once per timeout crossing.
+                    // Subsequent checks are silent until the Brain reconnects.
                 } else {
                     warn!(
                         elapsed_secs = elapsed,
                         timeout_secs = timeout,
-                        "Brain heartbeat timeout (watchdog disabled — no E-stop)"
+                        "Brain heartbeat timeout (watchdog disabled — no action)"
                     );
                 }
+            } else if !self.handle.is_armed() {
+                // Brain reconnected — re-arm is handled by touch() on the next
+                // Heartbeat RPC; this log confirms the watchdog sees it.
+                info!("Brain heartbeat resumed — watchdog re-armed");
             }
         }
         info!("Watchdog stopped");

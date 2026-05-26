@@ -8,6 +8,7 @@
  * To use a new MUI / R3F primitive elsewhere in the app, wrap it here first.
  */
 export { AppCanvas } from './AppCanvas'
+export { AppToolbar } from './AppToolbar'
 export { Joint } from './Joint'
 export { Stack } from './Stack'
 export { StatusBadge } from './StatusBadge'

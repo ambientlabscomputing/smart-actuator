@@ -6,6 +6,9 @@ from brain.service.sidecar_bridge import SidecarBridge
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
+if False:  # TYPE_CHECKING guard to avoid circular imports
+    from brain.service.lifecycle_service import LifecycleService
+
 
 class SafetyService:
     """
@@ -21,11 +24,13 @@ class SafetyService:
         repository: Repository,
         sidecar: SidecarBridge,
         kinematics: KinematicsService,
+        lifecycle: "LifecycleService",
         config: Config,
     ) -> None:
         self._repository = repository
         self._sidecar = sidecar
         self._kinematics = kinematics
+        self._lifecycle = lifecycle
         self._config = config
 
     async def check_collision(
@@ -51,10 +56,11 @@ class SafetyService:
 
     async def estop(self, machine_id: str) -> None:
         """
-        Surface the E-stop call then delegate fan-out to the sidecar,
-        which owns the time-critical path.
+        E-stop: flip mode to ESTOPPED first (gates further commands), then
+        fan out Abort to all actuators via the sidecar.
         """
         logger.warning("E-stop triggered for machine %s", machine_id)
+        await self._lifecycle.request_mode(machine_id, MachineMode.ESTOPPED, "estop")
         await self._sidecar.estop()
 
     def gate_capability(self, mode: MachineMode, capability: str) -> bool:
@@ -64,9 +70,9 @@ class SafetyService:
         """
         # TODO: load mode/capability gate table from machine model
         allowed: dict[MachineMode, set[str]] = {
-            MachineMode.OFFLINE: set(),
-            MachineMode.IDLE: {"describe", "calibrate", "state"},
-            MachineMode.MANUAL: {"describe", "calibrate", "state", "move_joint"},
+            MachineMode.OFFLINE:  set(),
+            MachineMode.IDLE:     {"describe", "calibrate", "state"},
+            MachineMode.MANUAL:   {"describe", "calibrate", "state", "move_joint"},
             MachineMode.RUN: {
                 "describe",
                 "state",
@@ -78,6 +84,7 @@ class SafetyService:
                 "go_home",
                 "run_program",
             },
-            MachineMode.FAULT: {"describe", "state", "estop"},
+            MachineMode.FAULT:    {"describe", "state", "estop"},
+            MachineMode.ESTOPPED: {"describe", "state", "estop"},
         }
         return capability in allowed.get(mode, set())

@@ -19,6 +19,7 @@ from brain.interface.rest import (
 from brain.interface.ros import RosGateway
 from brain.service import new_brain_service
 from brain.utils.config import Config
+from brain.utils.context import journey_id_var
 from brain.utils.logger import logger
 
 _API_PREFIX = "/api/v1"
@@ -29,6 +30,7 @@ class _JourneyIdMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         journey_id = request.headers.get("x-journey-id") or str(uuid.uuid4())
+        journey_id_var.set(journey_id)
         with logger.contextualize(journey_id=journey_id):
             response = await call_next(request)
         response.headers["x-journey-id"] = journey_id

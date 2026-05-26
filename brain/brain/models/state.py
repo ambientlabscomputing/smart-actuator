@@ -10,6 +10,7 @@ class MachineMode(StrEnum):
     MANUAL = "manual"
     RUN = "run"
     FAULT = "fault"
+    ESTOPPED = "estopped"
 
 
 class JointState(BaseModel):

@@ -4,7 +4,7 @@ use crate::aggregator::JointStateAggregator;
 use crate::client_pool::ActuatorClientPool;
 use crate::estop::EStopBroadcaster;
 use crate::watchdog::HeartbeatHandle;
-use actuator_proto::actuator::{ReadRequest, TrajectorySegmentRequest};
+use actuator_proto::actuator::{ReadRequest, SetPositionRequest, TrajectorySegmentRequest};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
@@ -21,7 +21,7 @@ use sidecar_proto::{
     ActuatorInfo, ActuatorRequest, CalibrateActuatorRequest, CalibrateActuatorResponse,
     CommandResponse, EStopRequest, GetJointStatesRequest, HeartbeatRequest, HeartbeatResponse,
     JointState, JointStateBatch, ListActuatorsRequest, ListActuatorsResponse,
-    SendTrajectoryRequest, StreamJointStatesRequest,
+    SendCommandRequest, SendTrajectoryRequest, StreamJointStatesRequest,
 };
 
 fn now_ns() -> i64 {
@@ -195,11 +195,12 @@ impl SidecarService for SidecarServicer {
         }
 
         if errors.is_empty() {
-            Ok(Response::new(CommandResponse { success: true, message: String::new() }))
+            Ok(Response::new(CommandResponse { success: true, message: String::new(), refusal_code: 0 }))
         } else {
             Ok(Response::new(CommandResponse {
                 success: false,
                 message: errors.join("; "),
+                refusal_code: 0,
             }))
         }
     }
@@ -220,7 +221,7 @@ impl SidecarService for SidecarServicer {
             .await
             .map(|r| {
                 let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message })
+                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
             })
             .map_err(|e| Status::internal(e.to_string()))
     }
@@ -241,7 +242,7 @@ impl SidecarService for SidecarServicer {
             .await
             .map(|r| {
                 let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message })
+                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
             })
             .map_err(|e| Status::internal(e.to_string()))
     }
@@ -262,7 +263,7 @@ impl SidecarService for SidecarServicer {
             .await
             .map(|r| {
                 let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message })
+                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
             })
             .map_err(|e| Status::internal(e.to_string()))
     }
@@ -275,7 +276,40 @@ impl SidecarService for SidecarServicer {
     ) -> Result<Response<CommandResponse>, Status> {
         info!("EStop RPC received from Brain");
         self.estop.broadcast("brain rpc").await;
-        Ok(Response::new(CommandResponse { success: true, message: String::new() }))
+        Ok(Response::new(CommandResponse { success: true, message: String::new(), refusal_code: 0 }))
+    }
+
+    async fn send_command(
+        &self,
+        request: Request<SendCommandRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        // Gate: reject commands when the Brain's heartbeat has timed out.
+        if !self.heartbeat.is_armed() {
+            warn!("SendCommand rejected — watchdog disarmed (Brain heartbeat lost)");
+            return Ok(Response::new(CommandResponse {
+                success: false,
+                message: "watchdog stale — Brain heartbeat lost".into(),
+                refusal_code: 8, // REFUSAL_CODE_WATCHDOG_STALE
+            }));
+        }
+
+        let req = request.into_inner();
+        let mut pool = self.pool.lock().await;
+        let client = pool
+            .get_mut(&req.actuator_id)
+            .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?;
+
+        let r = client
+            .set_position(Request::new(SetPositionRequest { angle: req.position }))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .into_inner();
+
+        Ok(Response::new(CommandResponse {
+            success: r.success,
+            message: r.message,
+            refusal_code: r.refusal_code as i32,
+        }))
     }
 
     // ── Calibration ────────────────────────────────────────────────────────
