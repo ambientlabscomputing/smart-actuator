@@ -34,6 +34,33 @@ We use Request for Discussion (RFD) instead of Request for Comment(RFC) to avoid
 
 The purpose is to ensure that we are thinking through our architectural decisions, and if the future allows, perhaps so that fellow engineers can discuss via PRs.
 
+## Repository Layout
+
+```
+.
+├── ui/                   # Web UI — TypeScript + React (future)
+├── controller/           # Controller Brain — Python (future)
+├── smart-actuator/       # Rust Cargo workspace
+│   ├── proto/            # gRPC service definitions (source of truth)
+│   ├── crates/
+│   │   ├── actuator-proto/       # Generated gRPC types
+│   │   ├── actuator-core/        # State machine, control modes, safety
+│   │   ├── actuator-sim/         # Simulator binary (drop-in for real firmware)
+│   │   ├── actuator-firmware/    # Real hardware firmware (stub)
+│   │   └── controller-sidecar/   # Host-side gRPC pool + watchdog (stub)
+│   └── Makefile
+└── RFDs/                 # Architecture documents
+```
+
+See [RFD-3](RFDs/RFD-3.md) for the full architecture rationale.
+
+### Running the simulator
+
+```bash
+cd smart-actuator
+make run
+```
+
 ## RFD Table of Contents
 
 - [RFD-1: The Smart Actuator, foundational RFD](RFDs/RFD-1.md)

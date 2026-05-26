@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/actuator-proto",
+    "crates/actuator-core",
+    "crates/actuator-sim",
+    "crates/actuator-firmware",
+    "crates/controller-sidecar",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/ambient-labs/smart-actuator"
+
+[workspace.dependencies]
+# async runtime
+tokio = { version = "1", features = ["full"] }
+
+# gRPC
+tonic = "0.13"
+prost = "0.13"
+
+# serialisation / config
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+
+# error handling
+thiserror = "2"
+anyhow = "1"
+
+# logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# async trait support
+async-trait = "0.1"
+
+# internal crates
+actuator-proto = { path = "crates/actuator-proto" }
+actuator-core = { path = "crates/actuator-core" }

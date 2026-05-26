@@ -1,0 +1,6 @@
+# Cargo ignores
+
+**/debug/
+**/target/
+**/Cargo.lock
+

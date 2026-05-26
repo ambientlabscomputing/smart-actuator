@@ -1,0 +1,7 @@
+[package]
+name = "controller-sidecar"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# TODO: gRPC client pool, discovery, E-stop broadcast, safety watchdog
