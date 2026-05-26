@@ -22,7 +22,7 @@ packages = ["brain"]
 [project.optional-dependencies]
 dev = [
     "pytest>=9.0.3",
-    "ruff>=0.4",
+    "ruff>=0.15",
     "mypy>=2.1.0",
 ]
 
