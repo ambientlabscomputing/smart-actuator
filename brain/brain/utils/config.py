@@ -1,7 +1,19 @@
 from pydantic import BaseModel, Field
 
 
+class LogConfig(BaseModel):
+    log_level: str = Field(default="INFO", description="Logging level (e.g., DEBUG, INFO, WARNING)")
+    log_file: str = Field(
+        default="brain.log",
+        description="Path to the log file. Logs will be rotated and compressed automatically.",
+    )
+    log_to_console: bool = Field(
+        default=True,
+        description="Whether to also log to the console (stdout).",
+    )
+
 class Config(BaseModel):
+    log: LogConfig = Field(default_factory=LogConfig, description="Logging configuration")
     sidecar_socket: str = Field(
         default="unix:///tmp/sidecar.sock",
         description="gRPC socket address for the Rust sidecar",
