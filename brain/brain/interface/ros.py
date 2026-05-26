@@ -1,14 +1,17 @@
-# RosGateway has moved to brain.interface.ros (it is an interface adapter, not business logic).
-from brain.interface.ros import RosGateway as RosGateway  # noqa: F401
+from brain.models.state import MachineMode, MachineState
+from brain.utils.config import Config
+from brain.utils.logger import logger
 
 
 class RosGateway:
     """
-    ROS 2 integration layer (C9).
+    ROS 2 interface adapter (C9).
 
     Joint semantics (names, frames) live with the URDF, so the ROS bridge
     belongs in the Brain. Publishes joint states, TF, and machine metadata;
     subscribes to command topics; optionally exposes action servers and services.
+
+    This is an interface adapter — it lives in brain.interface, not brain.service.
     """
 
     def __init__(self, config: Config) -> None:

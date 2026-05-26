@@ -8,7 +8,6 @@ from brain.service.machine_service import MachineService
 from brain.service.motion_service import MotionService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
-from brain.service.ros_gateway import RosGateway
 from brain.service.safety_service import SafetyService
 from brain.service.service import BrainService
 from brain.service.sidecar_bridge import SidecarBridge
@@ -29,7 +28,6 @@ def new_brain_service(config: Config) -> BrainService:
     lifecycle = LifecycleService(repository, config)
     programs = ProgramService(repository, config)
     calibration = CalibrationService(repository, sidecar, lifecycle, config)
-    ros = RosGateway(config)
     observability = ObservabilityService(config)
 
     return BrainService(
@@ -46,6 +44,5 @@ def new_brain_service(config: Config) -> BrainService:
         programs=programs,
         lifecycle=lifecycle,
         calibration=calibration,
-        ros=ros,
         observability=observability,
     )

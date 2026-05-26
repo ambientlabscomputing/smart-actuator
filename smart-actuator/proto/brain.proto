@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package brain;
+
+// ── Brain service — exposed to the CLI and external gRPC clients ──────────
+// Code generation:
+//   python -m grpc_tools.protoc -I proto \
+//     --python_out=brain/brain/interface/grpc/generated \
+//     --grpc_python_out=brain/brain/interface/grpc/generated \
+//     proto/brain.proto
+
+service BrainService {
+  // ── Actuators ────────────────────────────────────────────────────────────
+  rpc ListActuators     (ListActuatorsRequest)     returns (ListActuatorsResponse);
+  rpc DescribeActuator  (DescribeActuatorRequest)  returns (DescribeActuatorResponse);
+  rpc CalibrateActuator (CalibrateActuatorRequest) returns (CalibrateActuatorResponse);
+  rpc SetActuatorLimit  (SetActuatorLimitRequest)  returns (CommandResponse);
+
+  // ── Machine ──────────────────────────────────────────────────────────────
+  rpc ListMachines   (ListMachinesRequest)   returns (ListMachinesResponse);
+  rpc GetMachine     (GetMachineRequest)     returns (GetMachineResponse);
+  rpc BuildMachine   (BuildMachineRequest)   returns (GetMachineResponse);
+  rpc BindActuators  (BindActuatorsRequest)  returns (CommandResponse);
+  rpc HomeMachine    (MachineRequest)        returns (CommandResponse);
+
+  // ── Mode ─────────────────────────────────────────────────────────────────
+  rpc GetMode        (MachineRequest)        returns (GetModeResponse);
+  rpc SetMode        (SetModeRequest)        returns (CommandResponse);
+  rpc GetModeHistory (MachineRequest)        returns (GetModeHistoryResponse);
+  rpc WatchMode      (MachineRequest)        returns (stream ModeEvent);
+
+  // ── Motion ───────────────────────────────────────────────────────────────
+  rpc MoveJoint    (MoveJointRequest)    returns (CommandResponse);
+  rpc MoveLinear   (MovePoseRequest)     returns (CommandResponse);
+  rpc MoveToPose   (MovePoseRequest)     returns (CommandResponse);
+  rpc FollowPath   (FollowPathRequest)   returns (CommandResponse);
+  rpc HoldPose     (MachineRequest)      returns (CommandResponse);
+  rpc Stop         (MachineRequest)      returns (CommandResponse);
+  rpc EStop        (MachineRequest)      returns (CommandResponse);
+
+  // ── Programs ─────────────────────────────────────────────────────────────
+  rpc ListPrograms   (ListProgramsRequest)   returns (ListProgramsResponse);
+  rpc GetProgram     (GetProgramRequest)     returns (GetProgramResponse);
+  rpc SaveProgram    (SaveProgramRequest)    returns (CommandResponse);
+  rpc DeleteProgram  (GetProgramRequest)     returns (CommandResponse);
+  rpc RunProgram     (RunProgramRequest)     returns (CommandResponse);
+  rpc PauseProgram   (ProgramRequest)        returns (CommandResponse);
+  rpc ResumeProgram  (ProgramRequest)        returns (CommandResponse);
+  rpc AbortProgram   (ProgramRequest)        returns (CommandResponse);
+
+  // ── State ────────────────────────────────────────────────────────────────
+  rpc GetState    (MachineRequest)    returns (GetStateResponse);
+  rpc WatchState  (MachineRequest)    returns (stream StateUpdate);
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────
+
+message CommandResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message MachineRequest {
+  string machine_id = 1;
+}
+
+message ProgramRequest {
+  string program_id = 1;
+}
+
+// ── Actuator messages ─────────────────────────────────────────────────────
+
+message ListActuatorsRequest {}
+
+message ListActuatorsResponse {
+  repeated ActuatorInfo actuators = 1;
+}
+
+message ActuatorInfo {
+  string id               = 1;
+  string name             = 2;
+  string firmware_version = 3;
+  string health           = 4;  // "ok" | "degraded" | "fault" | "unknown"
+  bool   is_simulated     = 5;
+}
+
+message DescribeActuatorRequest {
+  string actuator_id = 1;
+}
+
+message DescribeActuatorResponse {
+  ActuatorInfo actuator = 1;
+}
+
+message CalibrateActuatorRequest {
+  string machine_id  = 1;
+  string actuator_id = 2;
+}
+
+message CalibrateActuatorResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message SetActuatorLimitRequest {
+  string actuator_id = 1;
+  string limit_name  = 2;
+  double value       = 3;
+}
+
+// ── Machine messages ──────────────────────────────────────────────────────
+
+message ListMachinesRequest {}
+
+message ListMachinesResponse {
+  repeated string machine_ids = 1;
+}
+
+message GetMachineRequest {
+  string machine_id = 1;
+}
+
+message GetMachineResponse {
+  string machine_id    = 1;
+  string template_id   = 2;
+  string template_ref  = 3;  // JSON-encoded TemplateRef for now
+  string parameters    = 4;  // JSON-encoded parameter map
+  repeated string actuator_bindings = 5;
+}
+
+message BuildMachineRequest {
+  string machine_id   = 1;
+  string template_id  = 2;
+  string template_ref = 3;  // JSON-encoded TemplateRef
+  string parameters   = 4;  // JSON-encoded parameter map
+}
+
+message BindActuatorsRequest {
+  string          machine_id   = 1;
+  repeated string actuator_ids = 2;
+}
+
+// ── Mode messages ─────────────────────────────────────────────────────────
+
+message GetModeResponse {
+  string machine_id = 1;
+  string mode       = 2;  // MachineMode string value
+}
+
+message SetModeRequest {
+  string machine_id = 1;
+  string mode       = 2;
+  string reason     = 3;
+}
+
+message ModeEvent {
+  string machine_id    = 1;
+  string previous_mode = 2;
+  string new_mode      = 3;
+  string reason        = 4;
+  string timestamp     = 5;  // ISO-8601
+}
+
+message GetModeHistoryResponse {
+  repeated ModeEvent events = 1;
+}
+
+// ── Motion messages ───────────────────────────────────────────────────────
+
+message JointTarget {
+  string joint_name = 1;
+  double angle_rad  = 2;
+}
+
+message Pose {
+  repeated double position         = 1;  // [x, y, z]
+  repeated double orientation_quat = 2;  // [x, y, z, w]
+}
+
+message MoveJointRequest {
+  string              machine_id = 1;
+  repeated JointTarget targets   = 2;
+  double              speed_scale = 3;
+}
+
+message MovePoseRequest {
+  string machine_id  = 1;
+  Pose   target_pose = 2;
+  double speed_scale = 3;
+}
+
+message FollowPathRequest {
+  string         machine_id  = 1;
+  repeated Pose  waypoints   = 2;
+  double         speed_scale = 3;
+}
+
+// ── Program messages ──────────────────────────────────────────────────────
+
+message ListProgramsRequest {}
+
+message ProgramMeta {
+  string program_id   = 1;
+  string name         = 2;
+  string description  = 3;
+}
+
+message ListProgramsResponse {
+  repeated ProgramMeta programs = 1;
+}
+
+message GetProgramRequest {
+  string program_id = 1;
+}
+
+message GetProgramResponse {
+  string program_id = 1;
+  string ast_json   = 2;  // JSON-serialised Program AST
+}
+
+message SaveProgramRequest {
+  string ast_json = 1;  // JSON-serialised Program
+}
+
+message RunProgramRequest {
+  string program_id  = 1;
+  string machine_id  = 2;
+}
+
+// ── State messages ────────────────────────────────────────────────────────
+
+message JointStateProto {
+  string joint_name    = 1;
+  double angle_rad     = 2;
+  double velocity_rad_s = 3;
+  double current_a     = 4;
+  string fault         = 5;
+}
+
+message GetStateResponse {
+  string                   machine_id = 1;
+  string                   mode       = 2;
+  repeated JointStateProto measured   = 3;
+}
+
+message StateUpdate {
+  GetStateResponse state = 1;
+}

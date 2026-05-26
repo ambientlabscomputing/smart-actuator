@@ -10,7 +10,6 @@ from brain.service.machine_service import MachineService
 from brain.service.motion_service import MotionService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
-from brain.service.ros_gateway import RosGateway
 from brain.service.safety_service import SafetyService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.state_service import StateService
@@ -49,7 +48,6 @@ class BrainService(Service):
         programs: ProgramService,
         lifecycle: LifecycleService,
         calibration: CalibrationService,
-        ros: RosGateway,
         observability: ObservabilityService,
     ) -> None:
         self.repository = repository
@@ -65,16 +63,13 @@ class BrainService(Service):
         self.programs = programs
         self.lifecycle = lifecycle
         self.calibration = calibration
-        self.ros = ros
         self.observability = observability
 
     async def start(self) -> None:
         logger.info("Starting BrainService")
         await self.sidecar.connect()
         await self.state.start()
-        await self.ros.start()
 
     async def stop(self) -> None:
         logger.info("Stopping BrainService")
-        await self.ros.stop()
         await self.sidecar.disconnect()
