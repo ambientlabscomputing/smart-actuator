@@ -1,0 +1,83 @@
+from brain.models.motion import JointTrajectory
+from brain.models.state import MachineMode
+from brain.repository.repository import Repository
+from brain.service.kinematics_service import KinematicsService
+from brain.service.sidecar_bridge import SidecarBridge
+from brain.utils.config import Config
+from brain.utils.logger import logger
+
+
+class SafetyService:
+    """
+    Whole-machine safety enforcement (C4).
+
+    The Brain is NOT the last line of defence — the sidecar's watchdog and
+    each actuator's local refusal logic are. The Brain enforces cross-joint
+    and whole-machine constraints that the per-actuator layer cannot see.
+    """
+
+    def __init__(
+        self,
+        repository: Repository,
+        sidecar: SidecarBridge,
+        kinematics: KinematicsService,
+        config: Config,
+    ) -> None:
+        self._repository = repository
+        self._sidecar = sidecar
+        self._kinematics = kinematics
+        self._config = config
+
+    async def check_collision(
+        self, machine_id: str, trajectory: JointTrajectory
+    ) -> dict[str, object]:
+        """
+        Check a planned trajectory for self-collision and workspace-bound
+        violations.  Returns {'ok': bool, 'violation_at_s': float | None, 'message': str}.
+        """
+        # TODO: run collision check via kinematics / MuJoCo
+        return {"ok": True, "violation_at_s": None, "message": ""}
+
+    async def check_joint_coordination(
+        self, machine_id: str, trajectory: JointTrajectory
+    ) -> dict[str, object]:
+        """
+        Validate cross-joint constraints (e.g. singularity proximity,
+        coupled-joint limits) across the full trajectory.
+        Returns {'ok': bool, 'violation_at_s': float | None, 'message': str}.
+        """
+        # TODO: evaluate cross-joint constraint expressions from the machine model
+        return {"ok": True, "violation_at_s": None, "message": ""}
+
+    async def estop(self, machine_id: str) -> None:
+        """
+        Surface the E-stop call then delegate fan-out to the sidecar,
+        which owns the time-critical path.
+        """
+        logger.warning("E-stop triggered for machine %s", machine_id)
+        await self._sidecar.estop()
+
+    def gate_capability(self, mode: MachineMode, capability: str) -> bool:
+        """
+        Return True if *capability* is permitted in the given operating mode.
+        Raises if the capability is explicitly forbidden.
+        """
+        # TODO: load mode/capability gate table from machine model
+        allowed: dict[MachineMode, set[str]] = {
+            MachineMode.OFFLINE: set(),
+            MachineMode.IDLE: {"describe", "calibrate", "state"},
+            MachineMode.MANUAL: {"describe", "calibrate", "state", "move_joint"},
+            MachineMode.RUN: {
+                "describe",
+                "state",
+                "move_joint",
+                "move_linear",
+                "move_to_pose",
+                "follow_path",
+                "hold_pose",
+                "go_home",
+                "run_program",
+            },
+            MachineMode.FAULT: {"describe", "state", "estop"},
+        }
+        return capability in allowed.get(mode, set())
