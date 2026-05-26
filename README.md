@@ -25,7 +25,10 @@ The Ambient Labs Smart Actuator is a motor for the new generation of makers prov
 
     See also [RFD Guidelines](#rfd-guidelines)
 
-- For documention, always write diagrams as `mermaid` diagrams
+- For documentation, always write diagrams as `mermaid` diagrams. Rules to avoid broken diagrams:
+  - Never use `<br/>` inside node labels — it prevents rendering
+  - Never use `...` (ellipsis) in node labels — it breaks the lexer; use descriptive text like `Actuator N` instead
+  - Never use the `[[...]]` subroutine shape — it is not supported in all renderers; use `[...]` or `([...])` instead
 - We use Makefiles heavily to maintain ergonomics across languages and subprojects
 
 ### RFD Guidelines
@@ -66,3 +69,6 @@ make run
 - [RFD-1: The Smart Actuator, foundational RFD](RFDs/RFD-1.md)
 - [RFD-2: Actuator Simulator](RFDs/RFD-2.md)
 - [RFD-3: Proposed Architecture](RFDs/RFD-3.md)
+- [RFD-4: The Smart Actuator Brain](RFDs/RFD-4.md)
+- [RFD-5: Template Marketplace and Discovery](RFDs/RFD-5.md)
+- [RFD-6: Shared-World Physics for the Actuator Simulator](RFDs/RFD-6.md)

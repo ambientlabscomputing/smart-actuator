@@ -5,23 +5,23 @@
 ```mermaid
 flowchart LR
     U([User])
-    ROS[[ROS]]
+    ROS([ROS])
 
     subgraph Host[Host computer]
         WUI[Web UI]
         CLI[CLI]
         subgraph CTRL[Controller]
-            BRAIN[Brain<br/>Python]
-            SIDE[Sidecar<br/>Rust]
+            BRAIN[Brain - Python]
+            SIDE[Sidecar - Rust]
         end
     end
 
     subgraph Actuators[Smart Actuators]
         direction TB
-        SA1[Actuator 1<br/>Rust firmware]
+        SA1[Actuator 1]
         SA2[Actuator 2]
-        SAN[...]
-        SIM[Simulator<br/>Rust]
+        SAN[Actuator N]
+        SIM[Simulator]
         HW[(Hardware)]
     end
 
