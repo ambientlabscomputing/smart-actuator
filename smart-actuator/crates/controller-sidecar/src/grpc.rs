@@ -1,0 +1,292 @@
+//! gRPC servicer — implements SidecarService for the Brain.
+
+use crate::aggregator::JointStateAggregator;
+use crate::client_pool::ActuatorClientPool;
+use crate::estop::EStopBroadcaster;
+use crate::watchdog::HeartbeatHandle;
+use actuator_proto::actuator::{ReadRequest, TrajectorySegmentRequest};
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
+use tonic::{Request, Response, Status};
+use tracing::{info, warn};
+
+// Generated types — available after `cargo build -p controller-sidecar`.
+pub mod sidecar_proto {
+    tonic::include_proto!("sidecar");
+}
+
+use sidecar_proto::{
+    sidecar_service_server::SidecarService,
+    ActuatorInfo, ActuatorRequest, CalibrateActuatorRequest, CalibrateActuatorResponse,
+    CommandResponse, EStopRequest, GetJointStatesRequest, HeartbeatRequest, HeartbeatResponse,
+    JointState, JointStateBatch, ListActuatorsRequest, ListActuatorsResponse,
+    SendTrajectoryRequest, StreamJointStatesRequest,
+};
+
+fn now_ns() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as i64
+}
+
+pub struct SidecarServicer {
+    pool: Arc<Mutex<ActuatorClientPool>>,
+    aggregator: Arc<JointStateAggregator>,
+    estop: Arc<EStopBroadcaster>,
+    heartbeat: HeartbeatHandle,
+}
+
+impl SidecarServicer {
+    pub fn new(
+        pool: Arc<Mutex<ActuatorClientPool>>,
+        aggregator: Arc<JointStateAggregator>,
+        estop: Arc<EStopBroadcaster>,
+        heartbeat: HeartbeatHandle,
+    ) -> Self {
+        Self { pool, aggregator, estop, heartbeat }
+    }
+}
+
+#[tonic::async_trait]
+impl SidecarService for SidecarServicer {
+    // ── Discovery ──────────────────────────────────────────────────────────
+
+    async fn list_actuators(
+        &self,
+        _request: Request<ListActuatorsRequest>,
+    ) -> Result<Response<ListActuatorsResponse>, Status> {
+        let pool = self.pool.lock().await;
+        let actuators = pool
+            .live_endpoints()
+            .iter()
+            .map(|ep| ActuatorInfo {
+                id: ep.id.clone(),
+                address: ep.address.clone(),
+                joint_name: ep.joint_name.clone(),
+                is_simulated: ep.is_simulated,
+                health: "unknown".into(), // TODO: track per-actuator health
+            })
+            .collect();
+        Ok(Response::new(ListActuatorsResponse { actuators }))
+    }
+
+    // ── State ──────────────────────────────────────────────────────────────
+
+    async fn get_joint_states(
+        &self,
+        _request: Request<GetJointStatesRequest>,
+    ) -> Result<Response<JointStateBatch>, Status> {
+        let mut pool = self.pool.lock().await;
+        let mut joints = Vec::new();
+
+        for (id, client) in pool.iter_mut() {
+            let req = Request::new(ReadRequest {});
+            match client.read_position(req).await {
+                Ok(resp) => {
+                    let pos = resp.into_inner();
+                    joints.push(JointState {
+                        actuator_id: id.clone(),
+                        joint_name: id.clone(),
+                        angle_rad: pos.angle,
+                        velocity_rad_s: 0.0,
+                        current_a: 0.0,
+                        fault: String::new(),
+                    });
+                }
+                Err(e) => {
+                    warn!(actuator_id = %id, error = %e, "get_joint_states: read failed");
+                    joints.push(JointState {
+                        actuator_id: id.clone(),
+                        joint_name: id.clone(),
+                        angle_rad: 0.0,
+                        velocity_rad_s: 0.0,
+                        current_a: 0.0,
+                        fault: e.to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(Response::new(JointStateBatch { joints, timestamp: now_ns() }))
+    }
+
+    type StreamJointStatesStream = std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<JointStateBatch, Status>> + Send + 'static>,
+    >;
+
+    async fn stream_joint_states(
+        &self,
+        _request: Request<StreamJointStatesRequest>,
+    ) -> Result<Response<Self::StreamJointStatesStream>, Status> {
+        // The aggregator continuously publishes Vec<JointStateSnapshot>.
+        // We need to map that to JointStateBatch — but tonic streaming needs
+        // Stream<Item = Result<JointStateBatch, Status>>.
+        // We use a separate channel that emits JointStateBatch directly.
+        // TODO: wrap aggregator.subscribe() and map snapshots → JointStateBatch.
+        Err(Status::unimplemented(
+            "StreamJointStates: snapshot→batch adapter not yet implemented",
+        ))
+    }
+
+    // ── Motion ─────────────────────────────────────────────────────────────
+
+    async fn send_trajectory_segments(
+        &self,
+        request: Request<SendTrajectoryRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let req = request.into_inner();
+        let mut pool = self.pool.lock().await;
+        let mut errors: Vec<String> = Vec::new();
+
+        for seg in req.segments {
+            let client = pool.get_mut(&seg.actuator_id).ok_or_else(|| {
+                Status::not_found(format!("actuator {} not found", seg.actuator_id))
+            })?;
+
+            // Convert sidecar TrajectoryPoint → actuator TrajectorySegmentRequest.
+            // Mapping is approximate — adjust to match the actuator proto fields.
+            let points = seg
+                .points
+                .iter()
+                .map(|p| actuator_proto::actuator::TrajectoryPoint {
+                    time_s: p.time_from_start_s,
+                    position: p.position_rad,
+                    velocity: p.velocity_rad_s,
+                    torque_ff: p.torque_ff_nm,
+                })
+                .collect();
+
+            let traj_req = Request::new(TrajectorySegmentRequest {
+                start_time_s: seg.start_time_ns as f64 / 1e9,
+                points,
+            });
+
+            match client.execute_trajectory_segment(traj_req).await {
+                Ok(resp) => {
+                    let r = resp.into_inner();
+                    if !r.success {
+                        errors.push(format!("{}: {}", seg.actuator_id, r.message));
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("{}: {}", seg.actuator_id, e));
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(Response::new(CommandResponse { success: true, message: String::new() }))
+        } else {
+            Ok(Response::new(CommandResponse {
+                success: false,
+                message: errors.join("; "),
+            }))
+        }
+    }
+
+    async fn pause(
+        &self,
+        request: Request<ActuatorRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let id = request.into_inner().actuator_id;
+        let mut pool = self.pool.lock().await;
+        let client = pool
+            .get_mut(&id)
+            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
+
+        let req = Request::new(ReadRequest {});
+        client
+            .pause(req)
+            .await
+            .map(|r| {
+                let inner = r.into_inner();
+                Response::new(CommandResponse { success: inner.success, message: inner.message })
+            })
+            .map_err(|e| Status::internal(e.to_string()))
+    }
+
+    async fn resume(
+        &self,
+        request: Request<ActuatorRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let id = request.into_inner().actuator_id;
+        let mut pool = self.pool.lock().await;
+        let client = pool
+            .get_mut(&id)
+            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
+
+        let req = Request::new(ReadRequest {});
+        client
+            .resume(req)
+            .await
+            .map(|r| {
+                let inner = r.into_inner();
+                Response::new(CommandResponse { success: inner.success, message: inner.message })
+            })
+            .map_err(|e| Status::internal(e.to_string()))
+    }
+
+    async fn abort(
+        &self,
+        request: Request<ActuatorRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let id = request.into_inner().actuator_id;
+        let mut pool = self.pool.lock().await;
+        let client = pool
+            .get_mut(&id)
+            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
+
+        let req = Request::new(ReadRequest {});
+        client
+            .abort(req)
+            .await
+            .map(|r| {
+                let inner = r.into_inner();
+                Response::new(CommandResponse { success: inner.success, message: inner.message })
+            })
+            .map_err(|e| Status::internal(e.to_string()))
+    }
+
+    // ── Safety ─────────────────────────────────────────────────────────────
+
+    async fn e_stop(
+        &self,
+        _request: Request<EStopRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        info!("EStop RPC received from Brain");
+        self.estop.broadcast("brain rpc").await;
+        Ok(Response::new(CommandResponse { success: true, message: String::new() }))
+    }
+
+    // ── Calibration ────────────────────────────────────────────────────────
+
+    async fn calibrate_actuator(
+        &self,
+        request: Request<CalibrateActuatorRequest>,
+    ) -> Result<Response<CalibrateActuatorResponse>, Status> {
+        let id = request.into_inner().actuator_id;
+        info!(actuator_id = %id, "CalibrateActuator requested");
+        // TODO: implement proper calibration protocol with the actuator
+        Ok(Response::new(CalibrateActuatorResponse {
+            success: false,
+            message: "calibration not yet implemented".into(),
+            zero_offset_rad: 0.0,
+        }))
+    }
+
+    // ── Watchdog ───────────────────────────────────────────────────────────
+
+    async fn heartbeat(
+        &self,
+        request: Request<HeartbeatRequest>,
+    ) -> Result<Response<HeartbeatResponse>, Status> {
+        self.heartbeat.touch();
+        let _ts = request.into_inner().timestamp;
+        Ok(Response::new(HeartbeatResponse {
+            timestamp: now_ns(),
+            watchdog_status: "ok".into(),
+        }))
+    }
+}

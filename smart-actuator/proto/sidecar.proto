@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package sidecar;
+
+// SidecarService is the interface exposed by the Rust Sidecar to the Python Brain.
+// Transported over a Unix-domain socket (configurable).
+// Code generation:
+//   cargo build -p controller-sidecar
+service SidecarService {
+  // ── Discovery ─────────────────────────────────────────────────────────────
+  rpc ListActuators (ListActuatorsRequest) returns (ListActuatorsResponse);
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  rpc GetJointStates    (GetJointStatesRequest)    returns (JointStateBatch);
+  rpc StreamJointStates (StreamJointStatesRequest) returns (stream JointStateBatch);
+
+  // ── Motion ────────────────────────────────────────────────────────────────
+  rpc SendTrajectorySegments (SendTrajectoryRequest) returns (CommandResponse);
+  rpc Pause                  (ActuatorRequest)        returns (CommandResponse);
+  rpc Resume                 (ActuatorRequest)        returns (CommandResponse);
+  rpc Abort                  (ActuatorRequest)        returns (CommandResponse);
+
+  // ── Safety ────────────────────────────────────────────────────────────────
+  rpc EStop (EStopRequest) returns (CommandResponse);
+
+  // ── Calibration ───────────────────────────────────────────────────────────
+  rpc CalibrateActuator (CalibrateActuatorRequest) returns (CalibrateActuatorResponse);
+
+  // ── Watchdog ──────────────────────────────────────────────────────────────
+  // The Brain must call Heartbeat periodically. If the sidecar does not receive
+  // a heartbeat within the configured timeout it issues an E-stop automatically.
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+message CommandResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message ActuatorRequest {
+  string actuator_id = 1;
+}
+
+// ── Discovery messages ────────────────────────────────────────────────────────
+
+message ListActuatorsRequest {}
+
+message ActuatorInfo {
+  string id           = 1;
+  string address      = 2;  // e.g. "http://127.0.0.1:50051"
+  string joint_name   = 3;
+  bool   is_simulated = 4;
+  string health       = 5;  // "ok" | "degraded" | "fault" | "unknown"
+}
+
+message ListActuatorsResponse {
+  repeated ActuatorInfo actuators = 1;
+}
+
+// ── State messages ────────────────────────────────────────────────────────────
+
+message GetJointStatesRequest {}
+
+message StreamJointStatesRequest {}
+
+message JointState {
+  string actuator_id    = 1;
+  string joint_name     = 2;
+  double angle_rad      = 3;
+  double velocity_rad_s = 4;
+  double current_a      = 5;
+  string fault          = 6;  // empty string means no fault
+}
+
+message JointStateBatch {
+  repeated JointState joints    = 1;
+  int64               timestamp = 2;  // nanoseconds since Unix epoch
+}
+
+// ── Motion messages ───────────────────────────────────────────────────────────
+
+message TrajectoryPoint {
+  double time_from_start_s = 1;
+  double position_rad      = 2;
+  double velocity_rad_s    = 3;
+  double torque_ff_nm      = 4;
+}
+
+message ActuatorTrajectorySegment {
+  string                  actuator_id    = 1;
+  string                  joint_name     = 2;
+  repeated TrajectoryPoint points        = 3;
+  int64                   start_time_ns  = 4;  // absolute start time (ns epoch)
+}
+
+message SendTrajectoryRequest {
+  repeated ActuatorTrajectorySegment segments = 1;
+}
+
+// ── Safety messages ───────────────────────────────────────────────────────────
+
+message EStopRequest {}
+
+// ── Calibration messages ──────────────────────────────────────────────────────
+
+message CalibrateActuatorRequest {
+  string actuator_id = 1;
+}
+
+message CalibrateActuatorResponse {
+  bool   success         = 1;
+  string message         = 2;
+  double zero_offset_rad = 3;
+}
+
+// ── Watchdog messages ─────────────────────────────────────────────────────────
+
+message HeartbeatRequest {
+  int64 timestamp = 1;  // sender's nanosecond timestamp (informational)
+}
+
+message HeartbeatResponse {
+  int64  timestamp         = 1;  // sidecar's nanosecond timestamp
+  string watchdog_status   = 2;  // "ok" | "warning" | "triggered"
+}

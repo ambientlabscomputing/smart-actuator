@@ -1,0 +1,26 @@
+log_settings:
+  file: sidecar.log
+  level: INFO
+  log_to_stderr: true
+
+listen:
+  # Unix domain socket — Brain connects to this path.
+  # Must match sidecar_socket in the Brain's config.yaml.
+  socket_path: /tmp/sidecar.sock
+
+watchdog:
+  timeout_secs: 5
+  check_interval_secs: 1
+  enabled: true
+
+discovery:
+  # Static actuator list.  Add entries here for each joint axis.
+  # Example:
+  # static_actuators:
+  #   - id: shoulder_pan
+  #     address: "http://127.0.0.1:50051"
+  #     joint_name: shoulder_pan_joint
+  #     is_simulated: true
+  static_actuators: []
+
+pid_file: sidecar.pid

@@ -4,4 +4,33 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
-# TODO: gRPC client pool, discovery, E-stop broadcast, safety watchdog
+[[bin]]
+name = "controller-sidecar"
+path = "src/main.rs"
+
+[dependencies]
+actuator-proto.workspace = true
+
+tokio.workspace = true
+tokio-stream.workspace = true
+futures.workspace = true
+tonic.workspace = true
+prost.workspace = true
+async-trait.workspace = true
+
+serde.workspace = true
+serde_yaml.workspace = true
+
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+clap.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["signal"] }
+daemonize = "0.5"
+
+[build-dependencies]
+tonic-build = "0.13"
