@@ -72,13 +72,27 @@ accept arbitrary user-authored URDF. This is a deliberate scope cut
 - Accept a **machine description** = `(template_id, parameters,
   actuator_bindings)`. The Brain expands this into a concrete URDF
   internally. The user never edits raw URDF.
-- Bind discovered actuators to template joint slots (structural
-  binding: "this template has 3 joints, you have 3 actuators, bind in
-  order" — no name-matching ceremony required).
+- **Per-slot, kind-aware binding.** Each joint slot in the template
+  is bound independently to one of:
+
+  - `unbound` — no actuator yet; the joint is structurally present
+    in the description but cannot be commanded.
+  - `real` — paired with a discovered hardware actuator from the
+    Sidecar's pool. Carries the actuator's stable id.
+  - `sim` — paired with a Brain-deployed `actuator-sim` instance
+    (see C11). Carries the sim instance handle.
+
+  Mixed bindings (some slots `real`, some `sim`) are first-class.
+  This is what makes the [RFD-7](RFD-7.md) "+ Add motor" flow
+  possible: the user clicks an unbound joint, picks real or sim,
+  and the binding updates. There is no "bind all in order"
+  ceremony; that earlier framing is superseded.
 - Hold the expanded link/joint graph as the canonical model used by
   C2–C9.
 - Persist the machine description (the small `(template_id, params,
-  bindings)` tuple, not the expanded URDF) across restarts.
+  bindings)` tuple, not the expanded URDF) across restarts. Binding
+  entries persist by `kind` + actuator-id / sim-handle as
+  appropriate.
 
 Machine descriptions are their own AST, distinct from program ASTs
 (see C6).
@@ -137,6 +151,10 @@ each actuator's local refusal logic are.
   - **Modeled** — Brain's forward-kinematic view (FK only; not MuJoCo).
   - Per-endpoint, we declare which one is being served (resolves RFD-3
     open question 7).
+- Per-actuator state carries a `kind` field (`real` | `sim`) sourced
+  from the binding (C1) and the sim registry (C11). The UI uses
+  this to render a `SIM` badge ([RFD-7](RFD-7.md)). It is *not* a
+  safety signal — safety treats real and sim identically.
 - Buffer recent state for short-term replay / debugging.
 
 ### C6. Programs and behaviors
@@ -178,17 +196,46 @@ Mode transitions are first-class events; every interface can observe them.
 
 - Drive the onboarding flow from RFD-1 ("discover → describe → calibrate
   → test").
-- Trigger per-actuator calibration via the Sidecar; aggregate results.
-- Whole-machine calibration steps that involve multiple joints (e.g. tool
-  frame, base frame).
-- **Simulated bind.** Onboarding supports a parallel path where the
-  machine description is bound to `actuator-sim` instances instead
-  of real hardware. Same template, same parameters, same downstream
-  surface — the Brain doesn't distinguish. This is how a user
-  designs and plays with a digital twin of their robot before
-  assembly: pick template, tune parameters, bind to sim, run
-  programs. Switching to real hardware later is a re-bind, not a
-  redescribe.
+- Onboarding is **per-joint**, not whole-machine-at-once. The user
+  parameterizes the template, then for each joint slot picks
+  "onboard real hardware" or "add simulated" ([RFD-7](RFD-7.md)).
+  The Brain handles binding (C1) and, for the sim case, deployment
+  (C11). A machine becomes commandable once *enough* slots are
+  bound for the requested operating mode (C7).
+- **Calibration is a first-class job.** Per-actuator calibration
+  (encoder offset, range sweep, friction model, …) and
+  whole-machine calibration (tool frame, base frame) are both
+  modelled as long-running, interactive jobs identified by
+  `job_id`. A job carries a state machine, a current step, the
+  last measurement, and a prompt for the UI to display ("move the
+  arm to the home position and click continue"). The user advances
+  or aborts the job; the Brain drives the underlying actuator
+  primitives.
+- The Brain exposes:
+
+  - `POST /machines/{mid}/actuators/{aid}/calibrations` to start a
+    per-actuator routine, returning `{job_id, initial_state}`.
+  - `GET /machines/{mid}/calibrations/{job_id}` for current state.
+  - `POST .../advance` and `POST .../abort`.
+  - A `calibrations/{job_id}` topic on the events WS for live
+    progress (step transitions, measurement updates, prompt
+    changes, completion).
+
+  These live in a dedicated `calibrations.py` REST module sitting
+  beside `actuators.py`, `machine.py`, etc. `calibration_service.py`
+  is unchanged in spirit but grows a flow-orchestrator layer above
+  the existing primitives — the orchestrator owns the per-job
+  state machine and serializes session state into the Brain's
+  SQLite store so jobs survive a UI reload.
+- Whole-machine calibration steps use the same job shape, scoped
+  at the machine instead of an actuator
+  (`POST /machines/{mid}/calibrations`).
+- The old "Simulated bind" sub-bullet from earlier drafts is
+  subsumed by per-slot `sim` binding (C1) plus sim lifecycle
+  (C11). Designing a digital twin before assembly is now: pick
+  template, tune parameters, add sim joints one by one, run
+  programs. Swapping a sim for real hardware is a per-slot
+  re-bind, not a whole-machine redescribe.
 
 ### C9. ROS gateway
 
@@ -205,6 +252,40 @@ Joint semantics live with the URDF, so ROS lives here (RFD-3 T4).
 - Metrics: command rate, tracking error, mode-time distribution.
 - An event stream the UI can tail (likely the same WS stream used for
   state).
+
+### C11. Actuator lifecycle and sim deployment
+
+The Brain owns the lifecycle of any `actuator-sim` instances bound
+into its machine. Real actuators are discovered and addressed by the
+Sidecar (RFD-3); sim actuators are *deployed* by the Brain on user
+request.
+
+- **Deploy.** When a joint slot is bound `sim` (C1), the Brain
+  spawns an `actuator-sim` process, registers it with the Sidecar
+  so it becomes a peer in the gRPC pool indistinguishable from
+  real firmware, and records the handle in the binding.
+- **Track.** The Brain holds a sim registry: per sim, the process
+  handle, the bound joint slot, the last health timestamp, and any
+  configuration (e.g. shared-world attachment per [RFD-6](RFD-6.md)
+  when applicable). The registry is persisted alongside the machine
+  description so sims are re-spawned on Brain restart.
+- **Teardown.** Unbinding a `sim` slot, or replacing it with a
+  `real` binding, tears the sim process down cleanly and
+  deregisters it from the Sidecar.
+- **Health.** Sim processes that crash are surfaced as faults on
+  the events WS; the Brain may auto-respawn within a small retry
+  budget before declaring the binding faulted.
+
+The sim lifecycle is deliberately the Brain's job, not the
+Sidecar's: the Sidecar manages peer *transport*, not the existence
+of peers. This keeps the Sidecar agnostic to whether its peers are
+real or sim and keeps sim-specific concerns (which template?
+attached to which shared world? how many retries?) on the side that
+already owns the machine description.
+
+Back-references: this capability exists to support the per-joint
+"+ Add motor" flow in [RFD-7](RFD-7.md) and the mixed-bind
+semantics in C1.
 
 ## Interfaces
 
@@ -242,12 +323,23 @@ Resource sketch (verbs are HTTP, plus a WebSocket channel for streams):
 - `PUT /machine` — load/replace URDF.
 - `GET /actuators` / `GET /actuators/{id}` — discovered actuator info.
 - `POST /actuators/{id}/calibrate`
+- `POST /machines/{mid}/actuators/{aid}/calibrations` — start a
+  calibration job (C8). `GET`, `advance`, `abort` follow.
 - `GET /state` — snapshot. `WS /state` — live stream.
 - `GET /mode`, `POST /mode` — read / request mode change.
 - `POST /move/joint`, `POST /move/linear`, `POST /move/pose`
 - `POST /estop`
 - `GET /programs`, `POST /programs`, `POST /programs/{id}/run`
 - `GET /events` — WS stream of mode changes, faults, refusals.
+
+The public WS endpoint is **single-connection, topic-multiplexed**
+([RFD-7](RFD-7.md)). A client opens one socket, then subscribes to
+topics (`state`, `events`, `mode`, `calibrations/{job_id}`,
+`programs/{id}/run`, …). High-rate topics like `state` accept a
+**per-subscriber rate parameter**; the Brain downsamples Sidecar
+frames to the requested rate. The canvas asks for 60 Hz; a
+diagnostics client can ask for full Sidecar rate. The "Modeled"
+view is its own topic and is rate-negotiable independently.
 
 Conventions to settle:
 
@@ -529,6 +621,27 @@ answer is "we'll add a template," not "here, write XML."
   across template-version-bumps, diff UIs that explain what
   changed, multi-machine bulk updates. SHA-pinned machines are
   unaffected by `templates update` by construction.
+- **Per-joint kind-aware binding.** Each joint slot binds
+  independently to `unbound`, `real`, or `sim`. Mixed bindings
+  are first-class. Supersedes the earlier "bind discovered
+  actuators in order" framing. Driven by the
+  [RFD-7](RFD-7.md) "+ Add motor" flow. See C1, C11.
+- **Sim lifecycle is a Brain capability.** Spawning, tracking,
+  and tearing down `actuator-sim` processes belongs to the Brain
+  (C11), not the Sidecar. The Sidecar manages peer transport;
+  the Brain decides which peers exist. Back-propagated from
+  [RFD-7](RFD-7.md).
+- **Calibration is a first-class job model.** Long-running,
+  interactive, addressed by `job_id`, with REST CRUD and a
+  dedicated `calibrations/{job_id}` WS topic. New REST module
+  `calibrations.py`; orchestrator layer above the existing
+  primitives in `calibration_service.py`. See C8. Back-propagated
+  from [RFD-7](RFD-7.md).
+- **Public WS is single-connection, topic-multiplexed, with
+  per-subscriber rate control.** Clients open one socket and
+  subscribe to topics; the Brain downsamples high-rate topics to
+  the requested rate. See the REST section. Back-propagated from
+  [RFD-7](RFD-7.md).
 
 ### Open
 

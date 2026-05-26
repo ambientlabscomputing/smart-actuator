@@ -103,7 +103,11 @@ A single process on the host, internally two cooperating components:
 
 **Sidecar (Rust).** The transport and watchdog layer. Owns:
 - gRPC client pool to N actuators (real and simulated, indistinguishably)
-- Actuator discovery and addressing
+- Actuator discovery and addressing, **including peers that come and
+  go at runtime.** Real actuators may be hot-plugged; simulated
+  actuators are spawned on-demand by the Brain ([RFD-4](RFD-4.md)
+  C11, driven by the [RFD-7](RFD-7.md) "+ Add motor" flow). The
+  Sidecar's pool is dynamic, not fixed at startup.
 - E-stop broadcast (fan-out to all actuators)
 - Safety watchdog: deadman/heartbeat, watchdog timer, fallback hold/halt
   if the Brain stops responding
@@ -179,6 +183,10 @@ over IPC; it has no Rust build dependency.
    `actuator-proto` types, and unit/frame helpers with firmware and sim.
 3. **Discovery.** How does the Sidecar learn about actuators? Static config,
    mDNS, USB enumeration, gRPC reflection on a known multicast group?
+   Whatever the mechanism for real actuators, the pool must also
+   accept sim peers handed in by the Brain at runtime
+   ([RFD-4](RFD-4.md) C11) — i.e. an explicit "register this
+   address" path alongside whatever auto-discovery we land on.
 4. **Time sync.** Trajectories in RFD-2 use `start_time`. NTP, PTP, or
    monotonic with handshake offset?
 5. **Peer-to-peer actuator comms.** Deferred. If a future use case needs

@@ -148,6 +148,10 @@ These are the parts that justify the RFD existing.
 - Soft-body dynamics. MuJoCo can do some; we don't need it.
 - Multi-machine worlds (two robots in one scene). Future, and
   related to RFD-4's multi-machine open question.
+- Mixed-bind whole-machine dynamics (some joints `real`, some
+  `sim` in a single machine). The shared world is fully-sim-only;
+  mixed-bind machines fall back to per-sim isolated dynamics.
+  See "Relationship to other RFDs" for the rationale.
 - Backwards-incompatible changes to the `actuator-sim` gRPC surface.
 
 ## Phasing
@@ -177,6 +181,17 @@ These are the parts that justify the RFD existing.
 - **[RFD-4](RFD-4.md):** the Brain's MuJoCo remains on-demand and
   scoped to planning. The realistic-sim-feel goal is satisfied here,
   not there.
+- **[RFD-7](RFD-7.md):** the UI's "+ Add motor" flow makes
+  per-joint binding kind-aware, which means a single machine can
+  have a mix of real and sim joints ([RFD-4](RFD-4.md) C1). The
+  shared MuJoCo world cannot accurately couple real and sim
+  joints — a real arm hanging off a sim base, or vice versa, is
+  not a coherent dynamics problem for the world to solve. **v1
+  stance:** the shared world only attaches when *every* joint in
+  the machine is `sim`. In mixed bindings, sims fall back to
+  per-sim isolated dynamics (Phase 0 behavior). Mixed-bind
+  whole-machine dynamics is explicitly out of scope; revisit if a
+  use case shows up.
 
 ## Status
 
