@@ -15,12 +15,10 @@ watchdog:
 
 discovery:
   # Static actuator list.  Add entries here for each joint axis.
-  # Example:
-  # static_actuators:
-  #   - id: shoulder_pan
-  #     address: "http://127.0.0.1:50051"
-  #     joint_name: shoulder_pan_joint
-  #     is_simulated: true
-  static_actuators: []
+  static_actuators:
+    - id: joint0
+      address: "http://127.0.0.1:50051"
+      joint_name: joint0
+      is_simulated: true
 
 pid_file: sidecar.pid

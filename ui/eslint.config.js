@@ -5,6 +5,22 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+// Packages that are implementation details of the components layer.
+// Only files under src/components/ may import these directly.
+// Everywhere else, import from '@/components' instead.
+const VISUAL_LAYER_PACKAGES = [
+  '@mui/material',
+  '@mui/material/*',
+  '@mui/icons-material',
+  '@mui/icons-material/*',
+  '@emotion/react',
+  '@emotion/styled',
+  '@react-three/fiber',
+  '@react-three/drei',
+  'three',
+  'three/*',
+]
+
 export default defineConfig([
   globalIgnores(['dist']),
   {
@@ -19,4 +35,27 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // Enforce the visual-language boundary: only src/components/** may import
+  // MUI, Emotion, three, or R3F directly.  Everything else must import from
+  // @/components.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/components/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: VISUAL_LAYER_PACKAGES.map((pkg) => ({
+            name: pkg,
+            message: `Import from '@/components' instead of '${pkg}' directly. MUI, Emotion, three, and R3F are implementation details of the components layer.`,
+          })),
+          patterns: VISUAL_LAYER_PACKAGES.map((pkg) => ({
+            group: [pkg],
+            message: `Import from '@/components' instead. MUI, Emotion, three, and R3F are implementation details of the components layer.`,
+          })),
+        },
+      ],
+    },
+  },
 ])
+

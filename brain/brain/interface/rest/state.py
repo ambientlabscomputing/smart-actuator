@@ -13,39 +13,32 @@ Service = Annotated[BrainService, Depends(get_service)]
 
 @router.get("", response_model=MachineState)
 async def get_state(machine_id: str, svc: Service) -> MachineState:
-    """Return a snapshot of the current measured machine state."""
     state = svc.state.get_measured_state(machine_id)
     if state is None:
         from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail=f"No state for machine {machine_id!r}")
     return state
 
 
 @router.websocket("/ws")
-async def stream_state(
-    websocket: WebSocket, machine_id: str, svc: BrainService = Depends(get_service)
-) -> None:
-    """WebSocket — streams live machine state updates to the client."""
+async def stream_state(websocket: WebSocket, machine_id: str) -> None:
+    import asyncio
+
+    # WebSocket endpoints do not receive a Request object, so pull the service
+    # directly from app.state instead of using the get_service dependency.
+    svc: BrainService = websocket.app.state.brain
+
     await websocket.accept()
-    queue_ref: list = []
+
+    q: asyncio.Queue[MachineState] = asyncio.Queue(maxsize=10)
 
     def on_state(state: MachineState) -> None:
         if state.machine_id == machine_id:
             try:
-                websocket.state  # check if still open (no-op attribute access)
-                import asyncio
+                q.put_nowait(state)
+            except asyncio.QueueFull:
+                pass  # slow consumer - drop frame
 
-                asyncio.get_event_loop().call_soon_threadsafe(
-                    lambda: queue_ref[0].put_nowait(state) if queue_ref else None
-                )
-            except Exception:
-                pass
-
-    import asyncio
-
-    q: asyncio.Queue[MachineState] = asyncio.Queue()
-    queue_ref.append(q)
     svc.state.subscribe(on_state)
 
     try:

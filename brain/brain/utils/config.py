@@ -22,7 +22,7 @@ class Config(BaseModel):
     rest_host: str = Field(default="0.0.0.0")
     rest_port: int = Field(default=8080)
     grpc_host: str = Field(default="0.0.0.0")
-    grpc_port: int = Field(default=50051)
+    grpc_port: int = Field(default=50061)
     template_cache_dir: str = Field(
         default="~/.brain/templates",
         description="Local directory for cached template repos",

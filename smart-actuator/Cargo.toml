@@ -41,7 +41,7 @@ clap = { version = "4", features = ["derive"] }
 async-trait = "0.1"
 
 # async utilities
-tokio-stream = { version = "0.1", features = ["net"] }
+tokio-stream = { version = "0.1", features = ["net", "sync"] }
 futures = "0.3"
 
 # internal crates

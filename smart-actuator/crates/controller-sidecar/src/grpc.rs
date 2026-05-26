@@ -120,14 +120,32 @@ impl SidecarService for SidecarServicer {
         &self,
         _request: Request<StreamJointStatesRequest>,
     ) -> Result<Response<Self::StreamJointStatesStream>, Status> {
-        // The aggregator continuously publishes Vec<JointStateSnapshot>.
-        // We need to map that to JointStateBatch — but tonic streaming needs
-        // Stream<Item = Result<JointStateBatch, Status>>.
-        // We use a separate channel that emits JointStateBatch directly.
-        // TODO: wrap aggregator.subscribe() and map snapshots → JointStateBatch.
-        Err(Status::unimplemented(
-            "StreamJointStates: snapshot→batch adapter not yet implemented",
-        ))
+        use tokio_stream::wrappers::BroadcastStream;
+        use tokio_stream::StreamExt;
+
+        info!("stream_joint_states: client subscribed");
+        let rx = self.aggregator.subscribe();
+        let stream = BroadcastStream::new(rx).filter_map(|result| match result {
+            Ok(snapshots) => {
+                let joints = snapshots
+                    .into_iter()
+                    .map(|s| JointState {
+                        actuator_id: s.actuator_id,
+                        joint_name: s.joint_name,
+                        angle_rad: s.angle_rad,
+                        velocity_rad_s: s.velocity_rad_s,
+                        current_a: s.current_a,
+                        fault: s.fault.unwrap_or_default(),
+                    })
+                    .collect();
+                Some(Ok(JointStateBatch { joints, timestamp: now_ns() }))
+            }
+            Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
+                tracing::warn!(frames = n, "stream_joint_states: slow consumer lagged");
+                None
+            }
+        });
+        Ok(Response::new(Box::pin(stream)))
     }
 
     // ── Motion ─────────────────────────────────────────────────────────────

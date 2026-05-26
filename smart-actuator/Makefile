@@ -30,6 +30,16 @@ stop:
 	@ACTUATOR_SIM_CONFIG=crates/actuator-sim/configs/default.yaml \
 		./target/debug/actuator-sim stop
 
+## run-sidecar: Run the controller sidecar with the default config
+run-sidecar: build
+	@SIDECAR_CONFIG=crates/controller-sidecar/configs/default.yaml \
+		./target/debug/controller-sidecar run
+
+## stop-sidecar: Stop the running controller sidecar (by killing the PID in the PID file)
+stop-sidecar:
+	@SIDECAR_CONFIG=crates/controller-sidecar/configs/default.yaml \
+		./target/debug/controller-sidecar stop
+
 ## proto: Regenerate gRPC code (handled automatically by build.rs)
 proto:
 	cargo build -p actuator-proto
