@@ -1,13 +1,29 @@
+pid_file: actuator_sim.pid
+
 log_settings:
   file: actuator_sim.log
   level: DEBUG
-  log_to_stderr: true
+  log_to_stderr: false   # true → stderr (terminal); false → file above
 
 grpc:
   host: "0.0.0.0"
   port: 50051
-  max_workers: 10
+  backdoor_port: 50052
+  enable_backdoor: true
 
 identity:
   name: "sim 1"
   id: "actuator-simulator-001"
+
+physics:
+  tick_hz: 1000.0
+  inertia: 0.01        # kg·m²
+  damping: 0.1         # N·m·s/rad
+  kp_pos: 10.0         # N·m/rad   (position PD Kp)
+  kd_pos: 2.0          # N·m·s/rad (position PD Kd)
+  kp_vel: 1.0          # N·m·s/rad (velocity P Kp)
+  kt: 2.0              # A/N·m     (torque → current estimate)
+  encoder_noise_std: 0.0  # rad   (0 = noiseless)
+  thermal_resistance: 5.0    # °C/W
+  thermal_capacitance: 10.0  # J/°C
+

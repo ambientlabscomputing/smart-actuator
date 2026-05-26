@@ -5,3 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 # TODO: HAL drivers and main() for real hardware
+
+[dependencies]
+actuator-core.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["sync"] }

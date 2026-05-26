@@ -21,9 +21,14 @@ lint:
 	cargo clippy --workspace -- -D warnings
 
 ## run: Run the actuator simulator with the default config
-run:
-	ACTUATOR_SIM_CONFIG=crates/actuator-sim/configs/default.yaml \
-		cargo run -p actuator-sim -- run
+run: build
+	@ACTUATOR_SIM_CONFIG=crates/actuator-sim/configs/default.yaml \
+		./target/debug/actuator-sim run -d
+
+## stop: Stop the running actuator simulator (by killing the PID in the PID file)
+stop:
+	@ACTUATOR_SIM_CONFIG=crates/actuator-sim/configs/default.yaml \
+		./target/debug/actuator-sim stop
 
 ## proto: Regenerate gRPC code (handled automatically by build.rs)
 proto:

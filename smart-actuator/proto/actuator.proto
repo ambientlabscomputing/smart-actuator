@@ -4,51 +4,117 @@ package actuator;
 
 option go_package = "actuator_sim/proto";
 
-// ActuatorService provides control and telemetry for a simulated actuator.
+// ActuatorService is the shared wire contract for both firmware and simulator.
 service ActuatorService {
-  // Command RPCs — write control targets
+  // ── Level 1: Command RPCs ────────────────────────────────────────────────
   rpc SetPosition (SetPositionRequest) returns (CommandResponse);
   rpc SetVelocity (SetVelocityRequest) returns (CommandResponse);
   rpc SetTorque   (SetTorqueRequest)   returns (CommandResponse);
 
-  // Telemetry RPCs — read current state
-  rpc ReadPosition (ReadRequest) returns (PositionResponse);
-  rpc ReadVelocity (ReadRequest) returns (VelocityResponse);
-  rpc ReadCurrent  (ReadRequest) returns (CurrentResponse);
+  // ── Level 1: Telemetry RPCs ──────────────────────────────────────────────
+  rpc ReadPosition    (ReadRequest) returns (PositionResponse);
+  rpc ReadVelocity    (ReadRequest) returns (VelocityResponse);
+  rpc ReadCurrent     (ReadRequest) returns (CurrentResponse);
+
+  // ── Level 2: Safety configuration ───────────────────────────────────────
+  rpc SetSoftLimits       (SetSoftLimitsRequest)       returns (CommandResponse);
+  rpc SetCurrentLimit     (SetCurrentLimitRequest)     returns (CommandResponse);
+  rpc SetTemperatureLimit (SetTemperatureLimitRequest) returns (CommandResponse);
+  rpc SetControlMode      (SetControlModeRequest)      returns (CommandResponse);
+  rpc ClearFault          (ReadRequest)                returns (CommandResponse);
+  rpc ReadTemperature     (ReadRequest)                returns (TemperatureResponse);
+
+  // ── Level 3: Trajectory execution ───────────────────────────────────────
+  rpc ExecuteTrajectorySegment (TrajectorySegmentRequest) returns (CommandResponse);
+  rpc Pause               (ReadRequest)              returns (CommandResponse);
+  rpc Resume              (ReadRequest)              returns (CommandResponse);
+  rpc Abort               (ReadRequest)              returns (CommandResponse);
+  rpc ReportTrackingError (ReadRequest)              returns (TrackingErrorResponse);
+  rpc GetClock            (ReadRequest)              returns (ClockResponse);
 }
 
-// ── Request messages ───────────────────────────────────────────────────────
+// ── Shared enums ───────────────────────────────────────────────────────────
+
+// Typed refusal codes carried alongside success=false on CommandResponse.
+// NONE (0) is used when success=true.
+enum RefusalCode {
+  REFUSAL_CODE_NONE                = 0;
+  REFUSAL_CODE_OUTSIDE_SOFT_LIMITS = 1;
+  REFUSAL_CODE_WRONG_CONTROL_MODE  = 2;
+  REFUSAL_CODE_OVER_TEMPERATURE    = 3;
+  REFUSAL_CODE_FAULT_LATCHED       = 4;
+  REFUSAL_CODE_NOT_IMPLEMENTED     = 5;
+  REFUSAL_CODE_TRAJECTORY_RUNNING  = 6;
+  REFUSAL_CODE_INVALID_TRAJECTORY  = 7;
+}
+
+enum ControlModeProto {
+  CONTROL_MODE_POSITION  = 0;
+  CONTROL_MODE_VELOCITY  = 1;
+  CONTROL_MODE_TORQUE    = 2;
+  CONTROL_MODE_IMPEDANCE = 3;
+}
+
+// ── Level 1 messages ───────────────────────────────────────────────────────
 
 message SetPositionRequest {
-  double angle = 1;  // Target angle in radians
+  double angle    = 1;  // Target angle in radians
 }
-
 message SetVelocityRequest {
   double velocity = 1;  // Target velocity in rad/s
 }
-
 message SetTorqueRequest {
-  double torque = 1;  // Target torque in N·m
+  double torque   = 1;  // Target torque in N·m
 }
 
-// Empty sentinel used by all read RPCs
+// Empty sentinel used by all read RPCs and parameterless commands
 message ReadRequest {}
 
-// ── Response messages ──────────────────────────────────────────────────────
-
 message CommandResponse {
-  bool   success = 1;
-  string message = 2;
+  bool        success      = 1;
+  string      message      = 2;
+  RefusalCode refusal_code = 3;  // NONE when success=true
 }
 
-message PositionResponse {
-  double angle = 1;  // Current angle in radians
+message PositionResponse    { double angle       = 1; }  // radians
+message VelocityResponse    { double velocity    = 1; }  // rad/s
+message CurrentResponse     { double current     = 1; }  // amperes
+
+// ── Level 2 messages ───────────────────────────────────────────────────────
+
+message SetSoftLimitsRequest {
+  double min = 1;  // radians
+  double max = 2;  // radians
+}
+message SetCurrentLimitRequest {
+  double max_current     = 1;  // amperes
+}
+message SetTemperatureLimitRequest {
+  double max_temperature = 1;  // degrees Celsius
+}
+message SetControlModeRequest {
+  ControlModeProto mode = 1;
+}
+message TemperatureResponse { double temperature = 1; }  // degrees Celsius
+
+// ── Level 3 messages ───────────────────────────────────────────────────────
+
+message TrajectoryPoint {
+  double time_s    = 1;  // seconds from segment start_time_s
+  double position  = 2;  // radians
+  double velocity  = 3;  // rad/s
+  double torque_ff = 4;  // N·m feed-forward (0 = unused)
+}
+message TrajectorySegmentRequest {
+  repeated TrajectoryPoint points       = 1;
+  double                   start_time_s = 2;  // sim monotonic seconds
 }
 
-message VelocityResponse {
-  double velocity = 1;  // Current velocity in rad/s
+message TrackingErrorResponse {
+  double instantaneous   = 1;  // radians
+  double max_since_start = 2;  // radians
+  double rms             = 3;  // radians
 }
-
-message CurrentResponse {
-  double current = 1;  // Current draw in amperes
+message ClockResponse {
+  double sim_time_s = 1;  // sim monotonic seconds
 }

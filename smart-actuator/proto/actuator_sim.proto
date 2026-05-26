@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package actuator_sim;
+
+// SimulatorBackdoor is served by actuator-sim ONLY.
+// It lets external physics scenes (MuJoCo, test harnesses, etc.) poke
+// ground-truth plant state, inject disturbances, and control sim time —
+// completely separate from the controller's view of the actuator.
+//
+// This file is NEVER compiled into actuator-core or actuator-firmware.
+// That build-system boundary enforces the semantic separation between
+// "what the controller can do" and "what the scene can do".
+service SimulatorBackdoor {
+  // Teleport plant to an exact state (e.g. scene init, collision reset)
+  rpc SetPlantState         (PlantStateRequest)     returns (BackdoorResponse);
+  // Apply an external disturbance torque (e.g. collision, gravity offset)
+  rpc ApplyExternalTorque   (ExternalTorqueRequest) returns (BackdoorResponse);
+  // Set ambient temperature for thermal modelling
+  rpc SetAmbientTemperature (AmbientTempRequest)    returns (BackdoorResponse);
+  // Inject a latched fault (e.g. over-temp, encoder stuck)
+  rpc InjectFault           (FaultInjectionRequest) returns (BackdoorResponse);
+  // Pause / resume the physics clock
+  rpc PauseSim              (BackdoorEmpty)          returns (BackdoorResponse);
+  rpc ResumeSim             (BackdoorEmpty)          returns (BackdoorResponse);
+  // Advance sim by a fixed dt — only valid while paused (deterministic stepping)
+  rpc StepSim               (StepSimRequest)        returns (BackdoorResponse);
+  // Read ground-truth plant state (no encoder noise, distinct from telemetry)
+  rpc GetPlantTruth         (BackdoorEmpty)          returns (PlantTruth);
+}
+
+message BackdoorEmpty {}
+
+message BackdoorResponse {
+  bool   ok      = 1;
+  string message = 2;
+}
+
+message PlantStateRequest {
+  double position        = 1;  // rad
+  double velocity        = 2;  // rad/s
+  bool   set_current     = 3;  // set the current field only if true
+  double current         = 4;  // A
+  bool   set_temperature = 5;  // set the temperature field only if true
+  double temperature     = 6;  // °C
+}
+
+message ExternalTorqueRequest {
+  double torque      = 1;  // N·m (positive = same direction as positive velocity)
+  uint32 duration_ms = 2;  // 0 = apply indefinitely until next call
+}
+
+message AmbientTempRequest {
+  double temperature = 1;  // °C
+}
+
+enum FaultKind {
+  FAULT_KIND_OVER_TEMPERATURE = 0;
+  FAULT_KIND_OVER_CURRENT     = 1;
+  FAULT_KIND_ENCODER_STUCK    = 2;
+}
+
+message FaultInjectionRequest {
+  FaultKind kind = 1;
+}
+
+message StepSimRequest {
+  double dt_s = 1;  // seconds to advance (must be > 0)
+}
+
+message PlantTruth {
+  double position    = 1;  // ground-truth rad (no encoder noise)
+  double velocity    = 2;  // ground-truth rad/s
+  double current     = 3;  // A
+  double temperature = 4;  // °C
+  double sim_time_s  = 5;  // sim monotonic seconds
+}
