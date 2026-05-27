@@ -65,12 +65,15 @@ class MotionService:
     async def move_joint(self, machine_id: str, joint_targets: dict[str, float]) -> None:
         """
         Send direct position commands to one or more joints (raw jog, J2).
-        Each key in *joint_targets* is a joint/actuator name; the value is the
-        target angle in radians.  No trajectory generation — commands go
-        straight to the sidecar's SendCommand RPC.
+        Each key in *joint_targets* is a joint name; the value is the target
+        angle in radians.  No trajectory generation — commands go straight to
+        the sidecar's SendCommand RPC using the actuator_id.
         """
+        sims = await self._repository.list_sims(machine_id)
+        joint_to_actuator = {row["joint_name"]: row["actuator_id"] for row in sims}
         for joint_name, angle_rad in joint_targets.items():
-            result = await self._sidecar.send_command(joint_name, position=angle_rad)
+            actuator_id = joint_to_actuator.get(joint_name, joint_name)
+            result = await self._sidecar.send_command(actuator_id, position=angle_rad)
             if not result["success"]:
                 logger.warning(
                     "move_joint: actuator %s refused command (code=%s): %s",

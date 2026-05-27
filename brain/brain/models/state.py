@@ -18,6 +18,7 @@ class JointState(BaseModel):
     angle_rad: float = 0.0
     velocity_rad_s: float = 0.0
     current_a: float = 0.0
+    temperature_c: float = 0.0
     fault: str | None = None
 
 

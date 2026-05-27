@@ -21,8 +21,9 @@ service SidecarService {
   rpc Abort                  (ActuatorRequest)        returns (CommandResponse);
 
   // ── Safety ────────────────────────────────────────────────────────────────
-  rpc EStop       (EStopRequest)       returns (CommandResponse);
-  rpc SendCommand (SendCommandRequest) returns (CommandResponse);
+  rpc EStop                   (EStopRequest)                   returns (CommandResponse);
+  rpc SendCommand             (SendCommandRequest)             returns (CommandResponse);
+  rpc SetActuatorSoftLimits   (SetActuatorSoftLimitsRequest)   returns (CommandResponse);
 
   // ── Calibration ───────────────────────────────────────────────────────────
   rpc CalibrateActuator (CalibrateActuatorRequest) returns (CalibrateActuatorResponse);
@@ -31,6 +32,11 @@ service SidecarService {
   // The Brain must call Heartbeat periodically. If the sidecar does not receive
   // a heartbeat within the configured timeout it issues an E-stop automatically.
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+
+  // ── Dynamic peer registration ─────────────────────────────────────────────
+  // Called by the Brain when it spawns a new actuator-sim subprocess.
+  rpc RegisterPeer   (RegisterPeerRequest)   returns (CommandResponse);
+  rpc DeregisterPeer (DeregisterPeerRequest) returns (CommandResponse);
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────
@@ -74,6 +80,7 @@ message JointState {
   double velocity_rad_s = 4;
   double current_a      = 5;
   string fault          = 6;  // empty string means no fault
+  double temperature_c  = 7;
 }
 
 message JointStateBatch {
@@ -110,6 +117,12 @@ message SendCommandRequest {
   double position    = 2;  // target angle in radians (position command)
 }
 
+message SetActuatorSoftLimitsRequest {
+  string actuator_id = 1;
+  double min_rad     = 2;  // minimum allowed position in radians
+  double max_rad     = 3;  // maximum allowed position in radians
+}
+
 // ── Calibration messages ──────────────────────────────────────────────────────
 
 message CalibrateActuatorRequest {
@@ -131,4 +144,17 @@ message HeartbeatRequest {
 message HeartbeatResponse {
   int64  timestamp         = 1;  // sidecar's nanosecond timestamp
   string watchdog_status   = 2;  // "ok" | "warning" | "triggered"
+}
+
+// ── Dynamic peer registration messages ───────────────────────────────────────
+
+message RegisterPeerRequest {
+  string actuator_id  = 1;  // stable identity (matches identity.id in sim config)
+  string address      = 2;  // "http://127.0.0.1:PORT"
+  string joint_name   = 3;  // human-readable name matching the machine slot
+  bool   is_simulated = 4;
+}
+
+message DeregisterPeerRequest {
+  string actuator_id = 1;  // must match the id used in RegisterPeerRequest
 }

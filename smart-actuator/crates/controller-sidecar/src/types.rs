@@ -20,6 +20,7 @@ pub struct JointStateSnapshot {
     pub angle_rad: f64,
     pub velocity_rad_s: f64,
     pub current_a: f64,
+    pub temperature_c: f64,
     /// Non-empty when the actuator has a latched fault.
     pub fault: Option<String>,
     pub captured_at: Instant,

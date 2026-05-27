@@ -23,6 +23,7 @@ interface AppToolbarProps {
   onJog: (jointName: string, deltaDeg: number) => Promise<void>
   onEstop: () => Promise<void>
   onResume: () => Promise<void>
+  onEdit?: () => void
 }
 
 function modeColor(mode: string): string {
@@ -49,6 +50,7 @@ export function AppToolbar({
   onJog,
   onEstop,
   onResume,
+  onEdit,
 }: AppToolbarProps) {
   const [busy, setBusy] = useState(false)
 
@@ -161,6 +163,25 @@ export function AppToolbar({
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
+        {/* Edit machine button */}
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            style={{
+              background: 'transparent',
+              border: '1px solid #4b5563',
+              borderRadius: 6,
+              color: '#9ca3af',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '4px 12px',
+            }}
+          >
+            Edit machine
+          </button>
+        )}
+
         {/* Connection status + angle readout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
@@ -173,7 +194,7 @@ export function AppToolbar({
             }}
           />
           <span style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'monospace' }}>
-            {connected ? 'Live' : 'Offline'}&nbsp;&nbsp;joint0:&nbsp;{angleRad.toFixed(3)}&nbsp;rad
+            {connected ? 'Live' : 'Offline'}
           </span>
         </div>
       </div>

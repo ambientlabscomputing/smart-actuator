@@ -15,6 +15,7 @@ from brain.interface.rest import (
     motion_router,
     programs_router,
     state_router,
+    templates_router,
 )
 from brain.interface.ros import RosGateway
 from brain.service import new_brain_service
@@ -110,6 +111,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     app.include_router(programs_router, prefix=_API_PREFIX)
     app.include_router(state_router, prefix=_API_PREFIX)
     app.include_router(events_router, prefix=_API_PREFIX)
+    app.include_router(templates_router, prefix=_API_PREFIX)
 
     return app
 

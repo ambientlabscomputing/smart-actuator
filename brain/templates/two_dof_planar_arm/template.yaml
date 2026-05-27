@@ -1,0 +1,88 @@
+id: two_dof_planar_arm
+name: "2-DOF Planar Arm"
+version: "1.0.0"
+publisher: ambient-labs
+summary: >
+  A two-joint revolute arm constrained to the XZ plane.
+  Joint 0 is the shoulder (base rotation), joint 1 is the elbow.
+
+brain_compatibility: ">=0.1.0"
+firmware_compatibility: ">=0.1.0"
+
+# ── Joint slots ───────────────────────────────────────────────────────────────
+# Each slot becomes a binding target in the machine description.
+joints:
+  - slot: 0
+    name: shoulder
+    axis: z
+    parent: base
+  - slot: 1
+    name: elbow
+    axis: z
+    parent: shoulder
+
+# ── Parameter schema ──────────────────────────────────────────────────────────
+# Rendered by the UI's ParamForm component.
+parameters:
+  - name: link0_length_m
+    label: "Link 0 length (m)"
+    type: float
+    default: 0.4
+    min: 0.05
+    max: 2.0
+    unit: m
+    description: "Length of the upper arm (shoulder → elbow)"
+
+  - name: link1_length_m
+    label: "Link 1 length (m)"
+    type: float
+    default: 0.35
+    min: 0.05
+    max: 2.0
+    unit: m
+    description: "Length of the forearm (elbow → end-effector)"
+
+  - name: link_radius_m
+    label: "Link radius (m)"
+    type: float
+    default: 0.03
+    min: 0.005
+    max: 0.15
+    unit: m
+    description: "Cylinder radius for both links (visual + collision)"
+
+  - name: joint0_limit_deg
+    label: "Shoulder travel (±°)"
+    type: float
+    default: 180.0
+    min: 10.0
+    max: 360.0
+    unit: deg
+    description: "Symmetric travel limit for the shoulder joint"
+
+  - name: joint1_limit_deg
+    label: "Elbow travel (±°)"
+    type: float
+    default: 150.0
+    min: 10.0
+    max: 330.0
+    unit: deg
+    description: "Symmetric travel limit for the elbow joint"
+
+  - name: link0_mass_kg
+    label: "Link 0 mass (kg)"
+    type: float
+    default: 0.5
+    min: 0.01
+    max: 20.0
+    unit: kg
+    description: "Mass of the upper arm link (used by shared-world physics in J7)"
+
+  - name: link1_mass_kg
+    label: "Link 1 mass (kg)"
+    type: float
+    default: 0.3
+    min: 0.01
+    max: 20.0
+    unit: kg
+    description: "Mass of the forearm link (used by shared-world physics in J7)"

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rsidecar.proto\x12\x07sidecar\"I\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x14\n\x0crefusal_code\x18\x03 \x01(\x05\"&\n\x0f\x41\x63tuatorRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\"\x16\n\x14ListActuatorsRequest\"e\n\x0c\x41\x63tuatorInfo\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x12\n\njoint_name\x18\x03 \x01(\t\x12\x14\n\x0cis_simulated\x18\x04 \x01(\x08\x12\x0e\n\x06health\x18\x05 \x01(\t\"A\n\x15ListActuatorsResponse\x12(\n\tactuators\x18\x01 \x03(\x0b\x32\x15.sidecar.ActuatorInfo\"\x17\n\x15GetJointStatesRequest\"\x1a\n\x18StreamJointStatesRequest\"\x82\x01\n\nJointState\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x12\n\njoint_name\x18\x02 \x01(\t\x12\x11\n\tangle_rad\x18\x03 \x01(\x01\x12\x16\n\x0evelocity_rad_s\x18\x04 \x01(\x01\x12\x11\n\tcurrent_a\x18\x05 \x01(\x01\x12\r\n\x05\x66\x61ult\x18\x06 \x01(\t\"I\n\x0fJointStateBatch\x12#\n\x06joints\x18\x01 \x03(\x0b\x32\x13.sidecar.JointState\x12\x11\n\ttimestamp\x18\x02 \x01(\x03\"p\n\x0fTrajectoryPoint\x12\x19\n\x11time_from_start_s\x18\x01 \x01(\x01\x12\x14\n\x0cposition_rad\x18\x02 \x01(\x01\x12\x16\n\x0evelocity_rad_s\x18\x03 \x01(\x01\x12\x14\n\x0ctorque_ff_nm\x18\x04 \x01(\x01\"\x85\x01\n\x19\x41\x63tuatorTrajectorySegment\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x12\n\njoint_name\x18\x02 \x01(\t\x12(\n\x06points\x18\x03 \x03(\x0b\x32\x18.sidecar.TrajectoryPoint\x12\x15\n\rstart_time_ns\x18\x04 \x01(\x03\"M\n\x15SendTrajectoryRequest\x12\x34\n\x08segments\x18\x01 \x03(\x0b\x32\".sidecar.ActuatorTrajectorySegment\"\x0e\n\x0c\x45StopRequest\";\n\x12SendCommandRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x10\n\x08position\x18\x02 \x01(\x01\"/\n\x18\x43\x61librateActuatorRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\"V\n\x19\x43\x61librateActuatorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x17\n\x0fzero_offset_rad\x18\x03 \x01(\x01\"%\n\x10HeartbeatRequest\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\"?\n\x11HeartbeatResponse\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\x12\x17\n\x0fwatchdog_status\x18\x02 \x01(\t2\xac\x06\n\x0eSidecarService\x12N\n\rListActuators\x12\x1d.sidecar.ListActuatorsRequest\x1a\x1e.sidecar.ListActuatorsResponse\x12J\n\x0eGetJointStates\x12\x1e.sidecar.GetJointStatesRequest\x1a\x18.sidecar.JointStateBatch\x12R\n\x11StreamJointStates\x12!.sidecar.StreamJointStatesRequest\x1a\x18.sidecar.JointStateBatch0\x01\x12R\n\x16SendTrajectorySegments\x12\x1e.sidecar.SendTrajectoryRequest\x1a\x18.sidecar.CommandResponse\x12;\n\x05Pause\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12<\n\x06Resume\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12;\n\x05\x41\x62ort\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12\x38\n\x05\x45Stop\x12\x15.sidecar.EStopRequest\x1a\x18.sidecar.CommandResponse\x12\x44\n\x0bSendCommand\x12\x1b.sidecar.SendCommandRequest\x1a\x18.sidecar.CommandResponse\x12Z\n\x11\x43\x61librateActuator\x12!.sidecar.CalibrateActuatorRequest\x1a\".sidecar.CalibrateActuatorResponse\x12\x42\n\tHeartbeat\x12\x19.sidecar.HeartbeatRequest\x1a\x1a.sidecar.HeartbeatResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rsidecar.proto\x12\x07sidecar\"I\n\x0f\x43ommandResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x14\n\x0crefusal_code\x18\x03 \x01(\x05\"&\n\x0f\x41\x63tuatorRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\"\x16\n\x14ListActuatorsRequest\"e\n\x0c\x41\x63tuatorInfo\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x12\n\njoint_name\x18\x03 \x01(\t\x12\x14\n\x0cis_simulated\x18\x04 \x01(\x08\x12\x0e\n\x06health\x18\x05 \x01(\t\"A\n\x15ListActuatorsResponse\x12(\n\tactuators\x18\x01 \x03(\x0b\x32\x15.sidecar.ActuatorInfo\"\x17\n\x15GetJointStatesRequest\"\x1a\n\x18StreamJointStatesRequest\"\x99\x01\n\nJointState\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x12\n\njoint_name\x18\x02 \x01(\t\x12\x11\n\tangle_rad\x18\x03 \x01(\x01\x12\x16\n\x0evelocity_rad_s\x18\x04 \x01(\x01\x12\x11\n\tcurrent_a\x18\x05 \x01(\x01\x12\r\n\x05\x66\x61ult\x18\x06 \x01(\t\x12\x15\n\rtemperature_c\x18\x07 \x01(\x01\"I\n\x0fJointStateBatch\x12#\n\x06joints\x18\x01 \x03(\x0b\x32\x13.sidecar.JointState\x12\x11\n\ttimestamp\x18\x02 \x01(\x03\"p\n\x0fTrajectoryPoint\x12\x19\n\x11time_from_start_s\x18\x01 \x01(\x01\x12\x14\n\x0cposition_rad\x18\x02 \x01(\x01\x12\x16\n\x0evelocity_rad_s\x18\x03 \x01(\x01\x12\x14\n\x0ctorque_ff_nm\x18\x04 \x01(\x01\"\x85\x01\n\x19\x41\x63tuatorTrajectorySegment\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x12\n\njoint_name\x18\x02 \x01(\t\x12(\n\x06points\x18\x03 \x03(\x0b\x32\x18.sidecar.TrajectoryPoint\x12\x15\n\rstart_time_ns\x18\x04 \x01(\x03\"M\n\x15SendTrajectoryRequest\x12\x34\n\x08segments\x18\x01 \x03(\x0b\x32\".sidecar.ActuatorTrajectorySegment\"\x0e\n\x0c\x45StopRequest\";\n\x12SendCommandRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x10\n\x08position\x18\x02 \x01(\x01\"U\n\x1cSetActuatorSoftLimitsRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x0f\n\x07min_rad\x18\x02 \x01(\x01\x12\x0f\n\x07max_rad\x18\x03 \x01(\x01\"/\n\x18\x43\x61librateActuatorRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\"V\n\x19\x43\x61librateActuatorResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x17\n\x0fzero_offset_rad\x18\x03 \x01(\x01\"%\n\x10HeartbeatRequest\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\"?\n\x11HeartbeatResponse\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\x12\x17\n\x0fwatchdog_status\x18\x02 \x01(\t\"e\n\x13RegisterPeerRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x02 \x01(\t\x12\x12\n\njoint_name\x18\x03 \x01(\t\x12\x14\n\x0cis_simulated\x18\x04 \x01(\x08\",\n\x15\x44\x65registerPeerRequest\x12\x13\n\x0b\x61\x63tuator_id\x18\x01 \x01(\t2\x9a\x08\n\x0eSidecarService\x12N\n\rListActuators\x12\x1d.sidecar.ListActuatorsRequest\x1a\x1e.sidecar.ListActuatorsResponse\x12J\n\x0eGetJointStates\x12\x1e.sidecar.GetJointStatesRequest\x1a\x18.sidecar.JointStateBatch\x12R\n\x11StreamJointStates\x12!.sidecar.StreamJointStatesRequest\x1a\x18.sidecar.JointStateBatch0\x01\x12R\n\x16SendTrajectorySegments\x12\x1e.sidecar.SendTrajectoryRequest\x1a\x18.sidecar.CommandResponse\x12;\n\x05Pause\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12<\n\x06Resume\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12;\n\x05\x41\x62ort\x12\x18.sidecar.ActuatorRequest\x1a\x18.sidecar.CommandResponse\x12\x38\n\x05\x45Stop\x12\x15.sidecar.EStopRequest\x1a\x18.sidecar.CommandResponse\x12\x44\n\x0bSendCommand\x12\x1b.sidecar.SendCommandRequest\x1a\x18.sidecar.CommandResponse\x12X\n\x15SetActuatorSoftLimits\x12%.sidecar.SetActuatorSoftLimitsRequest\x1a\x18.sidecar.CommandResponse\x12Z\n\x11\x43\x61librateActuator\x12!.sidecar.CalibrateActuatorRequest\x1a\".sidecar.CalibrateActuatorResponse\x12\x42\n\tHeartbeat\x12\x19.sidecar.HeartbeatRequest\x1a\x1a.sidecar.HeartbeatResponse\x12\x46\n\x0cRegisterPeer\x12\x1c.sidecar.RegisterPeerRequest\x1a\x18.sidecar.CommandResponse\x12J\n\x0e\x44\x65registerPeer\x12\x1e.sidecar.DeregisterPeerRequest\x1a\x18.sidecar.CommandResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -46,27 +46,33 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_STREAMJOINTSTATESREQUEST']._serialized_start=360
   _globals['_STREAMJOINTSTATESREQUEST']._serialized_end=386
   _globals['_JOINTSTATE']._serialized_start=389
-  _globals['_JOINTSTATE']._serialized_end=519
-  _globals['_JOINTSTATEBATCH']._serialized_start=521
-  _globals['_JOINTSTATEBATCH']._serialized_end=594
-  _globals['_TRAJECTORYPOINT']._serialized_start=596
-  _globals['_TRAJECTORYPOINT']._serialized_end=708
-  _globals['_ACTUATORTRAJECTORYSEGMENT']._serialized_start=711
-  _globals['_ACTUATORTRAJECTORYSEGMENT']._serialized_end=844
-  _globals['_SENDTRAJECTORYREQUEST']._serialized_start=846
-  _globals['_SENDTRAJECTORYREQUEST']._serialized_end=923
-  _globals['_ESTOPREQUEST']._serialized_start=925
-  _globals['_ESTOPREQUEST']._serialized_end=939
-  _globals['_SENDCOMMANDREQUEST']._serialized_start=941
-  _globals['_SENDCOMMANDREQUEST']._serialized_end=1000
-  _globals['_CALIBRATEACTUATORREQUEST']._serialized_start=1002
-  _globals['_CALIBRATEACTUATORREQUEST']._serialized_end=1049
-  _globals['_CALIBRATEACTUATORRESPONSE']._serialized_start=1051
-  _globals['_CALIBRATEACTUATORRESPONSE']._serialized_end=1137
-  _globals['_HEARTBEATREQUEST']._serialized_start=1139
-  _globals['_HEARTBEATREQUEST']._serialized_end=1176
-  _globals['_HEARTBEATRESPONSE']._serialized_start=1178
-  _globals['_HEARTBEATRESPONSE']._serialized_end=1241
-  _globals['_SIDECARSERVICE']._serialized_start=1244
-  _globals['_SIDECARSERVICE']._serialized_end=2056
+  _globals['_JOINTSTATE']._serialized_end=542
+  _globals['_JOINTSTATEBATCH']._serialized_start=544
+  _globals['_JOINTSTATEBATCH']._serialized_end=617
+  _globals['_TRAJECTORYPOINT']._serialized_start=619
+  _globals['_TRAJECTORYPOINT']._serialized_end=731
+  _globals['_ACTUATORTRAJECTORYSEGMENT']._serialized_start=734
+  _globals['_ACTUATORTRAJECTORYSEGMENT']._serialized_end=867
+  _globals['_SENDTRAJECTORYREQUEST']._serialized_start=869
+  _globals['_SENDTRAJECTORYREQUEST']._serialized_end=946
+  _globals['_ESTOPREQUEST']._serialized_start=948
+  _globals['_ESTOPREQUEST']._serialized_end=962
+  _globals['_SENDCOMMANDREQUEST']._serialized_start=964
+  _globals['_SENDCOMMANDREQUEST']._serialized_end=1023
+  _globals['_SETACTUATORSOFTLIMITSREQUEST']._serialized_start=1025
+  _globals['_SETACTUATORSOFTLIMITSREQUEST']._serialized_end=1110
+  _globals['_CALIBRATEACTUATORREQUEST']._serialized_start=1112
+  _globals['_CALIBRATEACTUATORREQUEST']._serialized_end=1159
+  _globals['_CALIBRATEACTUATORRESPONSE']._serialized_start=1161
+  _globals['_CALIBRATEACTUATORRESPONSE']._serialized_end=1247
+  _globals['_HEARTBEATREQUEST']._serialized_start=1249
+  _globals['_HEARTBEATREQUEST']._serialized_end=1286
+  _globals['_HEARTBEATRESPONSE']._serialized_start=1288
+  _globals['_HEARTBEATRESPONSE']._serialized_end=1351
+  _globals['_REGISTERPEERREQUEST']._serialized_start=1353
+  _globals['_REGISTERPEERREQUEST']._serialized_end=1454
+  _globals['_DEREGISTERPEERREQUEST']._serialized_start=1456
+  _globals['_DEREGISTERPEERREQUEST']._serialized_end=1500
+  _globals['_SIDECARSERVICE']._serialized_start=1503
+  _globals['_SIDECARSERVICE']._serialized_end=2553
 # @@protoc_insertion_point(module_scope)

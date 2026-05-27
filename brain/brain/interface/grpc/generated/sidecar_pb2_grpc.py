@@ -83,6 +83,11 @@ class SidecarServiceStub(object):
                 request_serializer=sidecar__pb2.SendCommandRequest.SerializeToString,
                 response_deserializer=sidecar__pb2.CommandResponse.FromString,
                 _registered_method=True)
+        self.SetActuatorSoftLimits = channel.unary_unary(
+                '/sidecar.SidecarService/SetActuatorSoftLimits',
+                request_serializer=sidecar__pb2.SetActuatorSoftLimitsRequest.SerializeToString,
+                response_deserializer=sidecar__pb2.CommandResponse.FromString,
+                _registered_method=True)
         self.CalibrateActuator = channel.unary_unary(
                 '/sidecar.SidecarService/CalibrateActuator',
                 request_serializer=sidecar__pb2.CalibrateActuatorRequest.SerializeToString,
@@ -92,6 +97,16 @@ class SidecarServiceStub(object):
                 '/sidecar.SidecarService/Heartbeat',
                 request_serializer=sidecar__pb2.HeartbeatRequest.SerializeToString,
                 response_deserializer=sidecar__pb2.HeartbeatResponse.FromString,
+                _registered_method=True)
+        self.RegisterPeer = channel.unary_unary(
+                '/sidecar.SidecarService/RegisterPeer',
+                request_serializer=sidecar__pb2.RegisterPeerRequest.SerializeToString,
+                response_deserializer=sidecar__pb2.CommandResponse.FromString,
+                _registered_method=True)
+        self.DeregisterPeer = channel.unary_unary(
+                '/sidecar.SidecarService/DeregisterPeer',
+                request_serializer=sidecar__pb2.DeregisterPeerRequest.SerializeToString,
+                response_deserializer=sidecar__pb2.CommandResponse.FromString,
                 _registered_method=True)
 
 
@@ -160,6 +175,12 @@ class SidecarServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SetActuatorSoftLimits(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def CalibrateActuator(self, request, context):
         """── Calibration ───────────────────────────────────────────────────────────
         """
@@ -172,6 +193,20 @@ class SidecarServiceServicer(object):
         The Brain must call Heartbeat periodically. If the sidecar does not receive
         a heartbeat within the configured timeout it issues an E-stop automatically.
         """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RegisterPeer(self, request, context):
+        """── Dynamic peer registration ─────────────────────────────────────────────
+        Called by the Brain when it spawns a new actuator-sim subprocess.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeregisterPeer(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -224,6 +259,11 @@ def add_SidecarServiceServicer_to_server(servicer, server):
                     request_deserializer=sidecar__pb2.SendCommandRequest.FromString,
                     response_serializer=sidecar__pb2.CommandResponse.SerializeToString,
             ),
+            'SetActuatorSoftLimits': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetActuatorSoftLimits,
+                    request_deserializer=sidecar__pb2.SetActuatorSoftLimitsRequest.FromString,
+                    response_serializer=sidecar__pb2.CommandResponse.SerializeToString,
+            ),
             'CalibrateActuator': grpc.unary_unary_rpc_method_handler(
                     servicer.CalibrateActuator,
                     request_deserializer=sidecar__pb2.CalibrateActuatorRequest.FromString,
@@ -233,6 +273,16 @@ def add_SidecarServiceServicer_to_server(servicer, server):
                     servicer.Heartbeat,
                     request_deserializer=sidecar__pb2.HeartbeatRequest.FromString,
                     response_serializer=sidecar__pb2.HeartbeatResponse.SerializeToString,
+            ),
+            'RegisterPeer': grpc.unary_unary_rpc_method_handler(
+                    servicer.RegisterPeer,
+                    request_deserializer=sidecar__pb2.RegisterPeerRequest.FromString,
+                    response_serializer=sidecar__pb2.CommandResponse.SerializeToString,
+            ),
+            'DeregisterPeer': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeregisterPeer,
+                    request_deserializer=sidecar__pb2.DeregisterPeerRequest.FromString,
+                    response_serializer=sidecar__pb2.CommandResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -493,6 +543,33 @@ class SidecarService(object):
             _registered_method=True)
 
     @staticmethod
+    def SetActuatorSoftLimits(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sidecar.SidecarService/SetActuatorSoftLimits',
+            sidecar__pb2.SetActuatorSoftLimitsRequest.SerializeToString,
+            sidecar__pb2.CommandResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def CalibrateActuator(request,
             target,
             options=(),
@@ -536,6 +613,60 @@ class SidecarService(object):
             '/sidecar.SidecarService/Heartbeat',
             sidecar__pb2.HeartbeatRequest.SerializeToString,
             sidecar__pb2.HeartbeatResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RegisterPeer(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sidecar.SidecarService/RegisterPeer',
+            sidecar__pb2.RegisterPeerRequest.SerializeToString,
+            sidecar__pb2.CommandResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeregisterPeer(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sidecar.SidecarService/DeregisterPeer',
+            sidecar__pb2.DeregisterPeerRequest.SerializeToString,
+            sidecar__pb2.CommandResponse.FromString,
             options,
             channel_credentials,
             insecure,

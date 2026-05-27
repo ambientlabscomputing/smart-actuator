@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<!--
+  2-DOF Planar Arm — Jinja2 URDF template.
+  Expanded by TemplateService.expand() at build_machine time.
+  Parameters substituted from the machine description:
+    link0_length_m, link1_length_m, link_radius_m,
+    joint0_limit_deg, joint1_limit_deg,
+    link0_mass_kg, link1_mass_kg
+-->
+<robot name="two_dof_planar_arm">
+
+  <!-- ── Base link ──────────────────────────────────────────────────── -->
+  <link name="base">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.05" length="0.05"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ── Shoulder joint ─────────────────────────────────────────────── -->
+  <joint name="shoulder" type="revolute">
+    <parent link="base"/>
+    <child link="link0"/>
+    <origin xyz="0 0 0.025" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="{{ -joint0_limit_rad }}" upper="{{ joint0_limit_rad }}"
+           effort="50" velocity="3.14"/>
+  </joint>
+
+  <!-- ── Link 0 (upper arm) ─────────────────────────────────────────── -->
+  <link name="link0">
+    <inertial>
+      <mass value="{{ link0_mass_kg }}"/>
+      <origin xyz="0 0 {{ link0_length_m / 2 }}" rpy="0 0 0"/>
+      <inertia
+        ixx="{{ link0_mass_kg * link0_length_m ** 2 / 12 }}"
+        ixy="0" ixz="0"
+        iyy="{{ link0_mass_kg * link0_length_m ** 2 / 12 }}"
+        iyz="0"
+        izz="{{ link0_mass_kg * link_radius_m ** 2 / 2 }}"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="{{ link_radius_m }}" length="{{ link0_length_m }}"/>
+      </geometry>
+      <origin xyz="0 0 {{ link0_length_m / 2 }}" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="{{ link_radius_m }}" length="{{ link0_length_m }}"/>
+      </geometry>
+      <origin xyz="0 0 {{ link0_length_m / 2 }}" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <!-- ── Elbow joint ────────────────────────────────────────────────── -->
+  <joint name="elbow" type="revolute">
+    <parent link="link0"/>
+    <child link="link1"/>
+    <origin xyz="0 0 {{ link0_length_m }}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="{{ -joint1_limit_rad }}" upper="{{ joint1_limit_rad }}"
+           effort="30" velocity="3.14"/>
+  </joint>
+
+  <!-- ── Link 1 (forearm) ───────────────────────────────────────────── -->
+  <link name="link1">
+    <inertial>
+      <mass value="{{ link1_mass_kg }}"/>
+      <origin xyz="0 0 {{ link1_length_m / 2 }}" rpy="0 0 0"/>
+      <inertia
+        ixx="{{ link1_mass_kg * link1_length_m ** 2 / 12 }}"
+        ixy="0" ixz="0"
+        iyy="{{ link1_mass_kg * link1_length_m ** 2 / 12 }}"
+        iyz="0"
+        izz="{{ link1_mass_kg * link_radius_m ** 2 / 2 }}"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="{{ link_radius_m }}" length="{{ link1_length_m }}"/>
+      </geometry>
+      <origin xyz="0 0 {{ link1_length_m / 2 }}" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="{{ link_radius_m }}" length="{{ link1_length_m }}"/>
+      </geometry>
+      <origin xyz="0 0 {{ link1_length_m / 2 }}" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <!-- ── End-effector (tip) ─────────────────────────────────────────── -->
+  <joint name="ee_fixed" type="fixed">
+    <parent link="link1"/>
+    <child link="end_effector"/>
+    <origin xyz="0 0 {{ link1_length_m }}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="end_effector"/>
+
+</robot>

@@ -28,6 +28,17 @@ class SidecarBridge:
         self._stub: "_SidecarStubType.SidecarServiceStub | None" = None
         self._stream_task: asyncio.Task | None = None  # type: ignore[type-arg]
         self._heartbeat_task: asyncio.Task | None = None  # type: ignore[type-arg]
+        # actuator_id → machine_id: updated when sims spawn/teardown so the
+        # state stream can be routed to the correct machine.
+        self._actuator_to_machine: dict[str, str] = {}
+
+    def track_machine_actuator(self, actuator_id: str, machine_id: str) -> None:
+        """Register that *actuator_id* belongs to *machine_id*."""
+        self._actuator_to_machine[actuator_id] = machine_id
+
+    def untrack_actuator(self, actuator_id: str) -> None:
+        """Remove the actuator→machine mapping on teardown."""
+        self._actuator_to_machine.pop(actuator_id, None)
 
     @property
     def _connected(self) -> bool:
@@ -127,17 +138,24 @@ class SidecarBridge:
                     request = sidecar_pb2.StreamJointStatesRequest()
                     async for batch in stub.StreamJointStates(request):
                         delay = 1.0  # reset backoff on first successful frame
-                        joints = [
-                            JointState(
-                                joint_name=js.joint_name or js.actuator_id,
-                                angle_rad=js.angle_rad,
-                                velocity_rad_s=js.velocity_rad_s,
-                                current_a=js.current_a,
-                                fault=js.fault or None,
+                        # Group joints by machine_id using actuator_id mapping.
+                        joints_by_machine: dict[str, list[JointState]] = {}
+                        for js in batch.joints:
+                            m_id = self._actuator_to_machine.get(js.actuator_id)
+                            if m_id is None:
+                                continue  # unknown actuator — skip
+                            joints_by_machine.setdefault(m_id, []).append(
+                                JointState(
+                                    joint_name=js.joint_name or js.actuator_id,
+                                    angle_rad=js.angle_rad,
+                                    velocity_rad_s=js.velocity_rad_s,
+                                    current_a=js.current_a,
+                                    temperature_c=js.temperature_c,
+                                    fault=js.fault or None,
+                                )
                             )
-                            for js in batch.joints
-                        ]
-                        callback(joints, "j1")  # type: ignore[operator]
+                        for m_id, m_joints in joints_by_machine.items():
+                            callback(m_joints, m_id)  # type: ignore[operator]
                     # Server closed the stream cleanly — retry immediately.
                     logger.info("Sidecar stream closed cleanly, reconnecting ...")
                 except grpc.aio.AioRpcError as e:
@@ -202,4 +220,63 @@ class SidecarBridge:
         """One-shot snapshot of the current aggregated joint states."""
         # TODO: call sidecar.GetJointStates RPC
         return []
+
+    async def register_peer(
+        self,
+        *,
+        actuator_id: str,
+        address: str,
+        joint_name: str,
+        is_simulated: bool,
+    ) -> dict[str, object]:
+        """Register a newly-spawned sim (or discovered real actuator) with the Sidecar."""
+        if self._stub is None:
+            raise RuntimeError("SidecarBridge: not connected — call connect() first")
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+
+        req = sidecar_pb2.RegisterPeerRequest(
+            actuator_id=actuator_id,
+            address=address,
+            joint_name=joint_name,
+            is_simulated=is_simulated,
+        )
+        resp = await self._stub.RegisterPeer(req)
+        logger.info(
+            "Sidecar RegisterPeer actuator_id={} address={} success={}",
+            actuator_id, address, resp.success,
+        )
+        return {"success": resp.success, "message": resp.message}
+
+    async def deregister_peer(self, *, actuator_id: str) -> dict[str, object]:
+        """Remove a peer from the Sidecar's live pool."""
+        if self._stub is None:
+            raise RuntimeError("SidecarBridge: not connected — call connect() first")
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+
+        req = sidecar_pb2.DeregisterPeerRequest(actuator_id=actuator_id)
+        resp = await self._stub.DeregisterPeer(req)
+        logger.info(
+            "Sidecar DeregisterPeer actuator_id={} success={}", actuator_id, resp.success
+        )
+        return {"success": resp.success, "message": resp.message}
+
+    async def set_soft_limits(
+        self, actuator_id: str, *, min_rad: float, max_rad: float
+    ) -> dict[str, object]:
+        """Configure symmetric position soft limits on a single actuator."""
+        if self._stub is None:
+            raise RuntimeError("SidecarBridge: not connected — call connect() first")
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+
+        req = sidecar_pb2.SetActuatorSoftLimitsRequest(
+            actuator_id=actuator_id,
+            min_rad=min_rad,
+            max_rad=max_rad,
+        )
+        resp = await self._stub.SetActuatorSoftLimits(req)
+        logger.info(
+            "Sidecar SetSoftLimits actuator_id={} min={:.4f} max={:.4f} success={}",
+            actuator_id, min_rad, max_rad, resp.success,
+        )
+        return {"success": resp.success, "message": resp.message}
 

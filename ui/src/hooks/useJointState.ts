@@ -9,6 +9,7 @@ export interface JointState {
   angle_rad: number
   velocity_rad_s: number
   current_a: number
+  temperature_c: number
   fault: string | null
 }
 
@@ -25,10 +26,9 @@ interface UseJointStateResult {
   connected: boolean
 }
 
-const WS_URL = '/api/v1/state/ws?machine_id=j1'
 const RECONNECT_DELAY_MS = 2000
 
-export function useJointState(): UseJointStateResult {
+export function useJointState(machineId: string): UseJointStateResult {
   const [state, setState] = useState<MachineState | null>(null)
   const [connected, setConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
@@ -42,7 +42,8 @@ export function useJointState(): UseJointStateResult {
       if (unmounted.current) return
 
       const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
-      const url = token ? `${WS_URL}&token=${encodeURIComponent(token)}` : WS_URL
+      const base = `/api/v1/state/ws?machine_id=${encodeURIComponent(machineId)}`
+      const url = token ? `${base}&token=${encodeURIComponent(token)}` : base
       const ws = new WebSocket(url)
       wsRef.current = ws
 
@@ -78,13 +79,13 @@ export function useJointState(): UseJointStateResult {
       if (reconnectTimer.current !== null) clearTimeout(reconnectTimer.current)
       wsRef.current?.close()
     }
-  }, [])
+  }, [machineId])
 
   return { state, connected }
 }
 
 // ---------------------------------------------------------------------------
-// useMachineControl — REST actions: jog, estop, resume
+// REST helpers
 // ---------------------------------------------------------------------------
 
 const BRAIN_BASE = '/api/v1'
@@ -93,16 +94,20 @@ function journeyId(): string {
   return crypto.randomUUID()
 }
 
-async function brainPost(path: string, body: unknown): Promise<unknown> {
+function authHeaders(): Record<string, string> {
   const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Journey-Id': journeyId(),
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
+  return headers
+}
+
+export async function brainPost(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`${BRAIN_BASE}${path}`, {
     method: 'POST',
-    headers,
+    headers: authHeaders(),
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -111,6 +116,35 @@ async function brainPost(path: string, body: unknown): Promise<unknown> {
   }
   return res.json()
 }
+
+export async function brainPatch(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${BRAIN_BASE}${path}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
+  }
+  return res.json()
+}
+
+export async function brainGet(path: string): Promise<unknown> {
+  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const headers: Record<string, string> = { 'X-Journey-Id': journeyId() }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BRAIN_BASE}${path}`, { headers })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
+  }
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// useMachineControl — REST actions: jog, estop, resume
+// ---------------------------------------------------------------------------
 
 export interface MachineControl {
   /** Jog a single joint by deltaDeg degrees (positive = extend). */

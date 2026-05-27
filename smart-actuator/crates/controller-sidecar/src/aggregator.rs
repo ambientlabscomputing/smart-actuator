@@ -6,10 +6,12 @@
 
 use crate::client_pool::ActuatorClientPool;
 use crate::types::JointStateSnapshot;
-use actuator_proto::actuator::ReadRequest;
+use actuator_proto::actuator::{actuator_service_client::ActuatorServiceClient, ReadRequest};
+use futures::future::join_all;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, Mutex};
+use tonic::transport::Channel;
 use tracing::{debug, warn};
 
 /// Capacity of the broadcast channel (number of frames that can be buffered
@@ -61,43 +63,65 @@ impl JointStateAggregator {
     }
 
     async fn poll_all(&self) -> Vec<JointStateSnapshot> {
-        let mut pool = self.pool.lock().await;
-        let mut results = Vec::with_capacity(pool.len());
+        // Clone clients out of the pool so we can release the lock before
+        // making any RPC calls, then poll all actuators in parallel.
+        let clients: Vec<(String, String, ActuatorServiceClient<Channel>)> = {
+            let mut pool = self.pool.lock().await;
+            let id_to_joint: std::collections::HashMap<String, String> = pool
+                .live_endpoints()
+                .iter()
+                .map(|e| (e.id.clone(), e.joint_name.clone()))
+                .collect();
+            pool.iter_mut()
+                .map(|(id, client)| {
+                    let joint_name = id_to_joint.get(id).cloned().unwrap_or_else(|| id.clone());
+                    (id.clone(), joint_name, client.clone())
+                })
+                .collect()
+        };
 
-        // Collect futures for all clients.
-        // We can't easily run them in parallel while holding the Mutex, so we
-        // poll sequentially here.  For a large number of actuators, upgrade to
-        // a separate per-client task architecture.
-        // TODO: parallel polling via per-actuator background tasks.
-        for (id, client) in pool.iter_mut() {
-            let req = tonic::Request::new(ReadRequest {});
-            match client.read_position(req).await {
-                Ok(resp) => {
-                    let pos = resp.into_inner();
-                    results.push(JointStateSnapshot {
-                        actuator_id: id.clone(),
-                        joint_name: id.clone(), // pool doesn't store joint_name; TODO: pass through
-                        angle_rad: pos.angle,
-                        velocity_rad_s: 0.0, // TODO: use ReadVelocity
-                        current_a: 0.0,      // TODO: use ReadCurrent
+        let tasks: Vec<_> = clients
+            .into_iter()
+            .map(|(id, joint_name, mut client)| async move {
+                // Clone the client for each parallel call — tonic clients wrap
+                // an Arc<Channel> so cloning is cheap.
+                let (mut c_vel, mut c_cur, mut c_tmp) =
+                    (client.clone(), client.clone(), client.clone());
+                let (pos_r, vel_r, cur_r, tmp_r) = tokio::join!(
+                    client.read_position(tonic::Request::new(ReadRequest {})),
+                    c_vel.read_velocity(tonic::Request::new(ReadRequest {})),
+                    c_cur.read_current(tonic::Request::new(ReadRequest {})),
+                    c_tmp.read_temperature(tonic::Request::new(ReadRequest {})),
+                );
+
+                match pos_r {
+                    Ok(pos) => JointStateSnapshot {
+                        actuator_id: id,
+                        joint_name,
+                        angle_rad: pos.into_inner().angle,
+                        velocity_rad_s: vel_r.ok().map_or(0.0, |r| r.into_inner().velocity),
+                        current_a: cur_r.ok().map_or(0.0, |r| r.into_inner().current),
+                        temperature_c: tmp_r.ok().map_or(0.0, |r| r.into_inner().temperature),
                         fault: None,
                         captured_at: Instant::now(),
-                    });
+                    },
+                    Err(e) => {
+                        warn!(actuator_id = %id, error = %e, "Failed to read from actuator");
+                        JointStateSnapshot {
+                            actuator_id: id,
+                            joint_name,
+                            angle_rad: 0.0,
+                            velocity_rad_s: 0.0,
+                            current_a: 0.0,
+                            temperature_c: 0.0,
+                            fault: Some(e.to_string()),
+                            captured_at: Instant::now(),
+                        }
+                    }
                 }
-                Err(e) => {
-                    warn!(actuator_id = %id, error = %e, "Failed to read position from actuator");
-                    results.push(JointStateSnapshot {
-                        actuator_id: id.clone(),
-                        joint_name: id.clone(),
-                        angle_rad: 0.0,
-                        velocity_rad_s: 0.0,
-                        current_a: 0.0,
-                        fault: Some(e.to_string()),
-                        captured_at: Instant::now(),
-                    });
-                }
-            }
-        }
-        results
+            })
+            .collect();
+
+        join_all(tasks).await
     }
 }

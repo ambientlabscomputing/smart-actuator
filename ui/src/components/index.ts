@@ -9,7 +9,11 @@
  */
 export { AppCanvas } from './AppCanvas'
 export { AppToolbar } from './AppToolbar'
+export { ArmCanvas } from './ArmCanvas'
 export { Joint } from './Joint'
+export { JointDataPanel } from './JointDataPanel'
+export type { JointHistory } from './JointDataPanel'
+export { MachineEditor } from './MachineEditor'
 export { Stack } from './Stack'
 export { StatusBadge } from './StatusBadge'
 export { Typography } from './Typography'

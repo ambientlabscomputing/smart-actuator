@@ -11,6 +11,7 @@ from brain.service.motion_service import MotionService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
 from brain.service.safety_service import SafetyService
+from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.state_service import StateService
 from brain.service.template_service import TemplateService
@@ -49,6 +50,7 @@ class BrainService(Service):
         lifecycle: LifecycleService,
         calibration: CalibrationService,
         observability: ObservabilityService,
+        sim_lifecycle: SimLifecycleService | None = None,
     ) -> None:
         self.repository = repository
         self.config = config
@@ -64,12 +66,20 @@ class BrainService(Service):
         self.lifecycle = lifecycle
         self.calibration = calibration
         self.observability = observability
+        self.sim_lifecycle = sim_lifecycle
 
     async def start(self) -> None:
         logger.info("Starting BrainService")
+        await self.repository.start()
         await self.sidecar.connect()
         await self.state.start()
+        if self.sim_lifecycle is not None:
+            try:
+                await self.sim_lifecycle.recover_on_start()
+            except Exception:
+                logger.exception("SimLifecycle recovery failed — continuing without sims")
 
     async def stop(self) -> None:
         logger.info("Stopping BrainService")
         await self.sidecar.disconnect()
+        await self.repository.stop()

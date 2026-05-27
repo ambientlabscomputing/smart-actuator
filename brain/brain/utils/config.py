@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import BaseModel, Field
 
 
@@ -30,4 +32,26 @@ class Config(BaseModel):
     trusted_template_sources: list[str] = Field(
         default=["github.com/ambient-labs"],
         description="Source URL prefixes trusted to load templates without a provenance warning",
+    )
+    # ── Sim lifecycle ──────────────────────────────────────────────────────────
+    sim_binary_path: str = Field(
+        default="smart-actuator/target/debug/actuator-sim",
+        description="Path to the actuator-sim binary, relative to the workspace root",
+    )
+    sim_config_path: str = Field(
+        default="smart-actuator/crates/actuator-sim/configs/default.yaml",
+        description="Path to the base actuator-sim config YAML, relative to the workspace root",
+    )
+    sim_port_range_start: int = Field(
+        default=50100,
+        description="First port in the range allocated to spawned sim instances",
+    )
+    sim_port_range_end: int = Field(
+        default=50199,
+        description="Last port in the range allocated to spawned sim instances",
+    )
+    # ── Templates ─────────────────────────────────────────────────────────────
+    templates_dir: str = Field(
+        default=str(Path(__file__).parents[2] / "templates"),
+        description="Directory containing in-tree template bundles",
     )

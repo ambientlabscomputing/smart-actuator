@@ -10,8 +10,30 @@ pub fn config_path() -> String {
 pub fn load(path: &str) -> anyhow::Result<ActuatorConfig> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("Cannot read config {path}: {e}"))?;
-    let config: ActuatorConfig = serde_yaml::from_str(&text)
+    let mut config: ActuatorConfig = serde_yaml::from_str(&text)
         .map_err(|e| anyhow::anyhow!("Cannot parse config {path}: {e}"))?;
+
+    // Environment variable overrides — set by the Brain when spawning sim instances.
+    // ACTUATOR_SIM_PORT overrides grpc.port.
+    // ACTUATOR_SIM_ID   overrides identity.id.
+    // ACTUATOR_SIM_NAME overrides identity.name (optional, defaults to id).
+    if let Ok(port_str) = env::var("ACTUATOR_SIM_PORT") {
+        config.grpc.port = port_str.parse().map_err(|_| {
+            anyhow::anyhow!("ACTUATOR_SIM_PORT must be a valid u16, got: {port_str}")
+        })?;
+        // Disable the backdoor when running as a managed peer (avoids port collisions).
+        config.grpc.enable_backdoor = false;
+    }
+    if let Ok(id) = env::var("ACTUATOR_SIM_ID") {
+        config.identity.id = id;
+    }
+    if let Ok(name) = env::var("ACTUATOR_SIM_NAME") {
+        config.identity.name = name;
+    }
+    if let Ok(pid_file) = env::var("ACTUATOR_SIM_PID_FILE") {
+        config.pid_file = pid_file;
+    }
+
     Ok(config)
 }
 

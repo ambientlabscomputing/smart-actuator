@@ -5,6 +5,7 @@ from brain.interface.rest.mode import router as mode_router
 from brain.interface.rest.motion import router as motion_router
 from brain.interface.rest.programs import router as programs_router
 from brain.interface.rest.state import router as state_router
+from brain.interface.rest.templates import router as templates_router
 
 __all__ = [
     "actuators_router",
@@ -14,4 +15,5 @@ __all__ = [
     "motion_router",
     "programs_router",
     "state_router",
+    "templates_router",
 ]

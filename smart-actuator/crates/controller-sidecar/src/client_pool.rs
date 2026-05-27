@@ -70,6 +70,10 @@ impl ActuatorClientPool {
         self.clients.is_empty()
     }
 
+    /// Look up the joint name for a given actuator id.
+    pub fn joint_name_for(&self, id: &str) -> Option<&str> {
+        self.endpoints.iter().find(|e| e.id == id).map(|e| e.joint_name.as_str())
+    }
     /// Attempt to reconnect a single actuator that was previously unreachable.
     pub async fn reconnect(&mut self, ep: &ActuatorEndpoint) -> Result<()> {
         let client = ActuatorServiceClient::connect(ep.address.clone())
@@ -81,5 +85,32 @@ impl ActuatorClientPool {
             self.endpoints.push(ep.clone());
         }
         Ok(())
+    }
+
+    /// Dynamically add a new peer at runtime (called by RegisterPeer RPC).
+    /// Returns an error if the connection cannot be established.
+    pub async fn add_peer(&mut self, ep: ActuatorEndpoint) -> Result<()> {
+        let client = ActuatorServiceClient::connect(ep.address.clone())
+            .await
+            .with_context(|| format!("add_peer: connect to actuator {}", ep.id))?;
+        info!(id = %ep.id, address = %ep.address, "Dynamic peer registered");
+        self.clients.insert(ep.id.clone(), client);
+        if !self.endpoints.iter().any(|e| e.id == ep.id) {
+            self.endpoints.push(ep);
+        }
+        Ok(())
+    }
+
+    /// Remove a peer at runtime (called by DeregisterPeer RPC).
+    /// Returns true if the peer was present and removed, false if it was not found.
+    pub fn remove_peer(&mut self, id: &str) -> bool {
+        let removed = self.clients.remove(id).is_some();
+        self.endpoints.retain(|e| e.id != id);
+        if removed {
+            info!(id = %id, "Dynamic peer deregistered");
+        } else {
+            warn!(id = %id, "DeregisterPeer: peer not found in pool");
+        }
+        removed
     }
 }

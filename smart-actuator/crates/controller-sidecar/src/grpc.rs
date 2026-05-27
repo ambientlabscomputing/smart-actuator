@@ -4,7 +4,7 @@ use crate::aggregator::JointStateAggregator;
 use crate::client_pool::ActuatorClientPool;
 use crate::estop::EStopBroadcaster;
 use crate::watchdog::HeartbeatHandle;
-use actuator_proto::actuator::{ReadRequest, SetPositionRequest, TrajectorySegmentRequest};
+use actuator_proto::actuator::{ReadRequest, SetPositionRequest, SetSoftLimitsRequest, TrajectorySegmentRequest};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
@@ -19,9 +19,10 @@ pub mod sidecar_proto {
 use sidecar_proto::{
     sidecar_service_server::SidecarService,
     ActuatorInfo, ActuatorRequest, CalibrateActuatorRequest, CalibrateActuatorResponse,
-    CommandResponse, EStopRequest, GetJointStatesRequest, HeartbeatRequest, HeartbeatResponse,
-    JointState, JointStateBatch, ListActuatorsRequest, ListActuatorsResponse,
-    SendCommandRequest, SendTrajectoryRequest, StreamJointStatesRequest,
+    CommandResponse, DeregisterPeerRequest, EStopRequest, GetJointStatesRequest,
+    HeartbeatRequest, HeartbeatResponse, JointState, JointStateBatch, ListActuatorsRequest,
+    ListActuatorsResponse, RegisterPeerRequest, SendCommandRequest, SendTrajectoryRequest,
+    SetActuatorSoftLimitsRequest, StreamJointStatesRequest,
 };
 
 fn now_ns() -> i64 {
@@ -92,6 +93,7 @@ impl SidecarService for SidecarServicer {
                         angle_rad: pos.angle,
                         velocity_rad_s: 0.0,
                         current_a: 0.0,
+                        temperature_c: 0.0,
                         fault: String::new(),
                     });
                 }
@@ -103,6 +105,7 @@ impl SidecarService for SidecarServicer {
                         angle_rad: 0.0,
                         velocity_rad_s: 0.0,
                         current_a: 0.0,
+                        temperature_c: 0.0,
                         fault: e.to_string(),
                     });
                 }
@@ -135,6 +138,7 @@ impl SidecarService for SidecarServicer {
                         angle_rad: s.angle_rad,
                         velocity_rad_s: s.velocity_rad_s,
                         current_a: s.current_a,
+                        temperature_c: s.temperature_c,
                         fault: s.fault.unwrap_or_default(),
                     })
                     .collect();
@@ -339,6 +343,96 @@ impl SidecarService for SidecarServicer {
         Ok(Response::new(HeartbeatResponse {
             timestamp: now_ns(),
             watchdog_status: "ok".into(),
+        }))
+    }
+
+    // ── Dynamic peer registration ──────────────────────────────────────────
+
+    async fn register_peer(
+        &self,
+        request: Request<RegisterPeerRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let req = request.into_inner();
+        info!(
+            id = %req.actuator_id,
+            address = %req.address,
+            joint = %req.joint_name,
+            simulated = req.is_simulated,
+            "RegisterPeer requested"
+        );
+        let ep = crate::types::ActuatorEndpoint {
+            id: req.actuator_id.clone(),
+            address: req.address.clone(),
+            joint_name: req.joint_name.clone(),
+            is_simulated: req.is_simulated,
+        };
+        let mut pool = self.pool.lock().await;
+        match pool.add_peer(ep).await {
+            Ok(()) => Ok(Response::new(CommandResponse {
+                success: true,
+                message: format!("peer {} registered", req.actuator_id),
+                refusal_code: 0,
+            })),
+            Err(e) => {
+                warn!(id = %req.actuator_id, error = %e, "RegisterPeer: connection failed");
+                Ok(Response::new(CommandResponse {
+                    success: false,
+                    message: format!("could not connect to {}: {e}", req.address),
+                    refusal_code: 0,
+                }))
+            }
+        }
+    }
+
+    async fn deregister_peer(
+        &self,
+        request: Request<DeregisterPeerRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let id = request.into_inner().actuator_id;
+        info!(id = %id, "DeregisterPeer requested");
+        let mut pool = self.pool.lock().await;
+        let found = pool.remove_peer(&id);
+        Ok(Response::new(CommandResponse {
+            success: found,
+            message: if found {
+                format!("peer {id} deregistered")
+            } else {
+                format!("peer {id} not found")
+            },
+            refusal_code: 0,
+        }))
+    }
+
+    // ── Safety configuration ───────────────────────────────────────────────
+
+    async fn set_actuator_soft_limits(
+        &self,
+        request: Request<SetActuatorSoftLimitsRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        let req = request.into_inner();
+        let mut pool = self.pool.lock().await;
+        let client = pool
+            .get_mut(&req.actuator_id)
+            .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?;
+
+        let r = client
+            .set_soft_limits(Request::new(SetSoftLimitsRequest { min: req.min_rad, max: req.max_rad }))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .into_inner();
+
+        info!(
+            actuator_id = %req.actuator_id,
+            min_rad = req.min_rad,
+            max_rad = req.max_rad,
+            success = r.success,
+            "SetActuatorSoftLimits"
+        );
+
+        Ok(Response::new(CommandResponse {
+            success: r.success,
+            message: r.message,
+            refusal_code: r.refusal_code as i32,
         }))
     }
 }
