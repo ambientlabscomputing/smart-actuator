@@ -22,7 +22,11 @@ class ProgramNode(BaseModel):
     children: list[ProgramNode] = Field(default_factory=list)
     attributes: dict[str, Any] = Field(
         default_factory=dict,
-        description="Node-kind-specific parameters (e.g. joint targets, wait duration)",
+        description=(
+            "Node-kind-specific parameters.\n"
+            "  MOVE: {joint_name: str, target_rad: float}\n"
+            "  WAIT: {duration_s: float}"
+        ),
     )
 
 
@@ -46,3 +50,30 @@ class Program(BaseModel):
 
 # Rebuild for forward reference in ProgramNode.children
 ProgramNode.model_rebuild()
+
+
+# ── Program run state ─────────────────────────────────────────────────────────
+
+
+class ProgramRunStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    stopped = "stopped"
+    completed = "completed"
+    faulted = "faulted"
+    interrupted = "interrupted"
+
+
+class ProgramRunState(BaseModel):
+    """Runtime state of a single program execution (mirrors CalibrationJobState)."""
+
+    run_id: str
+    program_id: str
+    machine_id: str
+    status: ProgramRunStatus
+    current_step_index: int = 0
+    total_steps: int = 0
+    current_node_id: str = ""
+    error: str = ""
+    created_at: int = 0
+    updated_at: int = 0

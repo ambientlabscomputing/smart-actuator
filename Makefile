@@ -109,3 +109,7 @@ j4: j3-stop j3-build
 ## smoke-j4: Run the J4 headless smoke test (calibration interactive-job pattern)
 smoke-j4:
 	@bash scripts/smoke-j4.sh
+
+## smoke-j5: Run the J5 headless smoke test (run a program end-to-end)
+smoke-j5:
+	@bash scripts/smoke-j5.sh

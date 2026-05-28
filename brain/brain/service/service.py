@@ -74,6 +74,7 @@ class BrainService(Service):
         await self.sidecar.connect()
         await self.state.start()
         await self.calibration.start()
+        await self.programs.start()
         if self.sim_lifecycle is not None:
             try:
                 sidecar_ready = await self.sidecar.wait_until_ready(timeout=30.0)

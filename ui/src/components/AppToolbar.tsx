@@ -24,6 +24,8 @@ interface AppToolbarProps {
   onEstop: () => Promise<void>
   onResume: () => Promise<void>
   onEdit?: () => void
+  onPrograms?: () => void
+  programsActive?: boolean
 }
 
 function modeColor(mode: string): string {
@@ -51,6 +53,8 @@ export function AppToolbar({
   onEstop,
   onResume,
   onEdit,
+  onPrograms,
+  programsActive,
 }: AppToolbarProps) {
   const [busy, setBusy] = useState(false)
 
@@ -179,6 +183,25 @@ export function AppToolbar({
             }}
           >
             Edit machine
+          </button>
+        )}
+
+        {/* Programs toggle */}
+        {onPrograms && (
+          <button
+            onClick={onPrograms}
+            style={{
+              background: programsActive ? '#1d4ed8' : 'transparent',
+              border: `1px solid ${programsActive ? '#3b82f6' : '#4b5563'}`,
+              borderRadius: 6,
+              color: programsActive ? '#fff' : '#9ca3af',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '4px 12px',
+            }}
+          >
+            Programs
           </button>
         )}
 

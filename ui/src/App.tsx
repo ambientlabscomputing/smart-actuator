@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel } from '@/components'
+import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, ProgramListView } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
@@ -24,6 +24,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
   const [editParams, setEditParams] = useState<Record<string, number>>({})
   const [editError, setEditError] = useState<string | null>(null)
   const [editLoading, setEditLoading] = useState(false)
+  const [showPrograms, setShowPrograms] = useState(false)
 
   // ── Telemetry panel ────────────────────────────────────────────────────────
   const [selectedJoint, setSelectedJoint] = useState<number | null>(null)
@@ -153,13 +154,15 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
         onEstop={() => estop(machineId)}
         onResume={() => resume(machineId)}
         onEdit={() => void handleOpenEdit()}
+        onPrograms={() => setShowPrograms((v) => !v)}
+        programsActive={showPrograms}
       />
       {editError && (
         <div style={{ background: '#7f1d1d', color: '#fca5a5', fontSize: 12, padding: '6px 16px' }}>
           {editError}
         </div>
       )}
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <AppCanvas>
           <ArmCanvas
             anglesRad={anglesRad}
@@ -174,6 +177,62 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
           jointIndex={selectedJoint}
           onClose={() => setSelectedJoint(null)}
         />
+        {showPrograms && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 360,
+              background: '#0d0d0d',
+              borderLeft: '1px solid #374151',
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '10px 16px',
+                borderBottom: '1px solid #374151',
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{
+                  color: '#f3f4f6',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                Programs
+              </span>
+              <button
+                onClick={() => setShowPrograms(false)}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: '0 4px',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+              <ProgramListView machineId={machineId} joints={joints} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

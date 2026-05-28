@@ -31,7 +31,7 @@ def new_brain_service(config: Config) -> BrainService:
     safety = SafetyService(repository, sidecar, kinematics, lifecycle, config)
     motion = MotionService(repository, sidecar, kinematics, config)
     state = StateService(repository, sidecar, kinematics, lifecycle, config)
-    programs = ProgramService(repository, config)
+    programs = ProgramService(repository, config, motion=motion, state=state, lifecycle=lifecycle, observability=observability)
     calibration = CalibrationService(repository, config, observability=observability)
 
     return BrainService(
