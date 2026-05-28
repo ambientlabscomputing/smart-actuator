@@ -35,8 +35,16 @@ async def run() -> None:
     logger.info("gRPC server started on %s:%d", config.grpc_host, config.grpc_port)
 
     try:
+        # When uvicorn exits (normal shutdown via SIGINT), tear down the gRPC
+        # server too so we don't block forever in wait_for_termination().
+        async def _serve_http() -> None:
+            try:
+                await uvicorn_server.serve()
+            finally:
+                await grpc_server.stop(grace=2)
+
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(uvicorn_server.serve())
+            tg.create_task(_serve_http())
             tg.create_task(grpc_server.wait_for_termination())
     except* (asyncio.CancelledError, KeyboardInterrupt):
         pass

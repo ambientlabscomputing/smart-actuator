@@ -73,9 +73,16 @@ class BrainService(Service):
         await self.repository.start()
         await self.sidecar.connect()
         await self.state.start()
+        await self.calibration.start()
         if self.sim_lifecycle is not None:
             try:
-                await self.sim_lifecycle.recover_on_start()
+                sidecar_ready = await self.sidecar.wait_until_ready(timeout=30.0)
+                if not sidecar_ready:
+                    logger.warning(
+                        "Sidecar not reachable after 30s — skipping sim recovery"
+                    )
+                else:
+                    await self.sim_lifecycle.recover_on_start()
             except Exception:
                 logger.exception("SimLifecycle recovery failed — continuing without sims")
 

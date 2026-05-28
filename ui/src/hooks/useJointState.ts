@@ -26,7 +26,8 @@ interface UseJointStateResult {
   connected: boolean
 }
 
-const RECONNECT_DELAY_MS = 2000
+const WS_RECONNECT_MIN_MS = 1_000
+const WS_RECONNECT_MAX_MS = 30_000
 
 export function useJointState(machineId: string): UseJointStateResult {
   const [state, setState] = useState<MachineState | null>(null)
@@ -34,9 +35,11 @@ export function useJointState(machineId: string): UseJointStateResult {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const unmounted = useRef(false)
+  const reconnectDelay = useRef(WS_RECONNECT_MIN_MS)
 
   useEffect(() => {
     unmounted.current = false
+    reconnectDelay.current = WS_RECONNECT_MIN_MS
 
     function connect() {
       if (unmounted.current) return
@@ -48,7 +51,10 @@ export function useJointState(machineId: string): UseJointStateResult {
       wsRef.current = ws
 
       ws.onopen = () => {
-        if (!unmounted.current) setConnected(true)
+        if (!unmounted.current) {
+          setConnected(true)
+          reconnectDelay.current = WS_RECONNECT_MIN_MS  // reset backoff on success
+        }
       }
 
       ws.onmessage = (event: MessageEvent) => {
@@ -64,7 +70,9 @@ export function useJointState(machineId: string): UseJointStateResult {
       ws.onclose = () => {
         if (unmounted.current) return
         setConnected(false)
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS)
+        const delay = reconnectDelay.current
+        reconnectDelay.current = Math.min(delay * 2, WS_RECONNECT_MAX_MS)
+        reconnectTimer.current = setTimeout(connect, delay)
       }
 
       ws.onerror = () => {

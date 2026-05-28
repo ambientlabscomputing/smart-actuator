@@ -4,7 +4,9 @@
  * Shows live angle, velocity, current, and temperature plus SVG sparklines
  * buffered from the WebSocket stream. No external charting dependency.
  */
+import { useState } from 'react'
 import type { JointState } from '../hooks/useJointState'
+import { InteractiveJob } from './calibration/InteractiveJob'
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 
@@ -74,10 +76,37 @@ export interface JointHistory {
 interface JointDataPanelProps {
   joint: JointState | null
   history: JointHistory | null
+  machineId: string
+  jointIndex: number | null
   onClose: () => void
 }
 
-export function JointDataPanel({ joint, history, onClose }: JointDataPanelProps) {
+export function JointDataPanel({ joint, history, machineId, jointIndex, onClose }: JointDataPanelProps) {
+  const [calJobId, setCalJobId] = useState<string | null>(null)
+  const [calBusy, setCalBusy] = useState(false)
+
+  async function startCalibration() {
+    if (jointIndex === null) return
+    setCalBusy(true)
+    try {
+      const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+      const res = await fetch(`/api/v1/machines/${encodeURIComponent(machineId)}/calibrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ joint_index: jointIndex }),
+      })
+      if (res.ok) {
+        const job = (await res.json()) as { job_id: string }
+        setCalJobId(job.job_id)
+      }
+    } finally {
+      setCalBusy(false)
+    }
+  }
+
   if (!joint) return null
 
   const angleDeg = ((joint.angle_rad * 180) / Math.PI).toFixed(1)
@@ -186,6 +215,34 @@ export function JointDataPanel({ joint, history, onClose }: JointDataPanelProps)
       <div style={{ color: '#4b5563', fontSize: 10, textAlign: 'right', marginTop: 4 }}>
         click ball to deselect
       </div>
+
+      {/* Calibrate action */}
+      {!calJobId && (
+        <button
+          onClick={() => void startCalibration()}
+          disabled={calBusy || jointIndex === null}
+          style={{
+            marginTop: 12,
+            width: '100%',
+            padding: '7px 0',
+            background: '#1e3a5f',
+            color: '#93c5fd',
+            border: '1px solid #1d4ed8',
+            borderRadius: 6,
+            cursor: calBusy ? 'default' : 'pointer',
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: calBusy ? 0.7 : 1,
+          }}
+        >
+          {calBusy ? 'Starting…' : 'Calibrate'}
+        </button>
+      )}
+
+      <InteractiveJob
+        jobId={calJobId}
+        onClose={() => setCalJobId(null)}
+      />
     </div>
   )
 }

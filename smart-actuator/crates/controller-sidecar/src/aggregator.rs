@@ -8,15 +8,20 @@ use crate::client_pool::ActuatorClientPool;
 use crate::types::JointStateSnapshot;
 use actuator_proto::actuator::{actuator_service_client::ActuatorServiceClient, ReadRequest};
 use futures::future::join_all;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, Mutex};
 use tonic::transport::Channel;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Capacity of the broadcast channel (number of frames that can be buffered
 /// before slow consumers start lagging).
 const CHANNEL_CAPACITY: usize = 64;
+
+/// After this many consecutive read failures, the actuator is considered dead
+/// and is removed from the pool. At 100 Hz this is ~3 s of unreachable.
+const STALE_PEER_THRESHOLD: u32 = 300;
 
 pub struct JointStateAggregator {
     pool: Arc<Mutex<ActuatorClientPool>>,
@@ -43,6 +48,12 @@ impl JointStateAggregator {
     /// This is intended to be spawned as a background tokio task.
     pub async fn run(&self, mut cancel: tokio::sync::watch::Receiver<bool>) {
         let mut interval = tokio::time::interval(self.poll_interval);
+        // Per-actuator fault tracking. Only log on transition (healthy ↔ fault)
+        // to avoid drowning stdout when an actuator is permanently unreachable.
+        // `consecutive_failures` also drives auto-pruning of dead peers.
+        let mut faulted: HashMap<String, bool> = HashMap::new();
+        let mut consecutive_failures: HashMap<String, u32> = HashMap::new();
+
         loop {
             tokio::select! {
                 _ = interval.tick() => {}
@@ -54,6 +65,50 @@ impl JointStateAggregator {
             }
 
             let snapshots = self.poll_all().await;
+
+            // Inspect snapshots for fault transitions and prune dead peers.
+            let mut to_prune: Vec<String> = Vec::new();
+            for snap in &snapshots {
+                let id = &snap.actuator_id;
+                let is_faulted = snap.fault.is_some();
+                let was_faulted = faulted.get(id).copied().unwrap_or(false);
+
+                if is_faulted {
+                    if !was_faulted {
+                        warn!(
+                            actuator_id = %id,
+                            error = %snap.fault.as_deref().unwrap_or(""),
+                            "Actuator went unreachable"
+                        );
+                    }
+                    let n = consecutive_failures.entry(id.clone()).or_insert(0);
+                    *n += 1;
+                    if *n == STALE_PEER_THRESHOLD {
+                        info!(
+                            actuator_id = %id,
+                            failures = *n,
+                            "Pruning unreachable actuator from pool (stale peer)"
+                        );
+                        to_prune.push(id.clone());
+                    }
+                } else {
+                    if was_faulted {
+                        info!(actuator_id = %id, "Actuator recovered");
+                    }
+                    consecutive_failures.remove(id);
+                }
+                faulted.insert(id.clone(), is_faulted);
+            }
+
+            if !to_prune.is_empty() {
+                let mut pool = self.pool.lock().await;
+                for id in &to_prune {
+                    pool.remove_peer(id);
+                    faulted.remove(id);
+                    consecutive_failures.remove(id);
+                }
+            }
+
             if self.tx.send(snapshots).is_err() {
                 // No active receivers — that's fine, keep running.
                 debug!("JointStateAggregator: no receivers, continuing");
@@ -106,7 +161,11 @@ impl JointStateAggregator {
                         captured_at: Instant::now(),
                     },
                     Err(e) => {
-                        warn!(actuator_id = %id, error = %e, "Failed to read from actuator");
+                        // Per-tick read failures are noisy when an actuator is
+                        // permanently unreachable. The `run` loop handles
+                        // transition logging and stale-peer pruning, so here
+                        // we log at debug for diagnostic-only visibility.
+                        debug!(actuator_id = %id, error = %e, "Failed to read from actuator");
                         JointStateSnapshot {
                             actuator_id: id,
                             joint_name,

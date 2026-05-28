@@ -93,3 +93,19 @@ j3-stop:
 smoke-j3:
 	@bash scripts/smoke-j3.sh
 
+# ── J4 — Calibrate ───────────────────────────────────────────────────────────
+
+## j4: Start the J4 stack (same as J3 — Brain, Sidecar, UI; Brain spawns sims)
+j4: j3-stop j3-build
+	@if command -v overmind >/dev/null 2>&1; then \
+		overmind start -f Procfile.j3; \
+	elif command -v foreman >/dev/null 2>&1; then \
+		foreman start -f Procfile.j3; \
+	else \
+		echo "Install overmind (brew install overmind) or foreman to use 'make j4'"; \
+		exit 1; \
+	fi
+
+## smoke-j4: Run the J4 headless smoke test (calibration interactive-job pattern)
+smoke-j4:
+	@bash scripts/smoke-j4.sh

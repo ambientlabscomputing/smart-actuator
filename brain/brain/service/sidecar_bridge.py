@@ -44,6 +44,38 @@ class SidecarBridge:
     def _connected(self) -> bool:
         return self._channel is not None
 
+    async def wait_until_ready(self, timeout: float = 30.0, poll_interval: float = 0.5) -> bool:
+        """
+        Poll the sidecar Heartbeat RPC until it succeeds or *timeout* seconds elapse.
+        Returns True if the sidecar became reachable, False on timeout.
+        Called by BrainService before sim recovery so the gRPC socket is guaranteed
+        to exist before we attempt RegisterPeer.
+        """
+        from brain.interface.grpc.generated import sidecar_pb2  # noqa: PLC0415
+
+        if self._stub is None:
+            return False
+
+        deadline = asyncio.get_event_loop().time() + timeout
+        attempt = 0
+        while asyncio.get_event_loop().time() < deadline:
+            try:
+                await self._stub.Heartbeat(
+                    sidecar_pb2.HeartbeatRequest(timestamp=0),
+                    timeout=poll_interval,
+                )
+                logger.info("SidecarBridge: ready after {} attempt(s)", attempt + 1)
+                return True
+            except (grpc.aio.AioRpcError, Exception):
+                pass
+            attempt += 1
+            try:
+                await asyncio.sleep(poll_interval)
+            except asyncio.CancelledError:
+                return False
+        logger.warning("SidecarBridge: sidecar not ready after {:.0f}s", timeout)
+        return False
+
     async def connect(self) -> None:
         # Lazy import breaks the circular dependency between brain.service and
         # brain.interface (which both import each other transitively).

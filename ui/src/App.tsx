@@ -170,6 +170,8 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
           history={selectedJoint !== null ? (historyRef.current.get(selectedJoint) ?? null) : null}
+          machineId={machineId}
+          jointIndex={selectedJoint}
           onClose={() => setSelectedJoint(null)}
         />
       </div>
@@ -194,33 +196,41 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   // On mount: fetch the machines list. If non-empty, use the first one.
+  // Retry up to ~15s if Brain isn't up yet — avoids opening the wizard
+  // before Brain is reachable (which would leave templates stuck loading).
   useEffect(() => {
     let cancelled = false
     async function checkMachines() {
-      try {
-        const ids = (await brainGet('/machines')) as string[]
+      const MAX_ATTEMPTS = 30   // 30 × 500 ms = 15 s
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         if (cancelled) return
-        if (ids.length > 0) {
-          // Load the first machine to pick up link lengths for the canvas.
-          try {
-            const m = (await brainGet(`/machine/${encodeURIComponent(ids[0])}`)) as MachineRecord
-            if (!cancelled) {
-              const p = m.description.parameters
-              setLinkLengths([
-                (p['link0_length_m'] as number) ?? 1.5,
-                (p['link1_length_m'] as number) ?? 1.0,
-              ])
-              setMachineId(m.description.machine_id)
+        try {
+          const ids = (await brainGet('/machines')) as string[]
+          if (cancelled) return
+          if (ids.length > 0) {
+            try {
+              const m = (await brainGet(`/machine/${encodeURIComponent(ids[0])}`)) as MachineRecord
+              if (!cancelled) {
+                const p = m.description.parameters
+                setLinkLengths([
+                  (p['link0_length_m'] as number) ?? 1.5,
+                  (p['link1_length_m'] as number) ?? 1.0,
+                ])
+                setMachineId(m.description.machine_id)
+              }
+            } catch {
+              if (!cancelled) setMachineId(ids[0])
             }
-          } catch {
-            if (!cancelled) setMachineId(ids[0])
           }
+          if (!cancelled) setLoading(false)
+          return
+        } catch {
+          // Brain not ready yet — wait and retry
+          await new Promise<void>((res) => setTimeout(res, 500))
         }
-      } catch {
-        // Brain not reachable yet — show wizard so user can retry
-      } finally {
-        if (!cancelled) setLoading(false)
       }
+      // Gave up — show wizard anyway
+      if (!cancelled) setLoading(false)
     }
     void checkMachines()
     return () => { cancelled = true }

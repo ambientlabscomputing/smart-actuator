@@ -8,7 +8,7 @@
  * On completion calls onDone(machineId, params) so the parent can switch to
  * the workspace view.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { brainPost, brainGet } from '../../hooks/useJointState'
 import type { Template, TemplateJoint } from '../../lib/types'
 import { MachineEditor } from '../MachineEditor'
@@ -32,28 +32,61 @@ function TemplatePicker({
   const [templates, setTemplates] = useState<Template[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const attemptRef = useRef(0)
 
-  const load = async () => {
+  const load = () => {
+    attemptRef.current += 1
+    const attempt = attemptRef.current
     setLoading(true)
-    try {
-      const list = (await brainGet('/templates')) as Template[]
-      setTemplates(list)
-    } catch (e) {
-      setErr(String(e))
-    } finally {
-      setLoading(false)
-    }
+    setErr(null)
+    setTemplates(null)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
+    const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    fetch('/api/v1/templates', { headers, signal: controller.signal })
+      .then(async (res) => {
+        clearTimeout(timer)
+        if (attempt !== attemptRef.current) return
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+        const list = (await res.json()) as Template[]
+        setTemplates(list)
+      })
+      .catch((e: unknown) => {
+        clearTimeout(timer)
+        if (attempt !== attemptRef.current) return
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          setErr('Request timed out — is Brain running?')
+        } else {
+          setErr(String(e))
+        }
+      })
+      .finally(() => {
+        if (attempt === attemptRef.current) setLoading(false)
+      })
   }
 
-  if (!templates && !loading && !err) {
-    void load()
-  }
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !templates) {
+  if (loading) {
     return <p style={hint}>Loading templates…</p>
   }
   if (err) {
-    return <p style={{ color: '#f44' }}>Error: {err}</p>
+    return (
+      <div>
+        <p style={{ color: '#f44' }}>Error: {err}</p>
+        <button
+          style={{ marginTop: 8, background: '#374151', border: 'none', borderRadius: 6, color: '#d1d5db', cursor: 'pointer', padding: '8px 16px', fontSize: 13 }}
+          onClick={load}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+  if (!templates) {
+    return <p style={hint}>Loading templates…</p>
   }
   if (templates.length === 0) {
     return <p style={hint}>No templates found. Check Brain logs.</p>
