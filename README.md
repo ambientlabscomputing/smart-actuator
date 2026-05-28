@@ -72,3 +72,8 @@ make run
 - [RFD-4: The Smart Actuator Brain](RFDs/RFD-4.md)
 - [RFD-5: Template Marketplace and Discovery](RFDs/RFD-5.md)
 - [RFD-6: Shared-World Physics for the Actuator Simulator](RFDs/RFD-6.md)
+- [RFD-7: UI and the Product Story](RFDs/RFD-7.md)
+- [RFD-8: Development Journeys](RFDs/RFD-8.md)
+- [RFD-9: Actuator Contract](RFDs/RFD-9.md)
+- [RFD-10: The Testbench Actuator](RFDs/RFD-10.md)
+- [RFD-11: The Smart Actuator AST](RFDs/RFD-11.md)
