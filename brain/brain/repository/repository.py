@@ -17,25 +17,20 @@ class Repository:
     """
     SQLite-backed persistence layer.
 
-    Owns a single database file (brain.db by default).  Domain-specific
-    operations are delegated to sub-repositories accessible as attributes:
-
-      repository.machine      — MachineRepository
-      repository.sim          — SimRepository
-      repository.calibration  — CalibrationRepository
-      repository.program      — ProgramRepository (programs + runs)
-      repository.mode_event   — ModeEventRepository
-      repository.user         — UserRepository
+    Owns a single database file (brain.db by default)
     """
 
-    def __init__(self, db_path: str = "brain.db") -> None:
-        self._db_path = db_path
-        self._db: aiosqlite.Connection | None = None
+    def __init__(self) -> None:
+        self.machine: MachineRepository | None = None
+        self.sim: SimRepository | None = None
+        self.hardware: HardwareRepository | None = None
+        self.calibration: CalibrationRepository | None = None
+        self.program: ProgramRepository | None = None
+        self.mode_event: ModeEventRepository | None = None
+        self.user: UserRepository | None = None
 
     async def start(self) -> None:
         """Open the database, run migrations, and initialise sub-repositories."""
-        self._db = await aiosqlite.connect(self._db_path)
-        await Migrator(self._db).migrate()
         self.machine = MachineRepository()
         self.sim = SimRepository()
         self.hardware = HardwareRepository()
@@ -46,9 +41,7 @@ class Repository:
 
         async with get_engine().begin() as conn:
             await conn.run_sync(SqlBase.metadata.create_all)
-        logger.info("Repository opened at {}", self._db_path)
+        logger.info("Repository opened")
 
     async def stop(self) -> None:
-        if self._db is not None:
-            await self._db.close()
-            self._db = None
+        pass
