@@ -9,7 +9,7 @@ from brain.repository.calibration_repository import CalibrationRepository
 from brain.repository.program_repository import ProgramRepository
 from brain.repository.mode_event_repository import ModeEventRepository
 from brain.models.base import SqlBase
-from brain.repository.session_maker import engine
+from brain.repository.session_maker import get_engine
 from brain.repository.user_repository import UserRepository
 
 
@@ -44,10 +44,8 @@ class Repository:
         self.mode_event = ModeEventRepository(self._db)
         self.user = UserRepository()
 
-        # new session-based approach
-        async with engine.begin() as conn:
+        async with get_engine().begin() as conn:
             await conn.run_sync(SqlBase.metadata.create_all)
-
         logger.info("Repository opened at {}", self._db_path)
 
     async def stop(self) -> None:
