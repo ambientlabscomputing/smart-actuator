@@ -33,7 +33,7 @@ def create_grpc_server(service: BrainService, config: Config) -> grpc.aio.Server
     # from brain.interface.grpc.generated import brain_pb2_grpc
     # brain_pb2_grpc.add_BrainServiceServicer_to_server(servicer, server)
 
-    address = f"{config.grpc_host}:{config.grpc_port}"
+    address = f"{config.grpc.host}:{config.grpc.port}"
     server.add_insecure_port(address)
     logger.info("gRPC server configured on %s", address)
     return server

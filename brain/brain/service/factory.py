@@ -18,7 +18,7 @@ from brain.service.template_service import TemplateService
 
 
 def new_brain_service(config: Config) -> BrainService:
-    repository = Repository(config.db_path)
+    repository = Repository(config.db.path)
     sidecar = SidecarBridge(config)
     observability = ObservabilityService(config)
     templates = TemplateService(config)
