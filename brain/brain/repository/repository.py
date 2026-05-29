@@ -36,12 +36,12 @@ class Repository:
         """Open the database, run migrations, and initialise sub-repositories."""
         self._db = await aiosqlite.connect(self._db_path)
         await Migrator(self._db).migrate()
-        self.machine = MachineRepository(self._db)
-        self.sim = SimRepository(self._db)
-        self.hardware = HardwareRepository(self._db)
-        self.calibration = CalibrationRepository(self._db)
-        self.program = ProgramRepository(self._db)
-        self.mode_event = ModeEventRepository(self._db)
+        self.machine = MachineRepository()
+        self.sim = SimRepository()
+        self.hardware = HardwareRepository()
+        self.calibration = CalibrationRepository()
+        self.program = ProgramRepository()
+        self.mode_event = ModeEventRepository()
         self.user = UserRepository()
 
         async with get_engine().begin() as conn:

@@ -1,4 +1,5 @@
 from typing import Annotated
+import asyncio
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
@@ -22,8 +23,6 @@ async def get_state(machine_id: str, svc: Service) -> MachineState:
 
 @router.websocket("/ws")
 async def stream_state(websocket: WebSocket, machine_id: str) -> None:
-    import asyncio
-
     # WebSocket endpoints do not receive a Request object, so pull the service
     # directly from app.state instead of using the get_service dependency.
     svc: BrainService = websocket.app.state.brain

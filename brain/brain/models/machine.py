@@ -1,4 +1,9 @@
+import json
+
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Mapped, mapped_column
+
+from brain.models.base import SqlBase
 
 
 class TemplateRef(BaseModel):
@@ -51,3 +56,36 @@ class Machine(BaseModel):
     reach_volume_cache: dict[str, float] = Field(default_factory=dict)
     collision_bounds_cache: dict[str, object] = Field(default_factory=dict)
     joint_names: list[str] = Field(default_factory=list)
+
+
+class SqlMachine(SqlBase):
+    __tablename__ = "machines"
+
+    machine_id: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    description_json: Mapped[str] = mapped_column(nullable=False)
+    expanded_urdf: Mapped[str] = mapped_column(nullable=False, default="")
+
+    def to_machine(self) -> Machine:
+        description = MachineDescription.model_validate(json.loads(self.description_json))
+        return Machine(description=description, expanded_urdf=self.expanded_urdf)
+
+
+class SqlSimEntry(SqlBase):
+    __tablename__ = "sim_registry"
+
+    machine_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    slot: Mapped[int] = mapped_column(nullable=False)
+    address: Mapped[str] = mapped_column(nullable=False)
+    pid: Mapped[int] = mapped_column(nullable=False)
+    actuator_id: Mapped[str] = mapped_column(nullable=False)
+    joint_name: Mapped[str] = mapped_column(nullable=False, default="")
+
+
+class SqlHardwareEntry(SqlBase):
+    __tablename__ = "hardware_registry"
+
+    machine_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    slot: Mapped[int] = mapped_column(nullable=False)
+    address: Mapped[str] = mapped_column(nullable=False)
+    actuator_id: Mapped[str] = mapped_column(nullable=False)
+    joint_name: Mapped[str] = mapped_column(nullable=False, default="")

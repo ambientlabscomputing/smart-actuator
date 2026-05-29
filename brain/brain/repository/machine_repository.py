@@ -1,43 +1,46 @@
 import json
 
-import aiosqlite
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from brain.models.machine import Machine, MachineDescription, SqlMachine
+from brain.repository.session_decorator import with_session
 
 
 class MachineRepository:
-    def __init__(self, conn: aiosqlite.Connection) -> None:
-        self._conn = conn
-
-    async def save_machine(self, machine_id: str, data: dict) -> None:
-        description_json = json.dumps(data.get("description", data))
+    @with_session
+    async def save_machine(self, session: AsyncSession, machine_id: str, data: dict) -> None:
+        description = data.get("description", data)
         expanded_urdf = data.get("expanded_urdf", "")
-        await self._conn.execute(
-            """
-            INSERT INTO machines (id, description_json, expanded_urdf)
-            VALUES (?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                description_json = excluded.description_json,
-                expanded_urdf    = excluded.expanded_urdf
-            """,
-            (machine_id, description_json, expanded_urdf),
-        )
-        await self._conn.commit()
-
-    async def load_machine(self, machine_id: str) -> dict | None:
-        async with self._conn.execute(
-            "SELECT description_json, expanded_urdf FROM machines WHERE id = ?",
-            (machine_id,),
-        ) as cur:
-            row = await cur.fetchone()
+        result = await session.execute(select(SqlMachine).where(SqlMachine.machine_id == machine_id))
+        row = result.scalar_one_or_none()
         if row is None:
-            return None
-        description = json.loads(row[0])
-        return {"description": description, "expanded_urdf": row[1]}
+            row = SqlMachine(
+                machine_id=machine_id,
+                description_json=json.dumps(description),
+                expanded_urdf=expanded_urdf,
+            )
+            session.add(row)
+        else:
+            row.description_json = json.dumps(description)
+            row.expanded_urdf = expanded_urdf
+        await session.commit()
 
-    async def list_machines(self) -> list[str]:
-        async with self._conn.execute("SELECT id FROM machines ORDER BY created_at") as cur:
-            rows = await cur.fetchall()
-        return [row[0] for row in rows]
+    @with_session
+    async def load_machine(self, session: AsyncSession, machine_id: str) -> Machine | None:
+        result = await session.execute(select(SqlMachine).where(SqlMachine.machine_id == machine_id))
+        row = result.scalar_one_or_none()
+        return row.to_machine() if row else None
 
-    async def delete_machine(self, machine_id: str) -> None:
-        await self._conn.execute("DELETE FROM machines WHERE id = ?", (machine_id,))
-        await self._conn.commit()
+    @with_session
+    async def list_machines(self, session: AsyncSession) -> list[str]:
+        result = await session.execute(select(SqlMachine.machine_id).order_by(SqlMachine.created_at))
+        return [r[0] for r in result.fetchall()]
+
+    @with_session
+    async def delete_machine(self, session: AsyncSession, machine_id: str) -> None:
+        result = await session.execute(select(SqlMachine).where(SqlMachine.machine_id == machine_id))
+        row = result.scalar_one_or_none()
+        if row:
+            await session.delete(row)
+            await session.commit()
