@@ -148,7 +148,7 @@ async fn run(cfg: config::SidecarConfig, config_path: String) -> anyhow::Result<
     // ── Aggregator ─────────────────────────────────────────────────────────
     let aggregator = Arc::new(aggregator::JointStateAggregator::new(
         pool.clone(),
-        Duration::from_millis(10), // 100 Hz default — TODO: make configurable
+        Duration::from_millis(50), // 20 Hz — sane for WiFi hardware (4 serial reads per tick)
     ));
 
     // ── Cancellation channel ───────────────────────────────────────────────

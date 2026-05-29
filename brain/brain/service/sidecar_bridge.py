@@ -235,7 +235,7 @@ class SidecarBridge:
 
         metadata = [("x-journey-id", journey_id_var.get())]
         req = sidecar_pb2.SendCommandRequest(actuator_id=actuator_id, position=position)
-        resp = await self._stub.SendCommand(req, metadata=metadata)
+        resp = await self._stub.SendCommand(req, metadata=metadata, timeout=0.5)
         return {
             "success": resp.success,
             "message": resp.message,

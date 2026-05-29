@@ -113,3 +113,7 @@ smoke-j4:
 ## smoke-j5: Run the J5 headless smoke test (run a program end-to-end)
 smoke-j5:
 	@bash scripts/smoke-j5.sh
+
+## firmware-%: Delegate firmware targets to the actuator-firmware crate Makefile
+firmware-%:
+	$(MAKE) -C smart-actuator/crates/actuator-firmware $@

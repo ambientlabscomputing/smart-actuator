@@ -1,0 +1,5 @@
+[toolchain]
+# Use the Xtensa-aware Rust toolchain installed by `espup install` (see
+# `make firmware-toolchain`). This crate is excluded from the host Cargo
+# workspace specifically so it can pick a different toolchain than `stable`.
+channel = "esp"

@@ -124,6 +124,17 @@ function TemplatePicker({
 
 // ── Step 3: Bind joints ───────────────────────────────────────────────────────
 
+type SlotKind = 'sim' | 'hardware'
+type HwTransport = 'tcp' | 'serial'
+
+interface HwInput {
+  transport: HwTransport
+  ip: string
+  port: string
+  serialPath: string
+  baudRate: string
+}
+
 function BindingStep({
   machineId,
   joints,
@@ -136,14 +147,61 @@ function BindingStep({
   const [results, setResults] = useState<Record<number, BindingResult>>({})
   const [errors, setErrors] = useState<Record<number, string>>({})
   const [binding, setBinding] = useState<number | null>(null)
+  const [kinds, setKinds] = useState<Record<number, SlotKind>>({})
+  const [hwInputs, setHwInputs] = useState<Record<number, HwInput>>({})
+
+  const kindOf = (slot: number): SlotKind => kinds[slot] ?? 'sim'
+
+  const setKind = (slot: number, k: SlotKind) =>
+    setKinds((prev) => ({ ...prev, [slot]: k }))
+
+  const setHwField = (slot: number, field: keyof HwInput, val: string) =>
+    setHwInputs((prev) => ({
+      ...prev,
+      [slot]: {
+        transport: 'serial',
+        ip: '',
+        port: '50051',
+        serialPath: '',
+        baudRate: '921600',
+        ...prev[slot],
+        [field]: val,
+      },
+    }))
+
+  const defaultHw = (): HwInput => ({
+    transport: 'serial',
+    ip: '',
+    port: '50051',
+    serialPath: '',
+    baudRate: '921600',
+  })
 
   const bind = async (slot: number) => {
     setBinding(slot)
     setErrors((e) => ({ ...e, [slot]: '' }))
     try {
-      const r = (await brainPost(`/machine/${machineId}/bindings/${slot}`, {
-        kind: 'sim',
-      })) as BindingResult
+      const k = kindOf(slot)
+      const payload: Record<string, unknown> = { kind: k }
+      if (k === 'hardware') {
+        const hw = hwInputs[slot] ?? defaultHw()
+        if (hw.transport === 'serial') {
+          if (!hw.serialPath) {
+            setErrors((prev) => ({ ...prev, [slot]: 'Serial path required (e.g. /dev/cu.usbserial-XXXX)' }))
+            return
+          }
+          payload['serial_path'] = hw.serialPath
+          payload['baud_rate'] = parseInt(hw.baudRate || '921600', 10)
+        } else {
+          if (!hw.ip) {
+            setErrors((prev) => ({ ...prev, [slot]: 'IP address required for TCP binding' }))
+            return
+          }
+          payload['ip'] = hw.ip
+          payload['port'] = parseInt(hw.port || '50051', 10)
+        }
+      }
+      const r = (await brainPost(`/machine/${machineId}/bindings/${slot}`, payload)) as BindingResult
       setResults((prev) => ({ ...prev, [slot]: r }))
     } catch (e) {
       setErrors((prev) => ({ ...prev, [slot]: String(e) }))
@@ -154,23 +212,27 @@ function BindingStep({
 
   const bindAll = async () => {
     for (const j of joints) {
-      await bind(j.slot)
+      if (!results[j.slot]) await bind(j.slot)
     }
   }
 
   const allBound = joints.every((j) => results[j.slot] !== undefined)
 
+  const kindSummary = joints.map((j) => kindOf(j.slot) === 'hardware' ? 'HW' : 'Sim').join(' / ')
+
   return (
     <div>
-      <h2 style={heading}>Bind joint slots → Sim</h2>
+      <h2 style={heading}>Bind joint slots → {kindSummary}</h2>
       <p style={hint}>
-        Each slot will spawn an <code>actuator-sim</code> process and register it with the Sidecar.
+        Choose <em>Sim</em> to spawn an <code>actuator-sim</code> process, or <em>Hardware</em> to
+        connect a real actuator via USB-CDC (recommended) or TCP/IP.
       </p>
       <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: 16 }}>
         <thead>
           <tr>
             <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Slot</th>
             <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Joint</th>
+            <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Kind</th>
             <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 0' }}>Status</th>
             <th />
           </tr>
@@ -179,19 +241,94 @@ function BindingStep({
           {joints.map((j) => {
             const r = results[j.slot]
             const err = errors[j.slot]
+            const k = kindOf(j.slot)
+            const hw = hwInputs[j.slot] ?? defaultHw()
             return (
               <tr key={j.slot}>
                 <td style={{ padding: '6px 12px 6px 0', color: '#ccc' }}>{j.slot}</td>
                 <td style={{ padding: '6px 12px 6px 0', color: '#ccc' }}>{j.name}</td>
                 <td style={{ padding: '6px 12px 6px 0' }}>
+                  {!r && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          style={{ ...kindBtn, background: k === 'sim' ? '#1565c0' : '#333' }}
+                          onClick={() => setKind(j.slot, 'sim')}
+                        >
+                          Sim
+                        </button>
+                        <button
+                          style={{ ...kindBtn, background: k === 'hardware' ? '#4a148c' : '#333' }}
+                          onClick={() => setKind(j.slot, 'hardware')}
+                        >
+                          Hardware
+                        </button>
+                      </div>
+                      {k === 'hardware' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              style={{ ...kindBtn, background: hw.transport === 'serial' ? '#006064' : '#333', fontSize: 11 }}
+                              onClick={() => setHwField(j.slot, 'transport', 'serial')}
+                            >
+                              USB-CDC
+                            </button>
+                            <button
+                              style={{ ...kindBtn, background: hw.transport === 'tcp' ? '#33691e' : '#333', fontSize: 11 }}
+                              onClick={() => setHwField(j.slot, 'transport', 'tcp')}
+                            >
+                              TCP/IP
+                            </button>
+                          </div>
+                          {hw.transport === 'serial' ? (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                              <input
+                                placeholder="/dev/cu.usbserial-XXXX"
+                                value={hw.serialPath}
+                                onChange={(e) => setHwField(j.slot, 'serialPath', e.target.value)}
+                                style={{ ...ipInput, width: 220 }}
+                              />
+                              <input
+                                placeholder="921600"
+                                value={hw.baudRate}
+                                onChange={(e) => setHwField(j.slot, 'baudRate', e.target.value)}
+                                style={{ ...ipInput, width: 80 }}
+                              />
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                              <input
+                                placeholder="IP (e.g. 192.168.4.105)"
+                                value={hw.ip}
+                                onChange={(e) => setHwField(j.slot, 'ip', e.target.value)}
+                                style={ipInput}
+                              />
+                              <input
+                                placeholder="Port"
+                                value={hw.port}
+                                onChange={(e) => setHwField(j.slot, 'port', e.target.value)}
+                                style={{ ...ipInput, width: 64 }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td style={{ padding: '6px 12px 6px 0' }}>
                   {r ? (
-                    <span style={{ color: '#69f0ae' }}>
-                      ✓ pid={r.pid} port={r.address?.split(':').at(-1)}
-                    </span>
+                    r.pid != null ? (
+                      <span style={{ color: '#69f0ae' }}>
+                        ✓ pid={r.pid} port={r.address?.split(':').at(-1)}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#69f0ae' }}>✓ {r.address}</span>
+                    )
                   ) : err ? (
                     <span style={{ color: '#f44' }}>{err}</span>
                   ) : binding === j.slot ? (
-                    <span style={{ color: '#aaa' }}>Spawning…</span>
+                    <span style={{ color: '#aaa' }}>{k === 'hardware' ? 'Connecting…' : 'Spawning…'}</span>
                   ) : (
                     <span style={{ color: '#666' }}>–</span>
                   )}
@@ -401,6 +538,26 @@ const btn: React.CSSProperties = {
   marginTop: 16,
   padding: '8px 20px',
   fontSize: 14,
+}
+
+const kindBtn: React.CSSProperties = {
+  border: 'none',
+  borderRadius: 4,
+  color: '#fff',
+  cursor: 'pointer',
+  padding: '3px 10px',
+  fontSize: 12,
+  fontWeight: 600,
+}
+
+const ipInput: React.CSSProperties = {
+  background: '#1a1a1a',
+  border: '1px solid #444',
+  borderRadius: 4,
+  color: '#e0e0e0',
+  fontSize: 12,
+  padding: '3px 6px',
+  width: 150,
 }
 
 const activeCrumb: React.CSSProperties = { color: '#82b1ff', fontWeight: 600 }

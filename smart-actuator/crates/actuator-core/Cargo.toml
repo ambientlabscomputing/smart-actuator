@@ -6,6 +6,12 @@ license.workspace = true
 
 [dependencies]
 thiserror.workspace = true
-tokio = { workspace = true, features = ["sync"] }
+# NOTE: do NOT use `tokio = { workspace = true, ... }` here. The workspace
+# definition has features = ["full"], which is additive and pulls in tokio's
+# signal/process modules — those depend on signal-hook-registry, which does
+# not compile for xtensa-esp32-espidf (the firmware target). actuator-core is
+# shared by the firmware, so we declare tokio directly with default-features
+# disabled and only the features we actually use.
+tokio = { version = "1", default-features = false, features = ["sync"] }
 tracing.workspace = true
 async-trait.workspace = true

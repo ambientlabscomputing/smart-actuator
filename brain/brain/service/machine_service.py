@@ -9,6 +9,7 @@ from brain.utils.logger import logger
 
 if TYPE_CHECKING:
     from brain.service.sim_lifecycle_service import SimLifecycleService
+    from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 
 
 class MachineService:
@@ -28,14 +29,19 @@ class MachineService:
         config: Config,
         *,
         sim_lifecycle: "SimLifecycleService | None" = None,
+        hardware_lifecycle: "HardwareLifecycleService | None" = None,
     ) -> None:
         self._repository = repository
         self._templates = template_service
         self._config = config
         self._sim_lifecycle = sim_lifecycle  # injected after construction to break circular dep
+        self._hardware_lifecycle = hardware_lifecycle
 
     def set_sim_lifecycle(self, sim_lifecycle: "SimLifecycleService") -> None:
         self._sim_lifecycle = sim_lifecycle
+
+    def set_hardware_lifecycle(self, hardware_lifecycle: "HardwareLifecycleService") -> None:
+        self._hardware_lifecycle = hardware_lifecycle
 
     async def build_machine(self, description: MachineDescription) -> Machine:
         """
@@ -77,7 +83,7 @@ class MachineService:
         return machine
 
     async def get_machine(self, machine_id: str) -> Machine | None:
-        row = await self._repository.load_machine(machine_id)
+        row = await self._repository.machine.load_machine(machine_id)
         if row is None:
             return None
         try:
@@ -99,16 +105,27 @@ class MachineService:
             return None
 
     async def list_machines(self) -> list[str]:
-        return await self._repository.list_machines()
+        return await self._repository.machine.list_machines()
 
     async def bind_slot(
-        self, machine_id: str, slot: int, *, kind: str
+        self,
+        machine_id: str,
+        slot: int,
+        *,
+        kind: str,
+        ip: str | None = None,
+        port: int | None = None,
+        serial_path: str | None = None,
+        baud_rate: int = 921_600,
+        actuator_id: str | None = None,
     ) -> dict[str, object]:
         """
         Bind a single joint slot.
 
-        kind="sim"     → spawn an actuator-sim, register with Sidecar, persist.
-        kind="unbound" → tear down any existing sim for this slot.
+        kind="sim"      → spawn an actuator-sim, register with Sidecar, persist.
+        kind="hardware" → register an existing hardware endpoint, persist.
+                          Supports TCP (ip + port) or USB-CDC (serial_path).
+        kind="unbound"  → tear down any existing binding for this slot.
         """
         machine = await self.get_machine(machine_id)
         if machine is None:
@@ -131,7 +148,6 @@ class MachineService:
                 machine_id, slot, joint_name=joint_name, limit_rad=limit_rad
             )
 
-            # Update the machine description's actuator_bindings list.
             bindings = list(machine.description.actuator_bindings)
             while len(bindings) <= slot:
                 bindings.append("")
@@ -148,9 +164,46 @@ class MachineService:
                 "pid": pid,
             }
 
+        elif kind == "hardware":
+            if not ip and not serial_path:
+                raise ValueError("kind='hardware' requires ip+port (TCP) or serial_path (USB-CDC)")
+            if self._hardware_lifecycle is None:
+                raise RuntimeError("HardwareLifecycleService not wired — cannot bind hardware")
+            limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))
+            limit_rad = math.radians(limit_deg)
+            address, bound_actuator_id = await self._hardware_lifecycle.bind_hardware(
+                machine_id,
+                slot,
+                joint_name=joint_name,
+                ip=ip,
+                port=port,
+                serial_path=serial_path,
+                baud_rate=baud_rate,
+                actuator_id=actuator_id,
+                limit_rad=limit_rad,
+            )
+
+            bindings = list(machine.description.actuator_bindings)
+            while len(bindings) <= slot:
+                bindings.append("")
+            bindings[slot] = bound_actuator_id
+            machine.description.actuator_bindings = bindings
+            await self._persist(machine)
+
+            return {
+                "machine_id": machine_id,
+                "slot": slot,
+                "kind": "hardware",
+                "actuator_id": bound_actuator_id,
+                "address": address,
+                "pid": None,
+            }
+
         elif kind == "unbound":
             if self._sim_lifecycle is not None:
                 await self._sim_lifecycle.teardown_sim(machine_id, slot)
+            if self._hardware_lifecycle is not None:
+                await self._hardware_lifecycle.teardown_hardware(machine_id, slot)
 
             bindings = list(machine.description.actuator_bindings)
             if slot < len(bindings):
@@ -161,14 +214,14 @@ class MachineService:
             return {"machine_id": machine_id, "slot": slot, "kind": "unbound"}
 
         else:
-            raise ValueError(f"Unknown binding kind {kind!r}. Valid: 'sim', 'unbound'")
+            raise ValueError(f"Unknown binding kind {kind!r}. Valid: 'sim', 'hardware', 'unbound'")
 
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 
     async def _persist(self, machine: Machine) -> None:
-        await self._repository.save_machine(
+        await self._repository.machine.save_machine(
             machine.description.machine_id,
             {
                 "description": machine.description.model_dump(),
@@ -250,12 +303,21 @@ class MachineService:
             list(parameters.keys()),
         )
 
-        # Push updated soft limits to any running sims for this machine.
+        # Push updated soft limits to any running sims AND hardware for this machine.
         # Best-effort: failure is logged but does not abort the update.
+        bridge = None
         if self._sim_lifecycle is not None:
-            sim_rows = await self._repository.list_sims(machine_id)
             bridge = self._sim_lifecycle._sidecar  # type: ignore[attr-defined]
-            for row in sim_rows:
+        elif self._hardware_lifecycle is not None:
+            bridge = self._hardware_lifecycle._sidecar  # type: ignore[attr-defined]
+
+        if bridge is not None:
+            rows: list[dict] = []
+            if self._sim_lifecycle is not None:
+                rows.extend(await self._repository.sim.list_sims(machine_id))
+            if self._hardware_lifecycle is not None:
+                rows.extend(await self._repository.hardware.list_hardware(machine_id))
+            for row in rows:
                 slot = row["slot"]
                 actuator_id = row["actuator_id"]
                 limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))

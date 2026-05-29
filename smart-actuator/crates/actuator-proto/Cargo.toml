@@ -4,9 +4,22 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
+[features]
+# tonic: generate and expose tonic service/client stubs (Sidecar, Sim).
+# Disabled on the firmware where tonic's h2/hyper stack crashes on Xtensa.
+default = ["tonic", "tokio"]
+tonic = ["dep:tonic"]
+# tokio: async wire frame helpers + WireClient (Sidecar, Sim, Firmware).
+tokio = ["dep:tokio"]
+# serial: enable tokio-serial transport in WireClient (Sidecar only).
+serial = ["tokio", "dep:tokio-serial"]
+
 [dependencies]
-tonic.workspace = true
+tonic = { workspace = true, optional = true }
 prost.workspace = true
+tokio = { version = "1", default-features = false, features = ["net", "io-util", "sync", "time"], optional = true }
+tokio-serial = { version = "5.4", optional = true }
 
 [build-dependencies]
 tonic-build = "0.13"
+prost-build = "0.13"

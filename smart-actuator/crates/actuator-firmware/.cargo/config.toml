@@ -1,0 +1,37 @@
+# .cargo/config.toml — firmware-crate-local Cargo configuration.
+#
+# This file is scoped to smart-actuator/crates/actuator-firmware/ and does NOT
+# affect other workspace crates. It tells Cargo:
+#   1. Build for the Xtensa ESP32 target by default.
+#   2. Use ldproxy as the linker (chains to the ESP-IDF linker).
+#   3. Use espflash as the default test/run runner.
+#   4. Forward required ESP-IDF env vars.
+#
+# Prerequisites: run `make firmware-toolchain` once, then `source ~/export-esp.sh`.
+
+[build]
+target = "xtensa-esp32-espidf"
+
+# The `esp` toolchain does not ship a precompiled std for xtensa-esp32-espidf —
+# it has to be built from source (`-Z build-std`). Cargo's `unstable` table is
+# the canonical way to enable this. Requires the `esp` toolchain (nightly-like),
+# which `make firmware-toolchain` installs.
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[target.xtensa-esp32-espidf]
+# ldproxy is a thin linker shim that forwards flags to the real ESP-IDF linker.
+# Install via: cargo install ldproxy (included in `make firmware-tools`).
+linker = "ldproxy"
+
+# `cargo run` and `cargo test` flash and open a serial monitor automatically.
+runner = "espflash flash --monitor"
+
+[env]
+# Pin the ESP-IDF version used by esp-idf-sys. Must match the version
+# installed by `make firmware-toolchain` (espup).
+ESP_IDF_VERSION = "v5.3"
+
+# Point esp-idf-sys at the sdkconfig overrides in this directory.
+# These tweak FreeRTOS stack sizes, WiFi, mDNS, and lwIP for our use case.
+ESP_IDF_SDKCONFIG_DEFAULTS = "sdkconfig.defaults"

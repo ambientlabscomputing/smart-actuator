@@ -46,7 +46,15 @@ async def build_machine(description: MachineDescription, svc: Service) -> Machin
 # ── Bind a single slot ────────────────────────────────────────────────────────
 
 class BindingRequest(BaseModel):
-    kind: str  # "sim" | "unbound"
+    kind: str  # "sim" | "hardware" | "unbound"
+    # Hardware via TCP (legacy WiFi or Ethernet)
+    ip: str | None = None
+    port: int | None = None
+    # Hardware via USB-CDC / serial
+    serial_path: str | None = None
+    baud_rate: int = 921_600
+    # Optional — derived from machine_id + slot if omitted
+    actuator_id: str | None = None
 
 
 class UpdateParametersRequest(BaseModel):
@@ -55,7 +63,7 @@ class UpdateParametersRequest(BaseModel):
 
 @router.post(
     "/{machine_id}/bindings/{slot}",
-    summary="Bind a joint slot to a sim (or unbind)",
+    summary="Bind a joint slot to a sim or hardware actuator (or unbind)",
 )
 async def bind_slot(
     machine_id: str, slot: int, body: BindingRequest, svc: Service
@@ -65,10 +73,29 @@ async def bind_slot(
 
     - `kind="sim"` — spawn an actuator-sim process, register with Sidecar,
       return {machine_id, slot, kind, actuator_id, address, pid}.
-    - `kind="unbound"` — tear down any existing sim for this slot.
+    - `kind="hardware"` — register an existing hardware actuator (e.g. ESP32
+      firmware) by its IP and port. Fields: ip (required), port (required),
+      actuator_id (optional, derived if omitted).
+      Returns {machine_id, slot, kind, actuator_id, address}.
+    - `kind="unbound"` — tear down any existing binding for this slot.
     """
+    if body.kind == "hardware":
+        if not body.ip and not body.serial_path:
+            raise HTTPException(
+                status_code=422,
+                detail="kind='hardware' requires either 'ip'+'port' (TCP) or 'serial_path' (USB-CDC)",
+            )
     try:
-        return await svc.machine.bind_slot(machine_id, slot, kind=body.kind)
+        return await svc.machine.bind_slot(
+            machine_id,
+            slot,
+            kind=body.kind,
+            ip=body.ip,
+            port=body.port,
+            serial_path=body.serial_path,
+            baud_rate=body.baud_rate,
+            actuator_id=body.actuator_id,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:

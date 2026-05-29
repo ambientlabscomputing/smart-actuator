@@ -4,9 +4,11 @@ use crate::aggregator::JointStateAggregator;
 use crate::client_pool::ActuatorClientPool;
 use crate::estop::EStopBroadcaster;
 use crate::watchdog::HeartbeatHandle;
-use actuator_proto::actuator::{ReadRequest, SetPositionRequest, SetSoftLimitsRequest, TrajectorySegmentRequest};
+use actuator_proto::actuator::TrajectorySegmentRequest;
+use actuator_proto::wire::async_wire::WireClient;
+use futures::future::join_all;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 use tracing::{info, warn};
@@ -79,39 +81,58 @@ impl SidecarService for SidecarServicer {
         &self,
         _request: Request<GetJointStatesRequest>,
     ) -> Result<Response<JointStateBatch>, Status> {
-        let mut pool = self.pool.lock().await;
-        let mut joints = Vec::new();
+        // Clone clients out of the pool so the lock is not held while waiting
+        // on network RPCs; then poll all actuators in parallel with a per-
+        // actuator timeout so one dead peer cannot stall the others.
+        let clients: Vec<(String, WireClient)> = {
+            let pool = self.pool.lock().await;
+            pool.iter().map(|(id, c)| (id.clone(), c)).collect()
+        };
 
-        for (id, client) in pool.iter_mut() {
-            let req = Request::new(ReadRequest {});
-            match client.read_position(req).await {
-                Ok(resp) => {
-                    let pos = resp.into_inner();
-                    joints.push(JointState {
-                        actuator_id: id.clone(),
-                        joint_name: id.clone(),
-                        angle_rad: pos.angle,
-                        velocity_rad_s: 0.0,
-                        current_a: 0.0,
-                        temperature_c: 0.0,
-                        fault: String::new(),
-                    });
-                }
-                Err(e) => {
+        let tasks = clients.into_iter().map(|(id, client)| async move {
+            match tokio::time::timeout(
+                Duration::from_millis(150),
+                client.read_position(),
+            )
+            .await
+            {
+                Ok(Ok(resp)) => JointState {
+                    actuator_id: id.clone(),
+                    joint_name: id,
+                    angle_rad: resp.angle,
+                    velocity_rad_s: 0.0,
+                    current_a: 0.0,
+                    temperature_c: 0.0,
+                    fault: String::new(),
+                },
+                Ok(Err(e)) => {
                     warn!(actuator_id = %id, error = %e, "get_joint_states: read failed");
-                    joints.push(JointState {
+                    JointState {
                         actuator_id: id.clone(),
-                        joint_name: id.clone(),
+                        joint_name: id,
                         angle_rad: 0.0,
                         velocity_rad_s: 0.0,
                         current_a: 0.0,
                         temperature_c: 0.0,
                         fault: e.to_string(),
-                    });
+                    }
+                }
+                Err(_) => {
+                    warn!(actuator_id = %id, "get_joint_states: timeout");
+                    JointState {
+                        actuator_id: id.clone(),
+                        joint_name: id,
+                        angle_rad: 0.0,
+                        velocity_rad_s: 0.0,
+                        current_a: 0.0,
+                        temperature_c: 0.0,
+                        fault: "timeout".into(),
+                    }
                 }
             }
-        }
+        });
 
+        let joints = join_all(tasks).await;
         Ok(Response::new(JointStateBatch { joints, timestamp: now_ns() }))
     }
 
@@ -159,44 +180,51 @@ impl SidecarService for SidecarServicer {
         request: Request<SendTrajectoryRequest>,
     ) -> Result<Response<CommandResponse>, Status> {
         let req = request.into_inner();
-        let mut pool = self.pool.lock().await;
-        let mut errors: Vec<String> = Vec::new();
 
-        for seg in req.segments {
-            let client = pool.get_mut(&seg.actuator_id).ok_or_else(|| {
-                Status::not_found(format!("actuator {} not found", seg.actuator_id))
-            })?;
-
-            // Convert sidecar TrajectoryPoint → actuator TrajectorySegmentRequest.
-            // Mapping is approximate — adjust to match the actuator proto fields.
-            let points = seg
-                .points
-                .iter()
-                .map(|p| actuator_proto::actuator::TrajectoryPoint {
-                    time_s: p.time_from_start_s,
-                    position: p.position_rad,
-                    velocity: p.velocity_rad_s,
-                    torque_ff: p.torque_ff_nm,
-                })
-                .collect();
-
-            let traj_req = Request::new(TrajectorySegmentRequest {
-                start_time_s: seg.start_time_ns as f64 / 1e9,
-                points,
-            });
-
-            match client.execute_trajectory_segment(traj_req).await {
-                Ok(resp) => {
-                    let r = resp.into_inner();
-                    if !r.success {
-                        errors.push(format!("{}: {}", seg.actuator_id, r.message));
-                    }
-                }
-                Err(e) => {
-                    errors.push(format!("{}: {}", seg.actuator_id, e));
-                }
+        // Build (actuator_id, client_clone, traj_req) while holding the pool
+        let work: Vec<(String, WireClient, TrajectorySegmentRequest)> = {
+            let pool = self.pool.lock().await;
+            let mut v = Vec::new();
+            for seg in req.segments {
+                let actuator_id = seg.actuator_id.clone();
+                let client = pool
+                    .get(&actuator_id)
+                    .ok_or_else(|| Status::not_found(format!("actuator {actuator_id} not found")))?;
+                let points = seg
+                    .points
+                    .iter()
+                    .map(|p| actuator_proto::actuator::TrajectoryPoint {
+                        time_s: p.time_from_start_s,
+                        position: p.position_rad,
+                        velocity: p.velocity_rad_s,
+                        torque_ff: p.torque_ff_nm,
+                    })
+                    .collect();
+                let traj_req = TrajectorySegmentRequest {
+                    start_time_s: seg.start_time_ns as f64 / 1e9,
+                    points,
+                };
+                v.push((actuator_id, client, traj_req));
             }
-        }
+            v
+        };
+
+        let tasks = work.into_iter().map(|(act_id, client, traj_req)| async move {
+            match tokio::time::timeout(
+                Duration::from_millis(500),
+                client.execute_trajectory_segment(traj_req),
+            )
+            .await
+            {
+                Ok(Ok(r)) => {
+                    if r.success { None } else { Some(format!("{act_id}: {}", r.message)) }
+                }
+                Ok(Err(e)) => Some(format!("{act_id}: {e}")),
+                Err(_) => Some(format!("{act_id}: trajectory command timed out")),
+            }
+        });
+
+        let errors: Vec<String> = join_all(tasks).await.into_iter().flatten().collect();
 
         if errors.is_empty() {
             Ok(Response::new(CommandResponse { success: true, message: String::new(), refusal_code: 0 }))
@@ -214,20 +242,15 @@ impl SidecarService for SidecarServicer {
         request: Request<ActuatorRequest>,
     ) -> Result<Response<CommandResponse>, Status> {
         let id = request.into_inner().actuator_id;
-        let mut pool = self.pool.lock().await;
-        let client = pool
-            .get_mut(&id)
-            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
-
-        let req = Request::new(ReadRequest {});
-        client
-            .pause(req)
-            .await
-            .map(|r| {
-                let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
-            })
-            .map_err(|e| Status::internal(e.to_string()))
+        let client = {
+            let pool = self.pool.lock().await;
+            pool.get(&id).ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?
+        };
+        match tokio::time::timeout(Duration::from_millis(500), client.pause()).await {
+            Ok(Ok(r)) => Ok(Response::new(CommandResponse { success: r.success, message: r.message, refusal_code: 0 })),
+            Ok(Err(e)) => Err(Status::internal(e.to_string())),
+            Err(_) => Err(Status::deadline_exceeded(format!("actuator {id} pause timed out"))),
+        }
     }
 
     async fn resume(
@@ -235,20 +258,15 @@ impl SidecarService for SidecarServicer {
         request: Request<ActuatorRequest>,
     ) -> Result<Response<CommandResponse>, Status> {
         let id = request.into_inner().actuator_id;
-        let mut pool = self.pool.lock().await;
-        let client = pool
-            .get_mut(&id)
-            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
-
-        let req = Request::new(ReadRequest {});
-        client
-            .resume(req)
-            .await
-            .map(|r| {
-                let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
-            })
-            .map_err(|e| Status::internal(e.to_string()))
+        let client = {
+            let pool = self.pool.lock().await;
+            pool.get(&id).ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?
+        };
+        match tokio::time::timeout(Duration::from_millis(500), client.resume()).await {
+            Ok(Ok(r)) => Ok(Response::new(CommandResponse { success: r.success, message: r.message, refusal_code: 0 })),
+            Ok(Err(e)) => Err(Status::internal(e.to_string())),
+            Err(_) => Err(Status::deadline_exceeded(format!("actuator {id} resume timed out"))),
+        }
     }
 
     async fn abort(
@@ -256,20 +274,15 @@ impl SidecarService for SidecarServicer {
         request: Request<ActuatorRequest>,
     ) -> Result<Response<CommandResponse>, Status> {
         let id = request.into_inner().actuator_id;
-        let mut pool = self.pool.lock().await;
-        let client = pool
-            .get_mut(&id)
-            .ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?;
-
-        let req = Request::new(ReadRequest {});
-        client
-            .abort(req)
-            .await
-            .map(|r| {
-                let inner = r.into_inner();
-                Response::new(CommandResponse { success: inner.success, message: inner.message, refusal_code: 0 })
-            })
-            .map_err(|e| Status::internal(e.to_string()))
+        let client = {
+            let pool = self.pool.lock().await;
+            pool.get(&id).ok_or_else(|| Status::not_found(format!("actuator {id} not found")))?
+        };
+        match tokio::time::timeout(Duration::from_millis(500), client.abort()).await {
+            Ok(Ok(r)) => Ok(Response::new(CommandResponse { success: r.success, message: r.message, refusal_code: 0 })),
+            Ok(Err(e)) => Err(Status::internal(e.to_string())),
+            Err(_) => Err(Status::deadline_exceeded(format!("actuator {id} abort timed out"))),
+        }
     }
 
     // ── Safety ─────────────────────────────────────────────────────────────
@@ -298,22 +311,41 @@ impl SidecarService for SidecarServicer {
         }
 
         let req = request.into_inner();
-        let mut pool = self.pool.lock().await;
-        let client = pool
-            .get_mut(&req.actuator_id)
-            .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?;
-
-        let r = client
-            .set_position(Request::new(SetPositionRequest { angle: req.position }))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?
-            .into_inner();
-
-        Ok(Response::new(CommandResponse {
-            success: r.success,
-            message: r.message,
-            refusal_code: r.refusal_code as i32,
-        }))
+        let client = {
+            let pool = self.pool.lock().await;
+            pool.get(&req.actuator_id)
+                .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?
+        };
+        match tokio::time::timeout(
+            Duration::from_millis(500),
+            client.set_position(req.position),
+        )
+        .await
+        {
+            Ok(Ok(r)) => {
+                Ok(Response::new(CommandResponse {
+                    success: r.success,
+                    message: r.message,
+                    refusal_code: r.refusal_code,
+                }))
+            }
+            Ok(Err(e)) => {
+                warn!(actuator_id = %req.actuator_id, error = %e, "SendCommand: transport error");
+                Ok(Response::new(CommandResponse {
+                    success: false,
+                    message: format!("actuator unreachable: {e}"),
+                    refusal_code: 9,
+                }))
+            }
+            Err(_) => {
+                warn!(actuator_id = %req.actuator_id, "SendCommand: 500 ms timeout");
+                Ok(Response::new(CommandResponse {
+                    success: false,
+                    message: "actuator command timed out".into(),
+                    refusal_code: 9,
+                }))
+            }
+        }
     }
 
     // ── Calibration ────────────────────────────────────────────────────────
@@ -410,29 +442,47 @@ impl SidecarService for SidecarServicer {
         request: Request<SetActuatorSoftLimitsRequest>,
     ) -> Result<Response<CommandResponse>, Status> {
         let req = request.into_inner();
-        let mut pool = self.pool.lock().await;
-        let client = pool
-            .get_mut(&req.actuator_id)
-            .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?;
-
-        let r = client
-            .set_soft_limits(Request::new(SetSoftLimitsRequest { min: req.min_rad, max: req.max_rad }))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?
-            .into_inner();
-
-        info!(
-            actuator_id = %req.actuator_id,
-            min_rad = req.min_rad,
-            max_rad = req.max_rad,
-            success = r.success,
-            "SetActuatorSoftLimits"
-        );
-
-        Ok(Response::new(CommandResponse {
-            success: r.success,
-            message: r.message,
-            refusal_code: r.refusal_code as i32,
-        }))
+        let client = {
+            let pool = self.pool.lock().await;
+            pool.get(&req.actuator_id)
+                .ok_or_else(|| Status::not_found(format!("actuator {} not found", req.actuator_id)))?
+        };
+        match tokio::time::timeout(
+            Duration::from_millis(500),
+            client.set_soft_limits(req.min_rad, req.max_rad),
+        )
+        .await
+        {
+            Ok(Ok(r)) => {
+                info!(
+                    actuator_id = %req.actuator_id,
+                    min_rad = req.min_rad,
+                    max_rad = req.max_rad,
+                    success = r.success,
+                    "SetActuatorSoftLimits"
+                );
+                Ok(Response::new(CommandResponse {
+                    success: r.success,
+                    message: r.message,
+                    refusal_code: r.refusal_code,
+                }))
+            }
+            Ok(Err(e)) => {
+                warn!(actuator_id = %req.actuator_id, error = %e, "SetSoftLimits: transport error");
+                Ok(Response::new(CommandResponse {
+                    success: false,
+                    message: format!("actuator unreachable: {e}"),
+                    refusal_code: 9,
+                }))
+            }
+            Err(_) => {
+                warn!(actuator_id = %req.actuator_id, "SetSoftLimits: timeout");
+                Ok(Response::new(CommandResponse {
+                    success: false,
+                    message: "soft limits command timed out".into(),
+                    refusal_code: 9,
+                }))
+            }
+        }
     }
 }

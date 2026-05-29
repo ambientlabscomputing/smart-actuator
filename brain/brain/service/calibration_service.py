@@ -72,7 +72,7 @@ class CalibrationService:
 
     async def start(self) -> None:
         """Reload all persisted jobs into memory on Brain startup."""
-        rows = await self._repository.list_calibration_sessions()
+        rows = await self._repository.calibration.list_calibration_sessions()
         for row in rows:
             state = CalibrationJobState(**row)
             self._jobs[state.job_id] = state
@@ -235,7 +235,7 @@ class CalibrationService:
         logger.info("CalibrationService: completed job={}", job_id)
 
     async def _persist_and_publish(self, state: CalibrationJobState) -> None:
-        await self._repository.save_calibration_session(state.job_id, state.model_dump())
+        await self._repository.calibration.save_calibration_session(state.job_id, state.model_dump())
         self._obs._publish_event(  # type: ignore[attr-defined]
             {
                 "type": "calibration.update",
