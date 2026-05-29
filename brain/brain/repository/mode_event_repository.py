@@ -1,29 +1,33 @@
 import json
 
-import aiosqlite
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from brain.models.state import ModeEvent, SqlModeEvent
+from brain.repository.session_decorator import with_session
 
 
 class ModeEventRepository:
-    def __init__(self, conn: aiosqlite.Connection) -> None:
-        self._conn = conn
+    @with_session
+    async def append_mode_event(self, session: AsyncSession, event: ModeEvent | dict) -> None:
+        if isinstance(event, ModeEvent):
+            machine_id = event.machine_id
+            event_json = event.model_dump_json()
+        else:
+            machine_id = event.get("machine_id", "")
+            event_json = json.dumps(event)
+        row = SqlModeEvent(machine_id=machine_id, event_json=event_json)
+        session.add(row)
+        await session.commit()
 
-    async def append_mode_event(self, event: dict) -> None:
-        machine_id = event.get("machine_id", "")
-        await self._conn.execute(
-            "INSERT INTO mode_events (machine_id, event_json) VALUES (?, ?)",
-            (machine_id, json.dumps(event)),
+    @with_session
+    async def get_mode_events(
+        self, session: AsyncSession, machine_id: str, limit: int = 100
+    ) -> list[ModeEvent]:
+        result = await session.execute(
+            select(SqlModeEvent)
+            .where(SqlModeEvent.machine_id == machine_id)
+            .order_by(SqlModeEvent.created_at.desc())
+            .limit(limit)
         )
-        await self._conn.commit()
-
-    async def get_mode_events(self, machine_id: str, limit: int = 100) -> list[dict]:
-        async with self._conn.execute(
-            """
-            SELECT event_json FROM mode_events
-            WHERE machine_id = ?
-            ORDER BY recorded_at DESC
-            LIMIT ?
-            """,
-            (machine_id, limit),
-        ) as cur:
-            rows = await cur.fetchall()
-        return [json.loads(row[0]) for row in rows]
+        return [row.to_event() for row in result.scalars().all()]

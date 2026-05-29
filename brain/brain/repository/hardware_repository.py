@@ -1,12 +1,15 @@
-import aiosqlite
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from brain.models.machine import SqlHardwareEntry
+from brain.repository.session_decorator import with_session
 
 
 class HardwareRepository:
-    def __init__(self, conn: aiosqlite.Connection) -> None:
-        self._conn = conn
-
+    @with_session
     async def save_hardware(
         self,
+        session: AsyncSession,
         machine_id: str,
         slot: int,
         *,
@@ -14,65 +17,51 @@ class HardwareRepository:
         actuator_id: str,
         joint_name: str,
     ) -> None:
-        await self._conn.execute(
-            """
-            INSERT INTO hardware_registry (machine_id, slot, address, actuator_id, joint_name)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(machine_id, slot) DO UPDATE SET
-                address     = excluded.address,
-                actuator_id = excluded.actuator_id,
-                joint_name  = excluded.joint_name,
-                bound_at    = strftime('%s','now')
-            """,
-            (machine_id, slot, address, actuator_id, joint_name),
+        result = await session.execute(
+            select(SqlHardwareEntry).where(and_(SqlHardwareEntry.machine_id == machine_id, SqlHardwareEntry.slot == slot))
         )
-        await self._conn.commit()
+        row = result.scalar_one_or_none()
+        if row is None:
+            row = SqlHardwareEntry(
+                machine_id=machine_id, slot=slot, address=address,
+                actuator_id=actuator_id, joint_name=joint_name,
+            )
+            session.add(row)
+        else:
+            row.address = address
+            row.actuator_id = actuator_id
+            row.joint_name = joint_name
+        await session.commit()
 
-    async def delete_hardware(self, machine_id: str, slot: int) -> None:
-        await self._conn.execute(
-            "DELETE FROM hardware_registry WHERE machine_id = ? AND slot = ?",
-            (machine_id, slot),
+    @with_session
+    async def delete_hardware(self, session: AsyncSession, machine_id: str, slot: int) -> None:
+        result = await session.execute(
+            select(SqlHardwareEntry).where(and_(SqlHardwareEntry.machine_id == machine_id, SqlHardwareEntry.slot == slot))
         )
-        await self._conn.commit()
+        row = result.scalar_one_or_none()
+        if row:
+            await session.delete(row)
+            await session.commit()
 
-    async def delete_all_hardware(self, machine_id: str) -> None:
-        await self._conn.execute(
-            "DELETE FROM hardware_registry WHERE machine_id = ?", (machine_id,)
+    @with_session
+    async def delete_all_hardware(self, session: AsyncSession, machine_id: str) -> None:
+        result = await session.execute(select(SqlHardwareEntry).where(SqlHardwareEntry.machine_id == machine_id))
+        for row in result.scalars().all():
+            await session.delete(row)
+        await session.commit()
+
+    @with_session
+    async def list_hardware(self, session: AsyncSession, machine_id: str) -> list[SqlHardwareEntry]:
+        result = await session.execute(
+            select(SqlHardwareEntry)
+            .where(SqlHardwareEntry.machine_id == machine_id)
+            .order_by(SqlHardwareEntry.slot)
         )
-        await self._conn.commit()
+        return list(result.scalars().all())
 
-    async def list_hardware(self, machine_id: str) -> list[dict]:
-        async with self._conn.execute(
-            """
-            SELECT slot, address, actuator_id, joint_name
-            FROM hardware_registry
-            WHERE machine_id = ?
-            ORDER BY slot
-            """,
-            (machine_id,),
-        ) as cur:
-            rows = await cur.fetchall()
-        return [
-            {"slot": r[0], "address": r[1], "actuator_id": r[2], "joint_name": r[3]}
-            for r in rows
-        ]
-
-    async def list_all_hardware(self) -> list[dict]:
-        async with self._conn.execute(
-            """
-            SELECT machine_id, slot, address, actuator_id, joint_name
-            FROM hardware_registry
-            ORDER BY machine_id, slot
-            """
-        ) as cur:
-            rows = await cur.fetchall()
-        return [
-            {
-                "machine_id": r[0],
-                "slot": r[1],
-                "address": r[2],
-                "actuator_id": r[3],
-                "joint_name": r[4],
-            }
-            for r in rows
-        ]
+    @with_session
+    async def list_all_hardware(self, session: AsyncSession) -> list[SqlHardwareEntry]:
+        result = await session.execute(
+            select(SqlHardwareEntry).order_by(SqlHardwareEntry.machine_id, SqlHardwareEntry.slot)
+        )
+        return list(result.scalars().all())

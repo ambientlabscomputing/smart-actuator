@@ -1,7 +1,11 @@
+import json
 from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Mapped, mapped_column
+
+from brain.models.base import SqlBase
 
 
 class MachineMode(StrEnum):
@@ -48,3 +52,13 @@ class ModeEvent(BaseModel):
     new_mode: MachineMode
     reason: str = ""
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SqlModeEvent(SqlBase):
+    __tablename__ = "mode_events"
+
+    machine_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    event_json: Mapped[str] = mapped_column(nullable=False)
+
+    def to_event(self) -> ModeEvent:
+        return ModeEvent.model_validate(json.loads(self.event_json))

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Mapped, mapped_column
+
+from brain.models.base import SqlBase
 
 
 class NodeKind(StrEnum):
@@ -77,3 +81,38 @@ class ProgramRunState(BaseModel):
     error: str = ""
     created_at: int = 0
     updated_at: int = 0
+
+
+class SqlProgram(SqlBase):
+    __tablename__ = "programs"
+
+    program_id: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    data_json: Mapped[str] = mapped_column(nullable=False)
+
+    def to_program(self) -> Program:
+        return Program.model_validate(json.loads(self.data_json))
+
+
+class SqlProgramRun(SqlBase):
+    __tablename__ = "program_runs"
+
+    run_id: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    program_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    machine_id: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(nullable=False)
+    current_step_index: Mapped[int] = mapped_column(nullable=False, default=0)
+    total_steps: Mapped[int] = mapped_column(nullable=False, default=0)
+    current_node_id: Mapped[str] = mapped_column(nullable=False, default="")
+    error: Mapped[str] = mapped_column(nullable=False, default="")
+
+    def to_state(self) -> ProgramRunState:
+        return ProgramRunState(
+            run_id=self.run_id,
+            program_id=self.program_id,
+            machine_id=self.machine_id,
+            status=ProgramRunStatus(self.status),
+            current_step_index=self.current_step_index,
+            total_steps=self.total_steps,
+            current_node_id=self.current_node_id,
+            error=self.error,
+        )

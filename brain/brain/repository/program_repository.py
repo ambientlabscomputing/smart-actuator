@@ -1,145 +1,95 @@
 import json
 
-import aiosqlite
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from brain.models.program import Program, ProgramRunState, ProgramRunStatus, SqlProgram, SqlProgramRun
+from brain.repository.session_decorator import with_session
 
 
 class ProgramRepository:
-    def __init__(self, conn: aiosqlite.Connection) -> None:
-        self._conn = conn
-
     # ------------------------------------------------------------------
     # Program library
     # ------------------------------------------------------------------
 
-    async def save_program(self, program_id: str, data: dict) -> None:
-        await self._conn.execute(
-            """
-            INSERT INTO programs (id, data_json)
-            VALUES (?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                data_json  = excluded.data_json,
-                updated_at = strftime('%s','now')
-            """,
-            (program_id, json.dumps(data)),
-        )
-        await self._conn.commit()
+    @with_session
+    async def save_program(self, session: AsyncSession, program_id: str, data: dict) -> None:
+        result = await session.execute(select(SqlProgram).where(SqlProgram.program_id == program_id))
+        row = result.scalar_one_or_none()
+        if row is None:
+            row = SqlProgram(program_id=program_id, data_json=json.dumps(data))
+            session.add(row)
+        else:
+            row.data_json = json.dumps(data)
+        await session.commit()
 
-    async def load_program(self, program_id: str) -> dict | None:
-        async with self._conn.execute(
-            "SELECT data_json FROM programs WHERE id = ?", (program_id,)
-        ) as cur:
-            row = await cur.fetchone()
-        return json.loads(row[0]) if row else None
+    @with_session
+    async def load_program(self, session: AsyncSession, program_id: str) -> Program | None:
+        result = await session.execute(select(SqlProgram).where(SqlProgram.program_id == program_id))
+        row = result.scalar_one_or_none()
+        return row.to_program() if row else None
 
-    async def list_programs(self) -> list[dict]:
-        async with self._conn.execute(
-            "SELECT id, updated_at FROM programs ORDER BY updated_at DESC"
-        ) as cur:
-            rows = await cur.fetchall()
-        return [{"id": row[0], "updated_at": row[1]} for row in rows]
+    @with_session
+    async def list_programs(self, session: AsyncSession) -> list[SqlProgram]:
+        result = await session.execute(select(SqlProgram).order_by(SqlProgram.updated_at.desc()))
+        return list(result.scalars().all())
 
-    async def delete_program(self, program_id: str) -> None:
-        await self._conn.execute("DELETE FROM programs WHERE id = ?", (program_id,))
-        await self._conn.commit()
+    @with_session
+    async def delete_program(self, session: AsyncSession, program_id: str) -> None:
+        result = await session.execute(select(SqlProgram).where(SqlProgram.program_id == program_id))
+        row = result.scalar_one_or_none()
+        if row:
+            await session.delete(row)
+            await session.commit()
 
     # ------------------------------------------------------------------
     # Program runs
     # ------------------------------------------------------------------
 
-    async def save_program_run(self, run_id: str, data: dict) -> None:
-        await self._conn.execute(
-            """
-            INSERT INTO program_runs
-                (run_id, program_id, machine_id, status,
-                 current_step_index, total_steps, current_node_id, error)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(run_id) DO UPDATE SET
-                status              = excluded.status,
-                current_step_index  = excluded.current_step_index,
-                total_steps         = excluded.total_steps,
-                current_node_id     = excluded.current_node_id,
-                error               = excluded.error,
-                updated_at          = strftime('%s','now')
-            """,
-            (
-                run_id,
-                data["program_id"],
-                data["machine_id"],
-                data["status"],
-                data.get("current_step_index", 0),
-                data.get("total_steps", 0),
-                data.get("current_node_id", ""),
-                data.get("error", ""),
-            ),
-        )
-        await self._conn.commit()
-
-    async def load_program_run(self, run_id: str) -> dict | None:
-        async with self._conn.execute(
-            """
-            SELECT run_id, program_id, machine_id, status,
-                   current_step_index, total_steps, current_node_id,
-                   error, created_at, updated_at
-            FROM program_runs WHERE run_id = ?
-            """,
-            (run_id,),
-        ) as cur:
-            row = await cur.fetchone()
+    @with_session
+    async def save_program_run(self, session: AsyncSession, run_id: str, data: dict) -> None:
+        result = await session.execute(select(SqlProgramRun).where(SqlProgramRun.run_id == run_id))
+        row = result.scalar_one_or_none()
         if row is None:
-            return None
-        return {
-            "run_id": row[0],
-            "program_id": row[1],
-            "machine_id": row[2],
-            "status": row[3],
-            "current_step_index": row[4],
-            "total_steps": row[5],
-            "current_node_id": row[6],
-            "error": row[7],
-            "created_at": row[8],
-            "updated_at": row[9],
-        }
+            row = SqlProgramRun(
+                run_id=run_id,
+                program_id=data["program_id"],
+                machine_id=data["machine_id"],
+                status=data["status"],
+                current_step_index=data.get("current_step_index", 0),
+                total_steps=data.get("total_steps", 0),
+                current_node_id=data.get("current_node_id", ""),
+                error=data.get("error", ""),
+            )
+            session.add(row)
+        else:
+            row.status = data["status"]
+            row.current_step_index = data.get("current_step_index", 0)
+            row.total_steps = data.get("total_steps", 0)
+            row.current_node_id = data.get("current_node_id", "")
+            row.error = data.get("error", "")
+        await session.commit()
 
+    @with_session
+    async def load_program_run(self, session: AsyncSession, run_id: str) -> ProgramRunState | None:
+        result = await session.execute(select(SqlProgramRun).where(SqlProgramRun.run_id == run_id))
+        row = result.scalar_one_or_none()
+        return row.to_state() if row else None
+
+    @with_session
     async def list_program_runs(
         self,
+        session: AsyncSession,
         program_id: str | None = None,
         *,
         active_only: bool = False,
-    ) -> list[dict]:
-        _TERMINAL = ("completed", "stopped", "faulted", "interrupted")
-        conditions: list[str] = []
-        params: list[str] = []
+    ) -> list[ProgramRunState]:
+        _TERMINAL = {ProgramRunStatus.completed, ProgramRunStatus.stopped, ProgramRunStatus.faulted, ProgramRunStatus.interrupted}
+        stmt = select(SqlProgramRun)
         if program_id is not None:
-            conditions.append("program_id = ?")
-            params.append(program_id)
+            stmt = stmt.where(SqlProgramRun.program_id == program_id)
         if active_only:
-            placeholders = ",".join("?" * len(_TERMINAL))
-            conditions.append(f"status NOT IN ({placeholders})")
-            params.extend(_TERMINAL)
-        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        async with self._conn.execute(
-            f"""
-            SELECT run_id, program_id, machine_id, status,
-                   current_step_index, total_steps, current_node_id,
-                   error, created_at, updated_at
-            FROM program_runs {where}
-            ORDER BY created_at DESC
-            """,
-            params,
-        ) as cur:
-            rows = await cur.fetchall()
-        return [
-            {
-                "run_id": row[0],
-                "program_id": row[1],
-                "machine_id": row[2],
-                "status": row[3],
-                "current_step_index": row[4],
-                "total_steps": row[5],
-                "current_node_id": row[6],
-                "error": row[7],
-                "created_at": row[8],
-                "updated_at": row[9],
-            }
-            for row in rows
-        ]
+            stmt = stmt.where(SqlProgramRun.status.notin_(_TERMINAL))
+        stmt = stmt.order_by(SqlProgramRun.created_at.desc())
+        result = await session.execute(stmt)
+        return [row.to_state() for row in result.scalars().all()]
