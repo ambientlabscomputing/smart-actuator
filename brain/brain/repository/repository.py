@@ -8,6 +8,9 @@ from brain.repository.hardware_repository import HardwareRepository
 from brain.repository.calibration_repository import CalibrationRepository
 from brain.repository.program_repository import ProgramRepository
 from brain.repository.mode_event_repository import ModeEventRepository
+from brain.models.base import SqlBase
+from brain.repository.session_maker import engine
+from brain.repository.user_repository import UserRepository
 
 
 class Repository:
@@ -22,6 +25,7 @@ class Repository:
       repository.calibration  — CalibrationRepository
       repository.program      — ProgramRepository (programs + runs)
       repository.mode_event   — ModeEventRepository
+      repository.user         — UserRepository
     """
 
     def __init__(self, db_path: str = "brain.db") -> None:
@@ -38,6 +42,12 @@ class Repository:
         self.calibration = CalibrationRepository(self._db)
         self.program = ProgramRepository(self._db)
         self.mode_event = ModeEventRepository(self._db)
+        self.user = UserRepository()
+
+        # new session-based approach
+        async with engine.begin() as conn:
+            await conn.run_sync(SqlBase.metadata.create_all)
+
         logger.info("Repository opened at {}", self._db_path)
 
     async def stop(self) -> None:

@@ -38,7 +38,7 @@ class TemplateService:
 
     def __init__(self, config: Config) -> None:
         self._config = config
-        self._templates_dir = Path(config.templates_dir)
+        self._templates_dir = Path(config.templates.dir)
 
     async def list_templates(self) -> list[TemplateMeta]:
         """Return summary metadata for all in-tree templates."""
@@ -101,7 +101,7 @@ class TemplateService:
 
     def is_trusted_source(self, source_url: str) -> bool:
         return any(
-            source_url.startswith(prefix) for prefix in self._config.trusted_template_sources
+            source_url.startswith(prefix) for prefix in self._config.templates.trusted_sources
         )
 
     @staticmethod

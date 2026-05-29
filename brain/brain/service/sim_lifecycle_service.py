@@ -245,8 +245,8 @@ class SimLifecycleService:
             return math.pi
 
     def _allocate_port(self) -> int:
-        start = self._config.sim_port_range_start
-        end = self._config.sim_port_range_end
+        start = self._config.sim.port_range_start
+        end = self._config.sim.port_range_end
         for port in range(start, end + 1):
             if port not in self._allocated_ports:
                 self._allocated_ports.add(port)
@@ -274,8 +274,8 @@ class SimLifecycleService:
         env["ACTUATOR_SIM_NAME"] = joint_name
         env["ACTUATOR_SIM_PID_FILE"] = pid_file
 
-        binary = self._config.sim_binary_path
-        config_file = self._config.sim_config_path
+        binary = self._config.sim.binary_path
+        config_file = self._config.sim.config_path
 
         # Resolve paths relative to the workspace root.
         if not Path(binary).is_absolute():

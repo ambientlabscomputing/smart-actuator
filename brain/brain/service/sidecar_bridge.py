@@ -81,7 +81,7 @@ class SidecarBridge:
         # brain.interface (which both import each other transitively).
         from brain.interface.grpc.generated import sidecar_pb2_grpc  # noqa: PLC0415
 
-        addr = self._config.sidecar_socket
+        addr = self._config.sidecar.socket
         logger.info("Connecting to sidecar at {}", addr)
         # NOTE: grpcio over a Unix-domain socket sets the HTTP/2 :authority
         # header to a URL-encoded form of the socket path (e.g.

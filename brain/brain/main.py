@@ -6,6 +6,7 @@ from brain import Config, logger
 from brain.interface.app import create_app
 from brain.interface.grpc.server import create_grpc_server
 from brain.service import new_brain_service
+from brain.repository.session_maker import init_session_maker
 
 
 def main() -> None:
@@ -14,6 +15,7 @@ def main() -> None:
 
 async def run() -> None:
     config = Config()
+    init_session_maker(config)
     logger.info("Starting Brain with config: %s", config)
 
     # The FastAPI app manages the primary BrainService lifecycle via its lifespan.
@@ -25,14 +27,14 @@ async def run() -> None:
 
     uvicorn_cfg = uvicorn.Config(
         app,
-        host=config.rest_host,
-        port=config.rest_port,
+        host=config.rest.host,
+        port=config.rest.port,
         log_level="info",
     )
     uvicorn_server = uvicorn.Server(uvicorn_cfg)
 
     await grpc_server.start()
-    logger.info("gRPC server started on %s:%d", config.grpc_host, config.grpc_port)
+    logger.info("gRPC server started on %s:%d", config.grpc.host, config.grpc.port)
 
     try:
         # When uvicorn exits (normal shutdown via SIGINT), tear down the gRPC
