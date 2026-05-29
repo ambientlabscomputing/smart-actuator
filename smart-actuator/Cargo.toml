@@ -4,9 +4,12 @@ members = [
     "crates/actuator-proto",
     "crates/actuator-core",
     "crates/actuator-sim",
-    "crates/actuator-firmware",
     "crates/controller-sidecar",
 ]
+# actuator-firmware targets xtensa-esp32-espidf and requires the esp toolchain
+# installed by espup. Excluded so that `cargo build --workspace` on a host
+# machine does not attempt to compile it with the stable toolchain.
+exclude = ["crates/actuator-firmware"]
 
 [workspace.package]
 edition = "2021"

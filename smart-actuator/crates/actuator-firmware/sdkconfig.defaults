@@ -1,0 +1,55 @@
+# sdkconfig.defaults — ESP-IDF compile-time configuration overrides.
+#
+# Applied on top of the ESP-IDF defaults when esp-idf-sys builds the C SDK.
+# Change these and re-run `make firmware-build` (a full rebuild is triggered).
+#
+# Reference: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/kconfig.html
+
+# ── FreeRTOS ─────────────────────────────────────────────────────────────────
+# Tick rate. 1000 Hz gives 1 ms resolution for the PD control loop timer.
+CONFIG_FREERTOS_HZ=1000
+
+# ── Stack sizes ───────────────────────────────────────────────────────────────
+# Tokio's multi-thread runtime spawns OS threads via pthreads on ESP-IDF.
+# The default 4 KB pthread stack is far too small for async Rust frames.
+# 64 KB each matches what tonic + h2 + prost need in practice.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=65536
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=65536
+
+# ── Watchdog ──────────────────────────────────────────────────────────────────
+# Give the firmware watchdog 10 s before it resets. The tokio runtime can take
+# a moment to initialise all threads.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# ── WiFi ──────────────────────────────────────────────────────────────────────
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+# Enable WPA3 (required by some access points)
+CONFIG_ESP_WIFI_ENABLE_WPA3_SAE=y
+
+# ── lwIP (TCP/IP stack) ───────────────────────────────────────────────────────
+# Increase TCP buffers for gRPC / HTTP-2 throughput.
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=65535
+CONFIG_LWIP_TCP_WND_DEFAULT=65535
+# Larger receive buffers reduce h2 backpressure stalls.
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=12
+CONFIG_LWIP_UDP_RECVMBOX_SIZE=6
+
+# ── mDNS ──────────────────────────────────────────────────────────────────────
+# Allow registering multiple service instances (one per actuator in future).
+CONFIG_MDNS_MAX_SERVICES=20
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+# UART0 is reclaimed for the wire-protocol transport (USB-CDC).  Disable the
+# ESP-IDF UART console entirely — without this, esp_vfs_dev_uart_register()
+# claims UART0 at boot, and UartDriver::new(uart0,…) fails with
+# ESP_ERR_INVALID_STATE, panicking main() and looping forever.
+#
+# Observability is now done exclusively over the wire protocol (status frames
+# from the Sidecar), which forces a clean visibility API instead of relying
+# on ad-hoc printf debugging.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_UART_NONE=y
+# Also bump the secondary "boot ROM" output to nothing.
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y

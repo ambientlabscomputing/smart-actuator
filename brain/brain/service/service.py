@@ -11,6 +11,7 @@ from brain.service.motion_service import MotionService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
 from brain.service.safety_service import SafetyService
+from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.state_service import StateService
@@ -51,6 +52,7 @@ class BrainService(Service):
         calibration: CalibrationService,
         observability: ObservabilityService,
         sim_lifecycle: SimLifecycleService | None = None,
+        hardware_lifecycle: HardwareLifecycleService | None = None,
     ) -> None:
         self.repository = repository
         self.config = config
@@ -67,6 +69,7 @@ class BrainService(Service):
         self.calibration = calibration
         self.observability = observability
         self.sim_lifecycle = sim_lifecycle
+        self.hardware_lifecycle = hardware_lifecycle
 
     async def start(self) -> None:
         logger.info("Starting BrainService")
@@ -75,17 +78,20 @@ class BrainService(Service):
         await self.state.start()
         await self.calibration.start()
         await self.programs.start()
-        if self.sim_lifecycle is not None:
+        if self.sim_lifecycle is not None or self.hardware_lifecycle is not None:
             try:
                 sidecar_ready = await self.sidecar.wait_until_ready(timeout=30.0)
                 if not sidecar_ready:
                     logger.warning(
-                        "Sidecar not reachable after 30s — skipping sim recovery"
+                        "Sidecar not reachable after 30s — skipping recovery"
                     )
                 else:
-                    await self.sim_lifecycle.recover_on_start()
+                    if self.sim_lifecycle is not None:
+                        await self.sim_lifecycle.recover_on_start()
+                    if self.hardware_lifecycle is not None:
+                        await self.hardware_lifecycle.recover_on_start()
             except Exception:
-                logger.exception("SimLifecycle recovery failed — continuing without sims")
+                logger.exception("Lifecycle recovery failed — continuing")
 
     async def stop(self) -> None:
         logger.info("Stopping BrainService")

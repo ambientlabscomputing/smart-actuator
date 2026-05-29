@@ -69,10 +69,21 @@ class MotionService:
         angle in radians.  No trajectory generation — commands go straight to
         the sidecar's SendCommand RPC using the actuator_id.
         """
-        sims = await self._repository.list_sims(machine_id)
-        joint_to_actuator = {row["joint_name"]: row["actuator_id"] for row in sims}
+        sims = await self._repository.sim.list_sims(machine_id)
+        hardware = await self._repository.hardware.list_hardware(machine_id)
+        joint_to_actuator: dict[str, str] = {}
+        for row in sims:
+            joint_to_actuator[row["joint_name"]] = row["actuator_id"]
+        for row in hardware:
+            joint_to_actuator[row["joint_name"]] = row["actuator_id"]
         for joint_name, angle_rad in joint_targets.items():
-            actuator_id = joint_to_actuator.get(joint_name, joint_name)
+            actuator_id = joint_to_actuator.get(joint_name)
+            if actuator_id is None:
+                logger.warning(
+                    "move_joint: no actuator bound for joint %r on machine %s — skipping",
+                    joint_name, machine_id,
+                )
+                continue
             result = await self._sidecar.send_command(actuator_id, position=angle_rad)
             if not result["success"]:
                 logger.warning(

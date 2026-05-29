@@ -6,22 +6,17 @@
 
 use crate::client_pool::ActuatorClientPool;
 use crate::types::JointStateSnapshot;
-use actuator_proto::actuator::{actuator_service_client::ActuatorServiceClient, ReadRequest};
+use actuator_proto::wire::async_wire::WireClient;
 use futures::future::join_all;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, Mutex};
-use tonic::transport::Channel;
 use tracing::{debug, info, warn};
 
 /// Capacity of the broadcast channel (number of frames that can be buffered
 /// before slow consumers start lagging).
 const CHANNEL_CAPACITY: usize = 64;
-
-/// After this many consecutive read failures, the actuator is considered dead
-/// and is removed from the pool. At 100 Hz this is ~3 s of unreachable.
-const STALE_PEER_THRESHOLD: u32 = 300;
 
 pub struct JointStateAggregator {
     pool: Arc<Mutex<ActuatorClientPool>>,
@@ -48,9 +43,10 @@ impl JointStateAggregator {
     /// This is intended to be spawned as a background tokio task.
     pub async fn run(&self, mut cancel: tokio::sync::watch::Receiver<bool>) {
         let mut interval = tokio::time::interval(self.poll_interval);
-        // Per-actuator fault tracking. Only log on transition (healthy ↔ fault)
+        // Per-actuator fault tracking — only log on healthy↔fault transitions
         // to avoid drowning stdout when an actuator is permanently unreachable.
-        // `consecutive_failures` also drives auto-pruning of dead peers.
+        // WireClient handles reconnection transparently inside call_raw; the
+        // aggregator never needs to touch the pool lock to do so.
         let mut faulted: HashMap<String, bool> = HashMap::new();
         let mut consecutive_failures: HashMap<String, u32> = HashMap::new();
 
@@ -66,8 +62,7 @@ impl JointStateAggregator {
 
             let snapshots = self.poll_all().await;
 
-            // Inspect snapshots for fault transitions and prune dead peers.
-            let mut to_prune: Vec<String> = Vec::new();
+            // Log fault transitions only.
             for snap in &snapshots {
                 let id = &snap.actuator_id;
                 let is_faulted = snap.fault.is_some();
@@ -83,14 +78,6 @@ impl JointStateAggregator {
                     }
                     let n = consecutive_failures.entry(id.clone()).or_insert(0);
                     *n += 1;
-                    if *n == STALE_PEER_THRESHOLD {
-                        info!(
-                            actuator_id = %id,
-                            failures = *n,
-                            "Pruning unreachable actuator from pool (stale peer)"
-                        );
-                        to_prune.push(id.clone());
-                    }
                 } else {
                     if was_faulted {
                         info!(actuator_id = %id, "Actuator recovered");
@@ -98,15 +85,6 @@ impl JointStateAggregator {
                     consecutive_failures.remove(id);
                 }
                 faulted.insert(id.clone(), is_faulted);
-            }
-
-            if !to_prune.is_empty() {
-                let mut pool = self.pool.lock().await;
-                for id in &to_prune {
-                    pool.remove_peer(id);
-                    faulted.remove(id);
-                    consecutive_failures.remove(id);
-                }
             }
 
             if self.tx.send(snapshots).is_err() {
@@ -120,51 +98,57 @@ impl JointStateAggregator {
     async fn poll_all(&self) -> Vec<JointStateSnapshot> {
         // Clone clients out of the pool so we can release the lock before
         // making any RPC calls, then poll all actuators in parallel.
-        let clients: Vec<(String, String, ActuatorServiceClient<Channel>)> = {
-            let mut pool = self.pool.lock().await;
+        let clients: Vec<(String, String, WireClient)> = {
+            let pool = self.pool.lock().await;
             let id_to_joint: std::collections::HashMap<String, String> = pool
                 .live_endpoints()
                 .iter()
                 .map(|e| (e.id.clone(), e.joint_name.clone()))
                 .collect();
-            pool.iter_mut()
+            pool.iter()
                 .map(|(id, client)| {
                     let joint_name = id_to_joint.get(id).cloned().unwrap_or_else(|| id.clone());
-                    (id.clone(), joint_name, client.clone())
+                    (id.clone(), joint_name, client)
                 })
                 .collect()
         };
 
         let tasks: Vec<_> = clients
             .into_iter()
-            .map(|(id, joint_name, mut client)| async move {
-                // Clone the client for each parallel call — tonic clients wrap
-                // an Arc<Channel> so cloning is cheap.
-                let (mut c_vel, mut c_cur, mut c_tmp) =
-                    (client.clone(), client.clone(), client.clone());
-                let (pos_r, vel_r, cur_r, tmp_r) = tokio::join!(
-                    client.read_position(tonic::Request::new(ReadRequest {})),
-                    c_vel.read_velocity(tonic::Request::new(ReadRequest {})),
-                    c_cur.read_current(tonic::Request::new(ReadRequest {})),
-                    c_tmp.read_temperature(tonic::Request::new(ReadRequest {})),
-                );
+            .map(|(id, joint_name, client)| async move {
+                // WireClient uses a single serial TCP stream — concurrent calls
+                // are serialized through its internal Mutex anyway, so
+                // tokio::join! gives no throughput benefit and makes the
+                // timeout budget unpredictable.  Do reads sequentially instead.
+                //
+                // Per-call budget: 4 reads × ~50 ms worst-case WiFi RTT = 200 ms.
+                // Individual call timeout set to 120 ms; if any one read misses
+                // it we still have a valid snapshot for the other fields.
+                let per_call = Duration::from_millis(120);
+
+                let pos_r = tokio::time::timeout(per_call, client.read_position()).await
+                    .unwrap_or_else(|_| Err(actuator_proto::wire::WireError::Io(
+                        std::io::Error::new(std::io::ErrorKind::TimedOut, "read_position timeout")
+                    )));
+                let vel_r = tokio::time::timeout(per_call, client.read_velocity()).await
+                    .unwrap_or_else(|_| Ok(Default::default()));
+                let cur_r = tokio::time::timeout(per_call, client.read_current()).await
+                    .unwrap_or_else(|_| Ok(Default::default()));
+                let tmp_r = tokio::time::timeout(per_call, client.read_temperature()).await
+                    .unwrap_or_else(|_| Ok(Default::default()));
 
                 match pos_r {
                     Ok(pos) => JointStateSnapshot {
                         actuator_id: id,
                         joint_name,
-                        angle_rad: pos.into_inner().angle,
-                        velocity_rad_s: vel_r.ok().map_or(0.0, |r| r.into_inner().velocity),
-                        current_a: cur_r.ok().map_or(0.0, |r| r.into_inner().current),
-                        temperature_c: tmp_r.ok().map_or(0.0, |r| r.into_inner().temperature),
+                        angle_rad: pos.angle,
+                        velocity_rad_s: vel_r.ok().map_or(0.0, |r| r.velocity),
+                        current_a: cur_r.ok().map_or(0.0, |r| r.current),
+                        temperature_c: tmp_r.ok().map_or(0.0, |r| r.temperature),
                         fault: None,
                         captured_at: Instant::now(),
                     },
                     Err(e) => {
-                        // Per-tick read failures are noisy when an actuator is
-                        // permanently unreachable. The `run` loop handles
-                        // transition logging and stale-peer pruning, so here
-                        // we log at debug for diagnostic-only visibility.
                         debug!(actuator_id = %id, error = %e, "Failed to read from actuator");
                         JointStateSnapshot {
                             actuator_id: id,

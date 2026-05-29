@@ -129,7 +129,7 @@ class ProgramService:
         Any run that was not in a terminal state is marked interrupted —
         we cannot safely resume mid-motion after a restart.
         """
-        rows = await self._repository.list_program_runs()
+        rows = await self._repository.program.list_program_runs()
         interrupted = 0
         for row in rows:
             run = ProgramRunState(**row)
@@ -155,27 +155,27 @@ class ProgramService:
         """Validate and persist a program AST."""
         steps = _flatten_steps(program.root)
         _validate_steps(steps)
-        await self._repository.save_program(program.meta.program_id, program.model_dump())
+        await self._repository.program.save_program(program.meta.program_id, program.model_dump())
         logger.debug("ProgramService: saved program {}", program.meta.program_id)
 
     async def load_program(self, program_id: str) -> Program | None:
-        row = await self._repository.load_program(program_id)
+        row = await self._repository.program.load_program(program_id)
         if row is None:
             return None
         return Program.model_validate(row)
 
     async def list_programs(self) -> list[ProgramMeta]:
-        rows = await self._repository.list_programs()
+        rows = await self._repository.program.list_programs()
         # Repository returns {id, updated_at} — load full meta for name/description
         metas: list[ProgramMeta] = []
         for row in rows:
-            prog = await self._repository.load_program(row["id"])
+            prog = await self._repository.program.load_program(row["id"])
             if prog:
                 metas.append(Program.model_validate(prog).meta)
         return metas
 
     async def delete_program(self, program_id: str) -> None:
-        await self._repository.delete_program(program_id)
+        await self._repository.program.delete_program(program_id)
         logger.info("ProgramService: deleted program {}", program_id)
 
     # ── Run management ────────────────────────────────────────────────────────
@@ -352,7 +352,7 @@ class ProgramService:
     # ── Internals ─────────────────────────────────────────────────────────────
 
     async def _persist_and_publish(self, run: ProgramRunState) -> None:
-        await self._repository.save_program_run(run.run_id, run.model_dump())
+        await self._repository.program.save_program_run(run.run_id, run.model_dump())
         self._obs._publish_event(  # type: ignore[attr-defined]
             {
                 "type": "program.run.update",

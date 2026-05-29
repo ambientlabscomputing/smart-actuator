@@ -1,12 +1,70 @@
 [package]
 name = "actuator-firmware"
 version = "0.1.0"
-edition.workspace = true
-license.workspace = true
+edition = "2021"
+license = "MIT"
+description = "Ambient Labs Smart Actuator — ESP32 firmware (xtensa-esp32-espidf)"
 
-# TODO: HAL drivers and main() for real hardware
+# Binary: the full firmware image flashed to the testbench board.
+[[bin]]
+name = "actuator-firmware"
+path = "src/main.rs"
 
+# Library: the HAL hardware impl, re-exported for use by examples.
+[lib]
+path = "src/lib.rs"
+
+# ── Platform deps (ESP-IDF / Xtensa) ─────────────────────────────────────────
 [dependencies]
-actuator-core.workspace = true
-async-trait.workspace = true
-tokio = { workspace = true, features = ["sync"] }
+# ESP-IDF Rust bindings: HAL + services (WiFi, mDNS, NVS, logging).
+# binstart: provides the esp_idf_sys entry point glue.
+# alloc:    enables heap allocation (required by tokio / tonic).
+esp-idf-svc = { version = "0.50", features = ["binstart", "alloc"] }
+esp-idf-hal = "0.45"
+embedded-svc = "0.28"
+
+# ── Internal crates (path refs — excluded from workspace) ────────────────────
+# These compile from source for the Xtensa target as part of the firmware build.
+actuator-core  = { path = "../actuator-core" }
+actuator-proto = { path = "../actuator-proto", default-features = false, features = ["tokio"] }
+
+# ── Async runtime ────────────────────────────────────────────────────────────
+# (net, rt, time) + our list below contains NO signal or process features.
+prost = "0.13"
+tokio = { version = "1", default-features = false, features = ["rt", "net", "io-util", "sync", "time", "macros"] }
+
+# ── Error handling + logging ──────────────────────────────────────────────────
+anyhow = "1"
+log = "0.4"
+
+# ── Async trait support ───────────────────────────────────────────────────────
+# Pure proc-macro crate (no runtime deps). Used by HalHardware to implement
+# the async actuator_core::Hardware trait. Compiles cleanly on Xtensa.
+async-trait = "0.1"
+
+# ── Build deps ────────────────────────────────────────────────────────────────
+[build-dependencies]
+# Reads ESP-IDF environment variables (set by ~/export-esp.sh) and forwards
+# them to Cargo as build-time env vars consumed by esp-idf-sys.
+# The `espidf` feature gates the `embuild::espidf::sysenv` module we call.
+embuild = { version = "0.33", features = ["espidf"] }
+
+# ── Release profile ──────────────────────────────────────────────────────────
+# tonic + hyper + h2 + axum generate huge async state machines. A debug build
+# overflows iram0_2_seg (the ESP32's 3.3 MB flash-mapped code region) by
+# ~230 KB. Release with opt-level=s brings the firmware back to ~1.8 MB,
+# which fits with room to spare for future Phase 3 control-loop code.
+#
+# LTO is DISABLED on purpose: with `lto = true` the Xtensa LLVM backend hits
+#     rustc-LLVM ERROR: Cannot select: XtensaISD::PCREL_WRAPPER TargetConstantPool
+# inside hyper's h2 server `poll_closed`, because LTO inlines bytes::STATIC_VTABLE
+# (a function-pointer constant) into a context the Xtensa backend can't lower.
+# Without LTO the vtable stays an extern symbol in the bytes crate and links
+# normally. If we ever need the extra size savings, we'd have to either patch
+# the Xtensa backend or feature-gate `bytes` to use heap-allocated buffers only.
+[profile.release]
+opt-level = "s"      # optimise for size; "z" is too aggressive on Xtensa
+lto = true           # safe now that tonic/hyper/h2 are gone
+codegen-units = 1    # smaller code at the cost of build parallelism
+strip = "debuginfo"  # drop DWARF after linking
+panic = "abort"      # no unwinding tables; matches ESP-IDF runtime

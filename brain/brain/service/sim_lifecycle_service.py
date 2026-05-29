@@ -15,7 +15,6 @@ sim.crashed events on /events WS; recovery only happens on Brain startup.
 """
 
 import asyncio
-import json
 import math
 import os
 import signal
@@ -59,7 +58,7 @@ class SimLifecycleService:
           2. Re-spawn a fresh sim on the same port.
           3. Re-register the new sim with the Sidecar.
         """
-        rows = await self._repo.list_all_sims()
+        rows = await self._repo.sim.list_all_sims()
         if not rows:
             logger.info("SimLifecycle: no sims to recover")
             return
@@ -92,7 +91,7 @@ class SimLifecycleService:
                     port=port,
                     actuator_id=old_actuator_id,
                 )
-                await self._repo.save_sim(
+                await self._repo.sim.save_sim(
                     machine_id,
                     slot,
                     address=address,
@@ -121,7 +120,7 @@ class SimLifecycleService:
                     "SimLifecycle: failed to recover machine={} slot={}", machine_id, slot
                 )
                 # Remove the stale row so the Brain doesn't retry forever
-                await self._repo.delete_sim(machine_id, slot)
+                await self._repo.sim.delete_sim(machine_id, slot)
 
     # ------------------------------------------------------------------
     # Public API
@@ -155,7 +154,7 @@ class SimLifecycleService:
             self._allocated_ports.discard(port)
             raise
 
-        await self._repo.save_sim(
+        await self._repo.sim.save_sim(
             machine_id,
             slot,
             address=address,
@@ -197,7 +196,7 @@ class SimLifecycleService:
         Deregister from Sidecar, SIGTERM the process, and remove from registry.
         Safe to call even if the process is already dead.
         """
-        rows = await self._repo.list_sims(machine_id)
+        rows = await self._repo.sim.list_sims(machine_id)
         row = next((r for r in rows if r["slot"] == slot), None)
         if row is None:
             logger.warning("SimLifecycle: teardown slot={} not in registry", slot)
@@ -210,19 +209,19 @@ class SimLifecycleService:
         self._sidecar.untrack_actuator(actuator_id)  # type: ignore[attr-defined]
         self._kill_pid(pid)
         self._allocated_ports.discard(self._port_from_address(row["address"]))
-        await self._repo.delete_sim(machine_id, slot)
+        await self._repo.sim.delete_sim(machine_id, slot)
 
         logger.info(
             "SimLifecycle: torn down machine={} slot={} pid={}", machine_id, slot, pid
         )
 
     async def teardown_all_sims(self, machine_id: str) -> None:
-        rows = await self._repo.list_sims(machine_id)
+        rows = await self._repo.sim.list_sims(machine_id)
         for row in rows:
             await self._sidecar.deregister_peer(actuator_id=row["actuator_id"])  # type: ignore[attr-defined]
             self._kill_pid(row["pid"])
             self._allocated_ports.discard(self._port_from_address(row["address"]))
-        await self._repo.delete_all_sims(machine_id)
+        await self._repo.sim.delete_all_sims(machine_id)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -230,11 +229,11 @@ class SimLifecycleService:
 
     async def _get_joint_limit_rad(self, machine_id: str, slot: int) -> float:
         """Look up joint{slot}_limit_deg from stored machine parameters."""
-        row = await self._repo.load_machine(machine_id)
+        row = await self._repo.machine.load_machine(machine_id)
         if row is None:
             return math.pi
         try:
-            description = json.loads(row["description_json"])
+            description = row["description"]
             params = description.get("parameters", {})
             limit_deg = float(params.get(f"joint{slot}_limit_deg", 180.0))
             return math.radians(limit_deg)

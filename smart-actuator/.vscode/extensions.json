@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    // Rust language server — hover docs, go-to-def, inline errors.
+    "rust-lang.rust-analyzer",
+
+    // Official Espressif extension — serial monitor, flash buttons, sdkconfig editor.
+    // Also provides the ESP-IDF component manager and device tree viewer.
+    "espressif.esp-idf-extension",
+
+    // Wokwi simulator — run and debug firmware in VS Code without a physical board.
+    // Required for `make firmware-wokwi`.
+    "wokwi.wokwi-vscode",
+
+    // Better TOML editing (Cargo.toml, .cargo/config.toml).
+    "tamasfe.even-better-toml"
+  ]
+}

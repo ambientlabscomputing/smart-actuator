@@ -1,8 +1,8 @@
 mod backdoor;
 mod cmd;
 mod config;
-mod grpc;
 mod logging;
+mod server;
 mod plant;
 mod sim_cmd;
 mod sim_proto;
@@ -67,7 +67,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Stop => stop(&config.pid_file),
         Commands::Cmd { command } => {
-            let addr = format!("http://{}:{}", config.grpc.host, config.grpc.port);
+            // Wire protocol uses plain TCP — strip the http:// scheme.
+            let addr = format!("{}:{}", config.grpc.host, config.grpc.port);
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?
@@ -246,7 +247,7 @@ async fn run(config: config::ActuatorConfig, config_path: String) -> anyhow::Res
         }
     };
 
-    grpc::serve(&config.grpc, service_ref, shutdown).await?;
+    server::serve(&config.grpc, service_ref, shutdown).await?;
 
     service.stop().await;
     info!("shutdown complete");

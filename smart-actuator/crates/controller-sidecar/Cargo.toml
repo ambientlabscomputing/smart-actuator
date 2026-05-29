@@ -9,7 +9,7 @@ name = "controller-sidecar"
 path = "src/main.rs"
 
 [dependencies]
-actuator-proto.workspace = true
+actuator-proto = { workspace = true, features = ["serial"] }
 
 tokio.workspace = true
 tokio-stream.workspace = true

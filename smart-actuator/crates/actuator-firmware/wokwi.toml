@@ -1,0 +1,25 @@
+# wokwi.toml — Wokwi simulator configuration for actuator-firmware.
+#
+# Runs the firmware in a simulated ESP32 DevKit board so contributors without
+# physical hardware can exercise Phases 1–2 (WiFi stub + gRPC skeleton).
+#
+# Usage: make firmware-wokwi
+# Docs:  https://docs.wokwi.com/vscode/getting-started
+#
+# Peripheral support notes:
+#   WiFi: Wokwi simulates 802.11 via a virtual access point — the gRPC server
+#         will start and the Sidecar can connect to it via the Wokwi network.
+#   AS5600 / INA219: not in the Wokwi chip library; HAL driver stubs return
+#         constant values. Real smoke tests (make firmware-test-*) require
+#         physical hardware.
+
+[wokwi]
+version = 1
+firmware = "target/xtensa-esp32-espidf/debug/actuator-firmware"
+elf     = "target/xtensa-esp32-espidf/debug/actuator-firmware"
+
+[[parts]]
+type = "board-esp32-devkit-v1"
+id   = "esp"
+
+# Serial monitor is automatically attached by wokwi-cli.

@@ -2,6 +2,7 @@ from brain import Config
 from brain.repository.repository import Repository
 from brain.service.actuator_service import ActuatorService
 from brain.service.calibration_service import CalibrationService
+from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 from brain.service.kinematics_service import KinematicsService
 from brain.service.lifecycle_service import LifecycleService
 from brain.service.machine_service import MachineService
@@ -24,8 +25,15 @@ def new_brain_service(config: Config) -> BrainService:
     sim_lifecycle = SimLifecycleService(
         repository, config, sidecar_bridge=sidecar, observability=observability
     )
+    hardware_lifecycle = HardwareLifecycleService(
+        repository, config, sidecar_bridge=sidecar, observability=observability
+    )
     kinematics = KinematicsService(repository, config)
-    machine = MachineService(repository, templates, config, sim_lifecycle=sim_lifecycle)
+    machine = MachineService(
+        repository, templates, config,
+        sim_lifecycle=sim_lifecycle,
+        hardware_lifecycle=hardware_lifecycle,
+    )
     actuators = ActuatorService(repository, sidecar, config)
     lifecycle = LifecycleService(repository, config)
     safety = SafetyService(repository, sidecar, kinematics, lifecycle, config)
@@ -50,4 +58,5 @@ def new_brain_service(config: Config) -> BrainService:
         calibration=calibration,
         observability=observability,
         sim_lifecycle=sim_lifecycle,
+        hardware_lifecycle=hardware_lifecycle,
     )
