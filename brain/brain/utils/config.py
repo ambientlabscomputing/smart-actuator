@@ -75,15 +75,35 @@ class TemplateConfig(BaseModel):
     )
 
 
-class SqlConfig(BaseModel):
-    url: str = Field(default="sqlite+aiosqlite:///brain.db", description="Database connection URL")
+class OAuthConfig(BaseModel):
+    """OAuth Server configuration"""
+
+    cert_path: str = Field(
+        default="cert.pem",
+        description="Path to the TLS certificate file for the OAuth server",
+    )
+    key_path: str = Field(
+        default="key.pem",
+        description="Path to the TLS private key file for the OAuth server",
+    )
+    token_ttl_seconds: int = Field(
+        default=3600,
+        description="JWT access token lifetime in seconds",
+    )
 
 
 class Config(BaseModel):
-    db: SqlConfig = Field(default_factory=SqlConfig, description="Database configuration")
+    db: DatabaseConfig = Field(default_factory=DatabaseConfig, description="Database configuration")
     grpc: GrpcConfig = Field(default_factory=GrpcConfig, description="gRPC server configuration")
     log: LogConfig = Field(default_factory=LogConfig, description="Logging configuration")
     rest: RestConfig = Field(default_factory=RestConfig, description="REST server configuration")
-    sidecar: SidecarConfig = Field(default_factory=SidecarConfig, description="Sidecar gRPC bridge configuration")
+    sidecar: SidecarConfig = Field(
+        default_factory=SidecarConfig, description="Sidecar gRPC bridge configuration"
+    )
     sim: SimConfig = Field(default_factory=SimConfig, description="Sim lifecycle configuration")
-    templates: TemplateConfig = Field(default_factory=TemplateConfig, description="Template configuration")
+    templates: TemplateConfig = Field(
+        default_factory=TemplateConfig, description="Template configuration"
+    )
+    oauth: OAuthConfig = Field(
+        default_factory=OAuthConfig, description="OAuth server configuration"
+    )

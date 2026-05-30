@@ -5,8 +5,8 @@ import uvicorn
 from brain import Config, logger
 from brain.interface.app import create_app
 from brain.interface.grpc.server import create_grpc_server
-from brain.service import new_brain_service
 from brain.repository.session_maker import init_session_maker
+from brain.service import init_brain_service
 
 
 def main() -> None:
@@ -16,14 +16,12 @@ def main() -> None:
 async def run() -> None:
     config = Config()
     init_session_maker(config)
-    logger.info("Starting Brain with config: %s", config)
+    logger.info("Starting Brain with config: {}", config)
 
-    # The FastAPI app manages the primary BrainService lifecycle via its lifespan.
-    # The gRPC server gets its own instance for now; both share the same config.
-    # TODO(J3): unify into a single shared BrainService via DI.
+    # Single shared BrainService for both REST and gRPC.
+    service = init_brain_service(config)
     app = create_app(config)
-    grpc_service = new_brain_service(config)
-    grpc_server = create_grpc_server(grpc_service, config)
+    grpc_server = create_grpc_server(service, config)
 
     uvicorn_cfg = uvicorn.Config(
         app,
@@ -60,4 +58,3 @@ async def run() -> None:
 
 if __name__ == "__main__":
     main()
-

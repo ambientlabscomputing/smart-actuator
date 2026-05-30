@@ -1,8 +1,11 @@
-from loguru import logger
-from brain import Config
 import sys
 
+from loguru import logger
+
+from brain import Config
+
 __all__ = ["logger"]
+
 
 def setup_logger(config: Config) -> None:
     """

@@ -1,7 +1,7 @@
-from typing import Annotated
 import asyncio
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
 from brain.interface.rest.deps import get_service
 from brain.models.state import MachineState
@@ -16,16 +16,13 @@ Service = Annotated[BrainService, Depends(get_service)]
 async def get_state(machine_id: str, svc: Service) -> MachineState:
     state = svc.state.get_measured_state(machine_id)
     if state is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"No state for machine {machine_id!r}")
     return state
 
 
 @router.websocket("/ws")
 async def stream_state(websocket: WebSocket, machine_id: str) -> None:
-    # WebSocket endpoints do not receive a Request object, so pull the service
-    # directly from app.state instead of using the get_service dependency.
-    svc: BrainService = websocket.app.state.brain
+    svc = get_service()
 
     await websocket.accept()
 

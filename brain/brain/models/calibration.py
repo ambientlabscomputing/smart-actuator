@@ -1,5 +1,4 @@
 import json
-
 from enum import StrEnum
 
 from pydantic import BaseModel

@@ -28,7 +28,7 @@ class BrainServicer:
     # ── Actuators ──────────────────────────────────────────────────────────
 
     async def ListActuators(self, request: object, context: grpc.aio.ServicerContext) -> object:
-        actuators = await self._svc.actuators.list_discovered()
+        _actuators = await self._svc.actuators.list_discovered()  # noqa: F841
         # TODO: map actuators → ListActuatorsResponse proto
         return NotImplemented
 
@@ -47,7 +47,7 @@ class BrainServicer:
     # ── Machine ────────────────────────────────────────────────────────────
 
     async def ListMachines(self, request: object, context: grpc.aio.ServicerContext) -> object:
-        ids = await self._svc.machine.list_machines()
+        _ids = await self._svc.machine.list_machines()  # noqa: F841
         # TODO: → ListMachinesResponse(machine_ids=ids)
         return NotImplemented
 

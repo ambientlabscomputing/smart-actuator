@@ -1,15 +1,16 @@
 import math
 from typing import TYPE_CHECKING
 
-from brain.models.machine import Machine, MachineDescription
+from brain.models.machine import Machine, MachineDescription, SqlHardwareEntry, SqlSimEntry
 from brain.repository.repository import Repository
 from brain.service.template_service import TemplateService
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
-    from brain.service.sim_lifecycle_service import SimLifecycleService
     from brain.service.hardware_lifecycle_service import HardwareLifecycleService
+    from brain.service.sidecar_bridge import SidecarBridge
+    from brain.service.sim_lifecycle_service import SimLifecycleService
 
 
 class MachineService:
@@ -43,7 +44,7 @@ class MachineService:
     def set_hardware_lifecycle(self, hardware_lifecycle: "HardwareLifecycleService") -> None:
         self._hardware_lifecycle = hardware_lifecycle
 
-    async def build_machine(self, description: MachineDescription) -> Machine:
+    async def build_machine(self, description: MachineDescription, *, created_by: str) -> Machine:
         """
         Expand the description into a Machine: resolve the template,
         substitute parameters into the URDF skeleton, persist.
@@ -78,28 +79,25 @@ class MachineService:
             joint_names=joint_names,
         )
 
-        await self._persist(machine)
+        await self._persist(machine, created_by=created_by)
         logger.info("Machine {} persisted ({} joints)", description.machine_id, len(joint_names))
         return machine
 
     async def get_machine(self, machine_id: str) -> Machine | None:
-        row = await self._repository.machine.load_machine(machine_id)
-        if row is None:
+        machine = await self._repository.machine.load_machine(machine_id)
+        if machine is None:
             return None
         try:
-            description = MachineDescription(**row["description"])
-            # Derive joint names from the template.
-            tmpl = await self._templates.get_template(description.template_ref.template_id)
-            joint_names = (
+            # Derive joint names from the template (not stored in DB).
+            tmpl = await self._templates.get_template(machine.description.template_ref.template_id)
+            machine.joint_names = (
                 [j["name"] for j in tmpl.joints]
                 if tmpl and tmpl.joints
-                else [f"joint{i}" for i in range(max(len(description.actuator_bindings), 1))]
+                else [
+                    f"joint{i}" for i in range(max(len(machine.description.actuator_bindings), 1))
+                ]
             )
-            return Machine(
-                description=description,
-                expanded_urdf=row.get("expanded_urdf", ""),
-                joint_names=joint_names,
-            )
+            return machine
         except Exception:
             logger.exception("Failed to deserialize machine {}", machine_id)
             return None
@@ -118,6 +116,7 @@ class MachineService:
         serial_path: str | None = None,
         baud_rate: int = 921_600,
         actuator_id: str | None = None,
+        created_by: str,
     ) -> dict[str, object]:
         """
         Bind a single joint slot.
@@ -145,7 +144,11 @@ class MachineService:
             limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))
             limit_rad = math.radians(limit_deg)
             address, pid, actuator_id = await self._sim_lifecycle.spawn_sim(
-                machine_id, slot, joint_name=joint_name, limit_rad=limit_rad
+                machine_id,
+                slot,
+                joint_name=joint_name,
+                limit_rad=limit_rad,
+                created_by=created_by,
             )
 
             bindings = list(machine.description.actuator_bindings)
@@ -153,7 +156,7 @@ class MachineService:
                 bindings.append("")
             bindings[slot] = actuator_id
             machine.description.actuator_bindings = bindings
-            await self._persist(machine)
+            await self._persist(machine, created_by=created_by)
 
             return {
                 "machine_id": machine_id,
@@ -181,6 +184,7 @@ class MachineService:
                 baud_rate=baud_rate,
                 actuator_id=actuator_id,
                 limit_rad=limit_rad,
+                created_by=created_by,
             )
 
             bindings = list(machine.description.actuator_bindings)
@@ -188,7 +192,7 @@ class MachineService:
                 bindings.append("")
             bindings[slot] = bound_actuator_id
             machine.description.actuator_bindings = bindings
-            await self._persist(machine)
+            await self._persist(machine, created_by=created_by)
 
             return {
                 "machine_id": machine_id,
@@ -209,7 +213,7 @@ class MachineService:
             if slot < len(bindings):
                 bindings[slot] = ""
             machine.description.actuator_bindings = bindings
-            await self._persist(machine)
+            await self._persist(machine, created_by=created_by)
 
             return {"machine_id": machine_id, "slot": slot, "kind": "unbound"}
 
@@ -220,17 +224,18 @@ class MachineService:
     # Internal
     # ------------------------------------------------------------------
 
-    async def _persist(self, machine: Machine) -> None:
+    async def _persist(self, machine: Machine, *, created_by: str) -> None:
         await self._repository.machine.save_machine(
             machine.description.machine_id,
             {
                 "description": machine.description.model_dump(),
                 "expanded_urdf": machine.expanded_urdf,
             },
+            created_by=created_by,
         )
 
-    async def save_machine(self, machine: Machine) -> None:
-        await self._persist(machine)
+    async def save_machine(self, machine: Machine, *, created_by: str) -> None:
+        await self._persist(machine, created_by=created_by)
 
     async def expand_urdf(self, description: MachineDescription) -> str:
         try:
@@ -241,17 +246,19 @@ class MachineService:
             logger.exception("expand_urdf failed")
             return ""
 
-    async def bind_actuators(self, machine_id: str, actuator_ids: list[str]) -> None:
+    async def bind_actuators(
+        self, machine_id: str, actuator_ids: list[str], *, created_by: str
+    ) -> None:
         """Legacy: bind a complete ordered list of actuator IDs to the machine."""
         machine = await self.get_machine(machine_id)
         if machine is None:
             raise ValueError(f"Machine {machine_id!r} not found")
         machine.description.actuator_bindings = actuator_ids
-        await self._persist(machine)
+        await self._persist(machine, created_by=created_by)
         logger.info("Bound actuators to machine {}", machine_id)
 
     async def update_parameters(
-        self, machine_id: str, parameters: dict[str, float]
+        self, machine_id: str, parameters: dict[str, float], *, created_by: str
     ) -> Machine:
         """
         Update geometry parameters on an existing machine.
@@ -296,7 +303,7 @@ class MachineService:
                 "URDF re-expansion failed after parameter update for machine {}", machine_id
             )
 
-        await self._persist(machine)
+        await self._persist(machine, created_by=created_by)
         logger.info(
             "Updated parameters for machine {} (keys: {})",
             machine_id,
@@ -305,22 +312,24 @@ class MachineService:
 
         # Push updated soft limits to any running sims AND hardware for this machine.
         # Best-effort: failure is logged but does not abort the update.
-        bridge = None
+        bridge: SidecarBridge | None = None
         if self._sim_lifecycle is not None:
             bridge = self._sim_lifecycle._sidecar  # type: ignore[attr-defined]
         elif self._hardware_lifecycle is not None:
             bridge = self._hardware_lifecycle._sidecar  # type: ignore[attr-defined]
 
         if bridge is not None:
-            rows: list[dict] = []
+            rows: list[SqlSimEntry | SqlHardwareEntry] = []
             if self._sim_lifecycle is not None:
                 rows.extend(await self._repository.sim.list_sims(machine_id))
             if self._hardware_lifecycle is not None:
                 rows.extend(await self._repository.hardware.list_hardware(machine_id))
             for row in rows:
-                slot = row["slot"]
-                actuator_id = row["actuator_id"]
-                limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))
+                slot = row.slot
+                actuator_id = row.actuator_id
+                limit_deg = float(
+                    machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0)
+                )
                 limit_rad = math.radians(limit_deg)
                 try:
                     await bridge.set_soft_limits(actuator_id, min_rad=-limit_rad, max_rad=limit_rad)
@@ -331,4 +340,3 @@ class MachineService:
                     )
 
         return machine
-

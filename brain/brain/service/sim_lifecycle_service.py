@@ -18,12 +18,16 @@ import asyncio
 import math
 import os
 import signal
-import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from brain.repository.repository import Repository
 from brain.utils.config import Config
 from brain.utils.logger import logger
+
+if TYPE_CHECKING:
+    from brain.service.observability_service import ObservabilityService
+    from brain.service.sidecar_bridge import SidecarBridge
 
 _READINESS_POLL_INTERVAL_S = 0.05
 _READINESS_TIMEOUT_S = 5.0
@@ -35,13 +39,13 @@ class SimLifecycleService:
         repository: Repository,
         config: Config,
         *,
-        sidecar_bridge: object,  # SidecarBridge — injected to avoid circular import
-        observability: object,   # ObservabilityService — for events
+        sidecar_bridge: "SidecarBridge",  # injected to avoid circular import at runtime
+        observability: "ObservabilityService",
     ) -> None:
         self._repo = repository
         self._config = config
-        self._sidecar = sidecar_bridge  # type: ignore[assignment]
-        self._obs = observability       # type: ignore[assignment]
+        self._sidecar: SidecarBridge = sidecar_bridge  # type: ignore[assignment]
+        self._obs: ObservabilityService = observability  # type: ignore[assignment]
         # in-memory set of ports currently in use (supplemented by registry on startup)
         self._allocated_ports: set[int] = set()
         # pid → asyncio.subprocess.Process for cleanup
@@ -98,6 +102,7 @@ class SimLifecycleService:
                     pid=pid,
                     actuator_id=actuator_id,
                     joint_name=joint_name,
+                    created_by="system",
                 )
                 await self._sidecar.register_peer(  # type: ignore[attr-defined]
                     actuator_id=actuator_id,
@@ -113,7 +118,11 @@ class SimLifecycleService:
                 )
                 logger.info(
                     "SimLifecycle: recovered machine={} slot={} port={} pid={} limit={:.4f}rad",
-                    machine_id, slot, port, pid, limit_rad,
+                    machine_id,
+                    slot,
+                    port,
+                    pid,
+                    limit_rad,
                 )
             except Exception:
                 logger.exception(
@@ -127,7 +136,13 @@ class SimLifecycleService:
     # ------------------------------------------------------------------
 
     async def spawn_sim(
-        self, machine_id: str, slot: int, *, joint_name: str, limit_rad: float = math.pi
+        self,
+        machine_id: str,
+        slot: int,
+        *,
+        joint_name: str,
+        limit_rad: float = math.pi,
+        created_by: str,
     ) -> tuple[str, int, str]:
         """
         Allocate a port, spawn an actuator-sim subprocess, wait for it to be
@@ -161,6 +176,7 @@ class SimLifecycleService:
             pid=pid,
             actuator_id=actuator_id,
             joint_name=joint_name,
+            created_by=created_by,
         )
         await self._sidecar.register_peer(  # type: ignore[attr-defined]
             actuator_id=actuator_id,
@@ -187,7 +203,11 @@ class SimLifecycleService:
         )
         logger.info(
             "SimLifecycle: spawned machine={} slot={} port={} pid={} id={}",
-            machine_id, slot, port, pid, actuator_id,
+            machine_id,
+            slot,
+            port,
+            pid,
+            actuator_id,
         )
         return address, pid, actuator_id
 
@@ -211,9 +231,7 @@ class SimLifecycleService:
         self._allocated_ports.discard(self._port_from_address(row["address"]))
         await self._repo.sim.delete_sim(machine_id, slot)
 
-        logger.info(
-            "SimLifecycle: torn down machine={} slot={} pid={}", machine_id, slot, pid
-        )
+        logger.info("SimLifecycle: torn down machine={} slot={} pid={}", machine_id, slot, pid)
 
     async def teardown_all_sims(self, machine_id: str) -> None:
         rows = await self._repo.sim.list_sims(machine_id)
@@ -240,7 +258,8 @@ class SimLifecycleService:
         except Exception:
             logger.warning(
                 "SimLifecycle: could not read limit for machine={} slot={}, using π",
-                machine_id, slot,
+                machine_id,
+                slot,
             )
             return math.pi
 
@@ -252,8 +271,7 @@ class SimLifecycleService:
                 self._allocated_ports.add(port)
                 return port
         raise RuntimeError(
-            f"No free sim ports in range {start}–{end}. "
-            "Stop stale sims with 'make j3-stop'."
+            f"No free sim ports in range {start}–{end}. Stop stale sims with 'make j3-stop'."
         )
 
     async def _do_spawn(
@@ -287,11 +305,15 @@ class SimLifecycleService:
 
         logger.debug(
             "SimLifecycle: launching {} port={} id={} pid_file={}",
-            binary, port, actuator_id, pid_file,
+            binary,
+            port,
+            actuator_id,
+            pid_file,
         )
 
         proc = await asyncio.create_subprocess_exec(
-            binary, "run",
+            binary,
+            "run",
             env=env,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,

@@ -9,10 +9,11 @@ URL structure mirrors the calibration router:
           /programs/{program_id}/runs  (list)
   WS:     /runs/{run_id}/ws            (live updates)
 """
-import asyncio
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+import asyncio
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from brain.interface.rest.deps import get_service
@@ -50,10 +51,13 @@ async def get_program(program_id: str, svc: Service) -> Program:
 
 
 @router.post("/programs", response_model=Program, status_code=201)
-async def save_program(program: Program, svc: Service) -> Program:
-    """Create or replace a program. Validates AST structure (root SEQUENCE, MOVE/WAIT nodes only)."""
+async def save_program(program: Program, svc: Service, request: Request) -> Program:
+    """Create or replace a program.
+
+    Validates AST structure (root SEQUENCE, MOVE/WAIT nodes only).
+    """
     try:
-        await svc.programs.save_program(program)
+        await svc.programs.save_program(program, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return program
@@ -75,14 +79,16 @@ async def delete_program(program_id: str, svc: Service) -> None:
     summary="Start a program run",
 )
 async def start_run(
-    program_id: str, body: StartRunBody, svc: Service
+    program_id: str, body: StartRunBody, svc: Service, request: Request
 ) -> ProgramRunState:
     """
     Start executing the named program against the given machine.
     Returns immediately with the initial ProgramRunState (status=running).
     """
     try:
-        return await svc.programs.start_run(program_id, body.machine_id)
+        return await svc.programs.start_run(
+            program_id, body.machine_id, created_by=request.state.user.username
+        )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -117,9 +123,9 @@ async def get_run(run_id: str, svc: Service) -> ProgramRunState:
     response_model=ProgramRunState,
     summary="Stop a running program",
 )
-async def stop_run(run_id: str, svc: Service) -> ProgramRunState:
+async def stop_run(run_id: str, svc: Service, request: Request) -> ProgramRunState:
     try:
-        return await svc.programs.stop_run(run_id)
+        return await svc.programs.stop_run(run_id, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -135,7 +141,7 @@ async def run_ws(run_id: str, websocket: WebSocket) -> None:
     On connect: sends a snapshot of the current run state, then streams every
     subsequent update.  Slow consumers drop frames (queue full → discard).
     """
-    svc: BrainService = websocket.app.state.brain
+    svc = get_service()
 
     run = svc.programs.get_run(run_id)
     if run is None:
@@ -164,27 +170,29 @@ async def run_ws(run_id: str, websocket: WebSocket) -> None:
     try:
         while True:
             event = await q.get()
-            state = ProgramRunState(**{
-                k: v for k, v in event.items() if k not in ("type", "topic")
-            })
+            state = ProgramRunState(
+                **{k: v for k, v in event.items() if k not in ("type", "topic")}
+            )
             await websocket.send_text(state.model_dump_json())
     except WebSocketDisconnect:
         pass
     finally:
         svc.observability._event_queues[:] = [  # type: ignore[attr-defined]
-            q for q in svc.observability._event_queues  # type: ignore[attr-defined]
+            q
+            for q in svc.observability._event_queues  # type: ignore[attr-defined]
             if not isinstance(q, _CallbackQueue) or q._cb is not on_event
         ]
 
 
-class _CallbackQueue:
+class _CallbackQueue(asyncio.Queue[dict[str, Any]]):
     """
     Shim that satisfies the ObservabilityService's list[asyncio.Queue] contract
     while routing events through a filter callback.
     """
 
-    def __init__(self, cb):
+    def __init__(self, cb) -> None:
+        super().__init__(maxsize=0)
         self._cb = cb
 
-    def put_nowait(self, event: dict) -> None:  # noqa: D401
-        self._cb(event)
+    def put_nowait(self, item: dict[str, Any]) -> None:  # noqa: D401
+        self._cb(item)
