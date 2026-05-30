@@ -4,18 +4,20 @@ from brain import Config
 from brain.repository.repository import Repository
 from brain.service.actuator_service import ActuatorService
 from brain.service.calibration_service import CalibrationService
+from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 from brain.service.kinematics_service import KinematicsService
 from brain.service.lifecycle_service import LifecycleService
 from brain.service.machine_service import MachineService
 from brain.service.motion_service import MotionService
+from brain.service.oauth_service import OAuthService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
 from brain.service.safety_service import SafetyService
-from brain.service.hardware_lifecycle_service import HardwareLifecycleService
-from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.sidecar_bridge import SidecarBridge
+from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
 from brain.service.template_service import TemplateService
+from brain.service.user_service import UserService
 from brain.utils.logger import logger
 
 
@@ -51,6 +53,8 @@ class BrainService(Service):
         lifecycle: LifecycleService,
         calibration: CalibrationService,
         observability: ObservabilityService,
+        user_service: UserService,
+        oauth_service: OAuthService,
         sim_lifecycle: SimLifecycleService | None = None,
         hardware_lifecycle: HardwareLifecycleService | None = None,
     ) -> None:
@@ -70,10 +74,13 @@ class BrainService(Service):
         self.observability = observability
         self.sim_lifecycle = sim_lifecycle
         self.hardware_lifecycle = hardware_lifecycle
+        self.user_service = user_service
+        self.oauth_service = oauth_service
 
     async def start(self) -> None:
         logger.info("Starting BrainService")
         await self.repository.start()
+        await self.user_service.start()
         await self.sidecar.connect()
         await self.state.start()
         await self.calibration.start()
@@ -82,9 +89,7 @@ class BrainService(Service):
             try:
                 sidecar_ready = await self.sidecar.wait_until_ready(timeout=30.0)
                 if not sidecar_ready:
-                    logger.warning(
-                        "Sidecar not reachable after 30s — skipping recovery"
-                    )
+                    logger.warning("Sidecar not reachable after 30s — skipping recovery")
                 else:
                     if self.sim_lifecycle is not None:
                         await self.sim_lifecycle.recover_on_start()

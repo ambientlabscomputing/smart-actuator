@@ -23,3 +23,11 @@ proto:
 ## run: Start the Brain REST+gRPC server
 run:
 	python -m brain.main
+
+## lint: use ruff to lint the codebase
+lint:
+	ruff check brain --fix --statistics
+
+## fmt: use ruff to format the codebase
+fmt:
+	ruff format brain

@@ -25,7 +25,7 @@ class SidecarBridge:
     def __init__(self, config: Config) -> None:
         self._config = config
         self._channel: grpc.aio.Channel | None = None
-        self._stub: "_SidecarStubType.SidecarServiceStub | None" = None
+        self._stub: _SidecarStubType.SidecarServiceStub | None = None
         self._stream_task: asyncio.Task | None = None  # type: ignore[type-arg]
         self._heartbeat_task: asyncio.Task | None = None  # type: ignore[type-arg]
         # actuator_id → machine_id: updated when sims spawn/teardown so the
@@ -275,7 +275,9 @@ class SidecarBridge:
         resp = await self._stub.RegisterPeer(req)
         logger.info(
             "Sidecar RegisterPeer actuator_id={} address={} success={}",
-            actuator_id, address, resp.success,
+            actuator_id,
+            address,
+            resp.success,
         )
         return {"success": resp.success, "message": resp.message}
 
@@ -287,9 +289,7 @@ class SidecarBridge:
 
         req = sidecar_pb2.DeregisterPeerRequest(actuator_id=actuator_id)
         resp = await self._stub.DeregisterPeer(req)
-        logger.info(
-            "Sidecar DeregisterPeer actuator_id={} success={}", actuator_id, resp.success
-        )
+        logger.info("Sidecar DeregisterPeer actuator_id={} success={}", actuator_id, resp.success)
         return {"success": resp.success, "message": resp.message}
 
     async def set_soft_limits(
@@ -308,7 +308,9 @@ class SidecarBridge:
         resp = await self._stub.SetActuatorSoftLimits(req)
         logger.info(
             "Sidecar SetSoftLimits actuator_id={} min={:.4f} max={:.4f} success={}",
-            actuator_id, min_rad, max_rad, resp.success,
+            actuator_id,
+            min_rad,
+            max_rad,
+            resp.success,
         )
         return {"success": resp.success, "message": resp.message}
-

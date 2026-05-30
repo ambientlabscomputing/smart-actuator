@@ -20,6 +20,12 @@ dependencies = [
     "aiosqlite>=0.20",
     "jinja2>=3.1",
     "sqlalchemy>=2.0",
+    "bcrypt>=5.0",
+    "greenlet>=3.5",
+    "result>=0.17",
+    "pyjwt[crypto]>=2.8",
+    "cryptography>=48.0",
+    "async-lru>=2.3",
 ]
 
 [project.scripts]
@@ -44,6 +50,7 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"brain/interface/grpc/generated/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.13"

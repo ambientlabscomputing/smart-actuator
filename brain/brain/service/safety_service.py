@@ -70,9 +70,9 @@ class SafetyService:
         """
         # TODO: load mode/capability gate table from machine model
         allowed: dict[MachineMode, set[str]] = {
-            MachineMode.OFFLINE:  set(),
-            MachineMode.IDLE:     {"describe", "calibrate", "state"},
-            MachineMode.MANUAL:   {"describe", "calibrate", "state", "move_joint"},
+            MachineMode.OFFLINE: set(),
+            MachineMode.IDLE: {"describe", "calibrate", "state"},
+            MachineMode.MANUAL: {"describe", "calibrate", "state", "move_joint"},
             MachineMode.RUN: {
                 "describe",
                 "state",
@@ -84,7 +84,7 @@ class SafetyService:
                 "go_home",
                 "run_program",
             },
-            MachineMode.FAULT:    {"describe", "state", "estop"},
+            MachineMode.FAULT: {"describe", "state", "estop"},
             MachineMode.ESTOPPED: {"describe", "state", "estop"},
         }
         return capability in allowed.get(mode, set())

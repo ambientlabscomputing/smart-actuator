@@ -13,10 +13,15 @@ Responsibilities:
 """
 
 import math
+from typing import TYPE_CHECKING
 
 from brain.repository.repository import Repository
 from brain.utils.config import Config
 from brain.utils.logger import logger
+
+if TYPE_CHECKING:
+    from brain.service.observability_service import ObservabilityService
+    from brain.service.sidecar_bridge import SidecarBridge
 
 
 class HardwareLifecycleService:
@@ -25,13 +30,13 @@ class HardwareLifecycleService:
         repository: Repository,
         config: Config,
         *,
-        sidecar_bridge: object,
-        observability: object,
+        sidecar_bridge: "SidecarBridge",
+        observability: "ObservabilityService",
     ) -> None:
         self._repo = repository
         self._config = config
-        self._sidecar = sidecar_bridge  # type: ignore[assignment]
-        self._obs = observability        # type: ignore[assignment]
+        self._sidecar: SidecarBridge = sidecar_bridge  # type: ignore[assignment]
+        self._obs: ObservabilityService = observability  # type: ignore[assignment]
 
     # ------------------------------------------------------------------
     # Startup recovery — re-register known hardware with Sidecar
@@ -67,7 +72,10 @@ class HardwareLifecycleService:
                 )
                 logger.info(
                     "HardwareLifecycle: recovered machine={} slot={} address={} id={}",
-                    machine_id, slot, address, actuator_id,
+                    machine_id,
+                    slot,
+                    address,
+                    actuator_id,
                 )
             except Exception:
                 logger.exception(
@@ -90,6 +98,7 @@ class HardwareLifecycleService:
         baud_rate: int = 921_600,
         actuator_id: str | None = None,
         limit_rad: float = math.pi,
+        created_by: str,
     ) -> tuple[str, str]:
         """
         Register a real hardware actuator with the Sidecar and persist.
@@ -135,6 +144,7 @@ class HardwareLifecycleService:
             address=address,
             actuator_id=actuator_id,
             joint_name=joint_name,
+            created_by=created_by,
         )
 
         self._obs._publish_event(  # type: ignore[attr-defined]
@@ -148,7 +158,10 @@ class HardwareLifecycleService:
         )
         logger.info(
             "HardwareLifecycle: bound machine={} slot={} address={} id={}",
-            machine_id, slot, address, actuator_id,
+            machine_id,
+            slot,
+            address,
+            actuator_id,
         )
         return address, actuator_id
 

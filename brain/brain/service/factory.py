@@ -7,6 +7,7 @@ from brain.service.kinematics_service import KinematicsService
 from brain.service.lifecycle_service import LifecycleService
 from brain.service.machine_service import MachineService
 from brain.service.motion_service import MotionService
+from brain.service.oauth_service import OAuthService
 from brain.service.observability_service import ObservabilityService
 from brain.service.program_service import ProgramService
 from brain.service.safety_service import SafetyService
@@ -15,10 +16,11 @@ from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
 from brain.service.template_service import TemplateService
+from brain.service.user_service import UserService
 
 
 def new_brain_service(config: Config) -> BrainService:
-    repository = Repository(config.db.path)
+    repository = Repository()
     sidecar = SidecarBridge(config)
     observability = ObservabilityService(config)
     templates = TemplateService(config)
@@ -30,7 +32,9 @@ def new_brain_service(config: Config) -> BrainService:
     )
     kinematics = KinematicsService(repository, config)
     machine = MachineService(
-        repository, templates, config,
+        repository,
+        templates,
+        config,
         sim_lifecycle=sim_lifecycle,
         hardware_lifecycle=hardware_lifecycle,
     )
@@ -39,8 +43,17 @@ def new_brain_service(config: Config) -> BrainService:
     safety = SafetyService(repository, sidecar, kinematics, lifecycle, config)
     motion = MotionService(repository, sidecar, kinematics, config)
     state = StateService(repository, sidecar, kinematics, lifecycle, config)
-    programs = ProgramService(repository, config, motion=motion, state=state, lifecycle=lifecycle, observability=observability)
+    programs = ProgramService(
+        repository,
+        config,
+        motion=motion,
+        state=state,
+        lifecycle=lifecycle,
+        observability=observability,
+    )
     calibration = CalibrationService(repository, config, observability=observability)
+    user_service = UserService(repository, config)
+    oauth_service = OAuthService(repository, config)
 
     return BrainService(
         repository=repository,
@@ -59,4 +72,6 @@ def new_brain_service(config: Config) -> BrainService:
         observability=observability,
         sim_lifecycle=sim_lifecycle,
         hardware_lifecycle=hardware_lifecycle,
+        user_service=user_service,
+        oauth_service=oauth_service,
     )

@@ -17,6 +17,7 @@ the topic "programs/runs/{run_id}".
 On Brain restart, any run that was not terminal is transitioned to
 "interrupted" so the client can show the correct final state.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -43,9 +44,9 @@ if TYPE_CHECKING:
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-_TOLERANCE_RAD = 0.035          # ≈ 2° — matches J2 exit criterion
-_STEP_TIMEOUT_S = 10.0          # per-MOVE step convergence timeout
-_WAIT_POLL_S = 0.1              # sleep chunk for cooperative stop during WAIT
+_TOLERANCE_RAD = 0.035  # ≈ 2° — matches J2 exit criterion
+_STEP_TIMEOUT_S = 10.0  # per-MOVE step convergence timeout
+_WAIT_POLL_S = 0.1  # sleep chunk for cooperative stop during WAIT
 
 _TERMINAL: set[ProgramRunStatus] = {
     ProgramRunStatus.stopped,
@@ -55,11 +56,16 @@ _TERMINAL: set[ProgramRunStatus] = {
 }
 
 _VALID_TRANSITIONS: dict[ProgramRunStatus, set[ProgramRunStatus]] = {
-    ProgramRunStatus.pending:     {ProgramRunStatus.running, ProgramRunStatus.interrupted},
-    ProgramRunStatus.running:     {ProgramRunStatus.stopped, ProgramRunStatus.completed, ProgramRunStatus.faulted, ProgramRunStatus.interrupted},
-    ProgramRunStatus.stopped:     set(),
-    ProgramRunStatus.completed:   set(),
-    ProgramRunStatus.faulted:     set(),
+    ProgramRunStatus.pending: {ProgramRunStatus.running, ProgramRunStatus.interrupted},
+    ProgramRunStatus.running: {
+        ProgramRunStatus.stopped,
+        ProgramRunStatus.completed,
+        ProgramRunStatus.faulted,
+        ProgramRunStatus.interrupted,
+    },
+    ProgramRunStatus.stopped: set(),
+    ProgramRunStatus.completed: set(),
+    ProgramRunStatus.faulted: set(),
     ProgramRunStatus.interrupted: set(),
 }
 
@@ -78,8 +84,7 @@ def _validate_steps(steps: list[ProgramNode]) -> None:
     for i, node in enumerate(steps):
         if node.kind not in (NodeKind.MOVE, NodeKind.WAIT):
             raise ValueError(
-                f"Step {i}: unsupported node kind {node.kind!r} — "
-                "J5 accepts only MOVE and WAIT"
+                f"Step {i}: unsupported node kind {node.kind!r} — J5 accepts only MOVE and WAIT"
             )
         if node.kind == NodeKind.MOVE:
             if "joint_name" not in node.attributes or "target_rad" not in node.attributes:
@@ -108,10 +113,10 @@ class ProgramService:
         repository: Repository,
         config: Config,
         *,
-        motion: "MotionService",
-        state: "StateService",
-        lifecycle: "LifecycleService",
-        observability: "ObservabilityService",
+        motion: MotionService,
+        state: StateService,
+        lifecycle: LifecycleService,
+        observability: ObservabilityService,
     ) -> None:
         self._repository = repository
         self._config = config
@@ -120,6 +125,7 @@ class ProgramService:
         self._lifecycle = lifecycle
         self._obs = observability
         self._runs: dict[str, ProgramRunState] = {}
+        self._run_actors: dict[str, str] = {}
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -140,8 +146,7 @@ class ProgramService:
                         "error": "Brain restarted mid-run",
                     }
                 )
-                await self._persist_and_publish(run)
-                interrupted += 1
+                await self._persist_and_publish(run, created_by="system")
             self._runs[run.run_id] = run
         logger.info(
             "ProgramService: loaded {} run(s) ({} interrupted) from storage",
@@ -151,11 +156,13 @@ class ProgramService:
 
     # ── Program CRUD ──────────────────────────────────────────────────────────
 
-    async def save_program(self, program: Program) -> None:
+    async def save_program(self, program: Program, *, created_by: str) -> None:
         """Validate and persist a program AST."""
         steps = _flatten_steps(program.root)
         _validate_steps(steps)
-        await self._repository.program.save_program(program.meta.program_id, program.model_dump())
+        await self._repository.program.save_program(
+            program.meta.program_id, program.model_dump(), created_by=created_by
+        )
         logger.debug("ProgramService: saved program {}", program.meta.program_id)
 
     async def load_program(self, program_id: str) -> Program | None:
@@ -194,7 +201,9 @@ class ProgramService:
         runs.sort(key=lambda r: r.created_at, reverse=True)
         return runs
 
-    async def start_run(self, program_id: str, machine_id: str) -> ProgramRunState:
+    async def start_run(
+        self, program_id: str, machine_id: str, *, created_by: str
+    ) -> ProgramRunState:
         """
         Load the program, validate it, then start an async execution task.
         Returns immediately with a ProgramRunState in 'running' status.
@@ -216,15 +225,19 @@ class ProgramService:
             total_steps=len(steps),
         )
         self._runs[run_id] = run
-        await self._persist_and_publish(run)
+        self._run_actors[run_id] = created_by
+        await self._persist_and_publish(run, created_by=created_by)
         logger.info(
             "ProgramService: started run={} program={} machine={} steps={}",
-            run_id, program_id, machine_id, len(steps),
+            run_id,
+            program_id,
+            machine_id,
+            len(steps),
         )
         asyncio.create_task(self._execute(run_id, steps, machine_id))  # noqa: RUF006
         return run
 
-    async def stop_run(self, run_id: str) -> ProgramRunState:
+    async def stop_run(self, run_id: str, *, created_by: str) -> ProgramRunState:
         """Signal the runner to stop. The task exits on its next iteration."""
         run = self._runs.get(run_id)
         if run is None:
@@ -234,16 +247,15 @@ class ProgramService:
         _assert_valid_transition(run.status, ProgramRunStatus.stopped)
         run = run.model_copy(update={"status": ProgramRunStatus.stopped})
         self._runs[run_id] = run
-        await self._persist_and_publish(run)
+        await self._persist_and_publish(run, created_by=created_by)
         logger.info("ProgramService: stopped run={}", run_id)
         return run
 
     # ── Execution loop ────────────────────────────────────────────────────────
 
-    async def _execute(
-        self, run_id: str, steps: list[ProgramNode], machine_id: str
-    ) -> None:
+    async def _execute(self, run_id: str, steps: list[ProgramNode], machine_id: str) -> None:
         """Sequential step executor. Runs as a background task."""
+        actor = self._run_actors.get(run_id, "system")
         try:
             for i, node in enumerate(steps):
                 run = self._runs.get(run_id)
@@ -258,7 +270,7 @@ class ProgramService:
                     }
                 )
                 self._runs[run_id] = run
-                await self._persist_and_publish(run)
+                await self._persist_and_publish(run, created_by=actor)
 
                 if node.kind == NodeKind.MOVE:
                     await self._execute_move(run_id, machine_id, node, i)
@@ -280,7 +292,7 @@ class ProgramService:
                     }
                 )
                 self._runs[run_id] = run
-                await self._persist_and_publish(run)
+                await self._persist_and_publish(run, created_by=actor)
                 logger.info("ProgramService: completed run={}", run_id)
 
         except Exception as exc:
@@ -294,7 +306,7 @@ class ProgramService:
                     }
                 )
                 self._runs[run_id] = run
-                await self._persist_and_publish(run)
+                await self._persist_and_publish(run, created_by=actor)
 
     async def _execute_move(
         self, run_id: str, machine_id: str, node: ProgramNode, step_index: int
@@ -351,8 +363,10 @@ class ProgramService:
 
     # ── Internals ─────────────────────────────────────────────────────────────
 
-    async def _persist_and_publish(self, run: ProgramRunState) -> None:
-        await self._repository.program.save_program_run(run.run_id, run.model_dump())
+    async def _persist_and_publish(self, run: ProgramRunState, *, created_by: str) -> None:
+        await self._repository.program.save_program_run(
+            run.run_id, run.model_dump(), created_by=created_by
+        )
         self._obs._publish_event(  # type: ignore[attr-defined]
             {
                 "type": "program.run.update",
@@ -362,13 +376,9 @@ class ProgramService:
         )
 
 
-def _assert_valid_transition(
-    current: ProgramRunStatus, target: ProgramRunStatus
-) -> None:
+def _assert_valid_transition(current: ProgramRunStatus, target: ProgramRunStatus) -> None:
     if target not in _VALID_TRANSITIONS.get(current, set()):
-        raise ValueError(
-            f"Invalid program run transition: {current!r} → {target!r}"
-        )
+        raise ValueError(f"Invalid program run transition: {current!r} → {target!r}")
 
     async def abort_program(self, program_id: str) -> None:
         """Abort a running or paused program."""

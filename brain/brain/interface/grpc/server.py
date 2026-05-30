@@ -26,7 +26,7 @@ def create_grpc_server(service: BrainService, config: Config) -> grpc.aio.Server
     The caller is responsible for calling server.start() and
     server.wait_for_termination().
     """
-    servicer = BrainServicer(service)
+    _servicer = BrainServicer(service)  # keep reference alive for the server's lifetime
     server = grpc.aio.server()
 
     # Uncomment once brain_pb2_grpc is generated:

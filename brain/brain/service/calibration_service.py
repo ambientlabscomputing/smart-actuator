@@ -32,9 +32,19 @@ _TERMINAL = {
 }
 
 _VALID_TRANSITIONS: dict[CalibrationJobStatus, set[CalibrationJobStatus]] = {
-    CalibrationJobStatus.started: {CalibrationJobStatus.waiting_for_home, CalibrationJobStatus.aborted},
-    CalibrationJobStatus.waiting_for_home: {CalibrationJobStatus.running_sweep, CalibrationJobStatus.aborted},
-    CalibrationJobStatus.running_sweep: {CalibrationJobStatus.completed, CalibrationJobStatus.faulted, CalibrationJobStatus.aborted},
+    CalibrationJobStatus.started: {
+        CalibrationJobStatus.waiting_for_home,
+        CalibrationJobStatus.aborted,
+    },
+    CalibrationJobStatus.waiting_for_home: {
+        CalibrationJobStatus.running_sweep,
+        CalibrationJobStatus.aborted,
+    },
+    CalibrationJobStatus.running_sweep: {
+        CalibrationJobStatus.completed,
+        CalibrationJobStatus.faulted,
+        CalibrationJobStatus.aborted,
+    },
     CalibrationJobStatus.completed: set(),
     CalibrationJobStatus.aborted: set(),
     CalibrationJobStatus.faulted: set(),
@@ -43,7 +53,9 @@ _VALID_TRANSITIONS: dict[CalibrationJobStatus, set[CalibrationJobStatus]] = {
 # Prompts shown to the operator at each step
 _PROMPTS: dict[CalibrationJobStatus, str] = {
     CalibrationJobStatus.started: "Calibration started. Click Continue to begin.",
-    CalibrationJobStatus.waiting_for_home: "Move the arm to its home position, then click Continue.",
+    CalibrationJobStatus.waiting_for_home: (
+        "Move the arm to its home position, then click Continue."
+    ),
     CalibrationJobStatus.running_sweep: "Performing range sweep\u2026",
     CalibrationJobStatus.completed: "Calibration complete.",
     CalibrationJobStatus.aborted: "Calibration aborted.",
@@ -65,6 +77,7 @@ class CalibrationService:
         self._config = config
         self._obs = observability
         self._jobs: dict[str, CalibrationJobState] = {}
+        self._job_actors: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -72,17 +85,18 @@ class CalibrationService:
 
     async def start(self) -> None:
         """Reload all persisted jobs into memory on Brain startup."""
-        rows = await self._repository.calibration.list_calibration_sessions()
-        for row in rows:
-            state = CalibrationJobState(**row)
+        states = await self._repository.calibration.list_calibration_sessions()
+        for state in states:
             self._jobs[state.job_id] = state
-        logger.info("CalibrationService: loaded {} job(s) from storage", len(rows))
+        logger.info("CalibrationService: loaded {} job(s) from storage", len(states))
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    async def start_job(self, machine_id: str, joint_index: int) -> CalibrationJobState:
+    async def start_job(
+        self, machine_id: str, joint_index: int, *, created_by: str
+    ) -> CalibrationJobState:
         """
         Create a new calibration job for *joint_index* on *machine_id*.
         Raises ValueError if a non-terminal job already exists for that joint.
@@ -108,10 +122,13 @@ class CalibrationService:
             prompt=_PROMPTS[CalibrationJobStatus.started],
         )
         self._jobs[job_id] = state
-        await self._persist_and_publish(state)
+        self._job_actors[job_id] = created_by
+        await self._persist_and_publish(state, created_by=created_by)
         logger.info(
             "CalibrationService: started job={} machine={} joint={}",
-            job_id, machine_id, joint_index,
+            job_id,
+            machine_id,
+            joint_index,
         )
         return state
 
@@ -125,7 +142,7 @@ class CalibrationService:
         jobs.sort(key=lambda j: j.created_at, reverse=True)
         return jobs
 
-    async def advance_job(self, job_id: str) -> CalibrationJobState:
+    async def advance_job(self, job_id: str, *, created_by: str) -> CalibrationJobState:
         """
         Advance the job to its next logical state.
         The step sequence is:
@@ -162,9 +179,7 @@ class CalibrationService:
                 "last_measurement": {"raw_min": -math.pi, "raw_max": math.pi},
             }
         else:
-            raise ValueError(
-                f"No advance path from state {current!r}"
-            )
+            raise ValueError(f"No advance path from state {current!r}")
 
         self._assert_valid_transition(current, next_status)
         state = state.model_copy(
@@ -183,18 +198,16 @@ class CalibrationService:
         if next_status == CalibrationJobStatus.running_sweep:
             asyncio.create_task(self._complete_sweep(job_id))  # noqa: RUF006
 
-        await self._persist_and_publish(state)
+        await self._persist_and_publish(state, created_by=created_by)
         return state
 
-    async def abort_job(self, job_id: str) -> CalibrationJobState:
+    async def abort_job(self, job_id: str, *, created_by: str) -> CalibrationJobState:
         """Transition the job to aborted. Raises ValueError if already terminal."""
         state = self._jobs.get(job_id)
         if state is None:
             raise ValueError(f"Unknown calibration job {job_id!r}")
         if state.status in _TERMINAL:
-            raise ValueError(
-                f"Job {job_id!r} is already in terminal state {state.status!r}"
-            )
+            raise ValueError(f"Job {job_id!r} is already in terminal state {state.status!r}")
         self._assert_valid_transition(state.status, CalibrationJobStatus.aborted)
         state = state.model_copy(
             update={
@@ -203,7 +216,7 @@ class CalibrationService:
             }
         )
         self._jobs[job_id] = state
-        await self._persist_and_publish(state)
+        await self._persist_and_publish(state, created_by=created_by)
         logger.info("CalibrationService: aborted job={}", job_id)
         return state
 
@@ -231,11 +244,13 @@ class CalibrationService:
             }
         )
         self._jobs[job_id] = state
-        await self._persist_and_publish(state)
+        await self._persist_and_publish(state, created_by=self._job_actors.get(job_id, "system"))
         logger.info("CalibrationService: completed job={}", job_id)
 
-    async def _persist_and_publish(self, state: CalibrationJobState) -> None:
-        await self._repository.calibration.save_calibration_session(state.job_id, state.model_dump())
+    async def _persist_and_publish(self, state: CalibrationJobState, *, created_by: str) -> None:
+        await self._repository.calibration.save_calibration_session(
+            state.job_id, state.model_dump(), created_by=created_by
+        )
         self._obs._publish_event(  # type: ignore[attr-defined]
             {
                 "type": "calibration.update",
@@ -249,6 +264,4 @@ class CalibrationService:
         current: CalibrationJobStatus, target: CalibrationJobStatus
     ) -> None:
         if target not in _VALID_TRANSITIONS.get(current, set()):
-            raise ValueError(
-                f"Invalid calibration state transition: {current!r} → {target!r}"
-            )
+            raise ValueError(f"Invalid calibration state transition: {current!r} → {target!r}")

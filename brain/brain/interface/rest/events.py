@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from brain.service.service import BrainService
+from brain.interface.rest.deps import get_service
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -13,7 +13,7 @@ async def stream_events(websocket: WebSocket) -> None:
     WebSocket — streams the Brain event bus to the client.
     Events include mode changes, command accept/refuse, and faults.
     """
-    svc: BrainService = websocket.app.state.brain
+    svc = get_service()
     await websocket.accept()
     try:
         async for event in svc.observability.event_stream():

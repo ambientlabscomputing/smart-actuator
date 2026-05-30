@@ -9,21 +9,30 @@ from brain.repository.session_decorator import with_session
 
 class ModeEventRepository:
     @with_session
-    async def append_mode_event(self, session: AsyncSession, event: ModeEvent | dict) -> None:
+    async def append_mode_event(
+        self, event: ModeEvent | dict, *, created_by: str, session: AsyncSession | None = None
+    ) -> None:
+        assert session is not None
         if isinstance(event, ModeEvent):
             machine_id = event.machine_id
             event_json = event.model_dump_json()
         else:
             machine_id = event.get("machine_id", "")
             event_json = json.dumps(event)
-        row = SqlModeEvent(machine_id=machine_id, event_json=event_json)
+        row = SqlModeEvent(
+            machine_id=machine_id,
+            event_json=event_json,
+            created_by=created_by,
+            updated_by=created_by,
+        )
         session.add(row)
         await session.commit()
 
     @with_session
     async def get_mode_events(
-        self, session: AsyncSession, machine_id: str, limit: int = 100
+        self, machine_id: str, limit: int = 100, *, session: AsyncSession | None = None
     ) -> list[ModeEvent]:
+        assert session is not None
         result = await session.execute(
             select(SqlModeEvent)
             .where(SqlModeEvent.machine_id == machine_id)

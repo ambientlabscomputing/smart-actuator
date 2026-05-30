@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from brain.interface.rest.deps import get_service
 from brain.models.actuator import Actuator
+from brain.models.calibration import CalibrationJobState
 from brain.service.service import BrainService
 
 router = APIRouter(prefix="/actuators", tags=["actuators"])
@@ -26,8 +27,14 @@ async def describe_actuator(actuator_id: str, svc: Service) -> Actuator:
     return actuator
 
 
-@router.post("/{actuator_id}/calibrate")
-async def calibrate_actuator(actuator_id: str, machine_id: str, svc: Service) -> dict:
-    """Trigger per-actuator calibration and return the result."""
-    result = await svc.calibration.calibrate_actuator(machine_id, actuator_id)
-    return {"actuator_id": actuator_id, "result": result}
+@router.post("/{actuator_id}/calibrate", response_model=CalibrationJobState, status_code=201)
+async def calibrate_actuator(
+    actuator_id: str, machine_id: str, joint_index: int, svc: Service, request: Request
+) -> CalibrationJobState:
+    """Start a calibration job for the given actuator joint."""
+    try:
+        return await svc.calibration.start_job(
+            machine_id, joint_index, created_by=request.state.user.username
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

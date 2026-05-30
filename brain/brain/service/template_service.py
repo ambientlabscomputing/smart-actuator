@@ -11,6 +11,7 @@ from brain.utils.logger import logger
 
 class TemplateParamSchema(TemplateMeta):
     """TemplateMeta extended with the full parameter schema list for the UI wizard."""
+
     parameters: list[dict] = []
     joints: list[dict] = []
 
@@ -116,4 +117,3 @@ class TemplateService:
             brain_compatibility=data.get("brain_compatibility", ""),
             firmware_compatibility=data.get("firmware_compatibility", ""),
         )
-

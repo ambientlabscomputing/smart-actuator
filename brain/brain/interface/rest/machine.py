@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from brain.interface.rest.deps import get_service
@@ -14,6 +14,7 @@ Service = Annotated[BrainService, Depends(get_service)]
 
 # ── List all machines ──────────────────────────────────────────────────────────
 
+
 @router.get("s", response_model=list[str], summary="List all machine IDs")
 async def list_machines(svc: Service) -> list[str]:
     """Return the IDs of all persisted machines."""
@@ -21,6 +22,7 @@ async def list_machines(svc: Service) -> list[str]:
 
 
 # ── Get a single machine ───────────────────────────────────────────────────────
+
 
 @router.get("/{machine_id}", response_model=Machine, summary="Get machine by ID")
 async def get_machine(machine_id: str, svc: Service) -> Machine:
@@ -33,17 +35,19 @@ async def get_machine(machine_id: str, svc: Service) -> Machine:
 
 # ── Create / rebuild a machine ─────────────────────────────────────────────────
 
+
 @router.post("", response_model=Machine, status_code=201, summary="Build machine from description")
-async def build_machine(description: MachineDescription, svc: Service) -> Machine:
+async def build_machine(description: MachineDescription, svc: Service, request: Request) -> Machine:
     """
     Create or replace a machine from a template description.
     The template is expanded to URDF and persisted immediately.
     Actuator slots start unbound — follow up with POST /machine/{id}/bindings/{slot}.
     """
-    return await svc.machine.build_machine(description)
+    return await svc.machine.build_machine(description, created_by=request.state.user.username)
 
 
 # ── Bind a single slot ────────────────────────────────────────────────────────
+
 
 class BindingRequest(BaseModel):
     kind: str  # "sim" | "hardware" | "unbound"
@@ -66,7 +70,7 @@ class UpdateParametersRequest(BaseModel):
     summary="Bind a joint slot to a sim or hardware actuator (or unbind)",
 )
 async def bind_slot(
-    machine_id: str, slot: int, body: BindingRequest, svc: Service
+    machine_id: str, slot: int, body: BindingRequest, svc: Service, request: Request
 ) -> dict:
     """
     Bind slot *slot* of machine *machine_id*.
@@ -83,7 +87,9 @@ async def bind_slot(
         if not body.ip and not body.serial_path:
             raise HTTPException(
                 status_code=422,
-                detail="kind='hardware' requires either 'ip'+'port' (TCP) or 'serial_path' (USB-CDC)",
+                detail=(
+                    "kind='hardware' requires either 'ip'+'port' (TCP) or 'serial_path' (USB-CDC)"
+                ),
             )
     try:
         return await svc.machine.bind_slot(
@@ -95,6 +101,7 @@ async def bind_slot(
             serial_path=body.serial_path,
             baud_rate=body.baud_rate,
             actuator_id=body.actuator_id,
+            created_by=request.state.user.username,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -104,10 +111,15 @@ async def bind_slot(
 
 # ── Legacy: bind a complete ordered list of actuator IDs ──────────────────────
 
+
 @router.post("/{machine_id}/bind")
-async def bind_actuators(machine_id: str, actuator_ids: list[str], svc: Service) -> dict:
+async def bind_actuators(
+    machine_id: str, actuator_ids: list[str], svc: Service, request: Request
+) -> dict:
     """Bind a list of actuator IDs to the machine's joint slots (index = slot)."""
-    await svc.machine.bind_actuators(machine_id, actuator_ids)
+    await svc.machine.bind_actuators(
+        machine_id, actuator_ids, created_by=request.state.user.username
+    )
     return {"machine_id": machine_id, "bound": actuator_ids}
 
 
@@ -120,13 +132,14 @@ async def home_machine(machine_id: str, svc: Service) -> dict:
 
 # ── Update machine parameters ─────────────────────────────────────────────────
 
+
 @router.patch(
     "/{machine_id}",
     response_model=Machine,
     summary="Update machine geometry parameters",
 )
 async def update_parameters(
-    machine_id: str, body: UpdateParametersRequest, svc: Service
+    machine_id: str, body: UpdateParametersRequest, svc: Service, request: Request
 ) -> Machine:
     """
     Update one or more geometry parameters on an existing machine.
@@ -136,7 +149,9 @@ async def update_parameters(
     Sims are NOT restarted — link length / limit changes are visual in J3.
     """
     try:
-        return await svc.machine.update_parameters(machine_id, body.parameters)
+        return await svc.machine.update_parameters(
+            machine_id, body.parameters, created_by=request.state.user.username
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:

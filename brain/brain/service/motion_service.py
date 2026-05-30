@@ -81,14 +81,17 @@ class MotionService:
             if actuator_id is None:
                 logger.warning(
                     "move_joint: no actuator bound for joint %r on machine %s — skipping",
-                    joint_name, machine_id,
+                    joint_name,
+                    machine_id,
                 )
                 continue
             result = await self._sidecar.send_command(actuator_id, position=angle_rad)
             if not result["success"]:
                 logger.warning(
                     "move_joint: actuator %s refused command (code=%s): %s",
-                    joint_name, result["refusal_code"], result["message"],
+                    joint_name,
+                    result["refusal_code"],
+                    result["message"],
                 )
 
     async def move_linear(self, machine_id: str, target: Pose) -> None:

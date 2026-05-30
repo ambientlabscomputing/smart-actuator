@@ -1,7 +1,7 @@
 import asyncio
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from brain.interface.rest.deps import get_service
@@ -19,6 +19,7 @@ class StartCalibrationRequest(BaseModel):
 
 # ── Start a calibration job ────────────────────────────────────────────────────
 
+
 @router.post(
     "/machines/{machine_id}/calibrations",
     response_model=CalibrationJobState,
@@ -26,15 +27,18 @@ class StartCalibrationRequest(BaseModel):
     summary="Start a calibration job for a joint",
 )
 async def start_calibration(
-    machine_id: str, body: StartCalibrationRequest, svc: Service
+    machine_id: str, body: StartCalibrationRequest, svc: Service, request: Request
 ) -> CalibrationJobState:
     try:
-        return await svc.calibration.start_job(machine_id, body.joint_index)
+        return await svc.calibration.start_job(
+            machine_id, body.joint_index, created_by=request.state.user.username
+        )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 # ── List calibration jobs for a machine ───────────────────────────────────────
+
 
 @router.get(
     "/machines/{machine_id}/calibrations",
@@ -46,6 +50,7 @@ async def list_calibrations(machine_id: str, svc: Service) -> list[CalibrationJo
 
 
 # ── Get a single calibration job ──────────────────────────────────────────────
+
 
 @router.get(
     "/calibrations/{job_id}",
@@ -61,33 +66,36 @@ async def get_calibration(job_id: str, svc: Service) -> CalibrationJobState:
 
 # ── Advance a job ─────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/calibrations/{job_id}/advance",
     response_model=CalibrationJobState,
     summary="Advance a calibration job to the next step",
 )
-async def advance_calibration(job_id: str, svc: Service) -> CalibrationJobState:
+async def advance_calibration(job_id: str, svc: Service, request: Request) -> CalibrationJobState:
     try:
-        return await svc.calibration.advance_job(job_id)
+        return await svc.calibration.advance_job(job_id, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 # ── Abort a job ───────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/calibrations/{job_id}/abort",
     response_model=CalibrationJobState,
     summary="Abort a calibration job",
 )
-async def abort_calibration(job_id: str, svc: Service) -> CalibrationJobState:
+async def abort_calibration(job_id: str, svc: Service, request: Request) -> CalibrationJobState:
     try:
-        return await svc.calibration.abort_job(job_id)
+        return await svc.calibration.abort_job(job_id, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 # ── WebSocket — live job updates ──────────────────────────────────────────────
+
 
 @router.websocket("/calibrations/{job_id}/ws")
 async def calibration_ws(job_id: str, websocket: WebSocket) -> None:
@@ -97,7 +105,7 @@ async def calibration_ws(job_id: str, websocket: WebSocket) -> None:
     On connect: sends a snapshot of the current job state, then streams every
     subsequent update.  Slow consumers drop frames (queue full → discard).
     """
-    svc: BrainService = websocket.app.state.brain
+    svc = get_service()
 
     job = svc.calibration.get_job(job_id)
     if job is None:
@@ -126,28 +134,30 @@ async def calibration_ws(job_id: str, websocket: WebSocket) -> None:
     try:
         while True:
             event = await q.get()
-            state = CalibrationJobState(**{
-                k: v for k, v in event.items() if k != "type" and k != "topic"
-            })
+            state = CalibrationJobState(
+                **{k: v for k, v in event.items() if k != "type" and k != "topic"}
+            )
             await websocket.send_text(state.model_dump_json())
     except WebSocketDisconnect:
         pass
     finally:
         # Remove our pseudo-queue shim from the observability list
         svc.observability._event_queues[:] = [  # type: ignore[attr-defined]
-            q for q in svc.observability._event_queues  # type: ignore[attr-defined]
+            q
+            for q in svc.observability._event_queues  # type: ignore[attr-defined]
             if not isinstance(q, _CallbackQueue) or q._cb is not on_event
         ]
 
 
-class _CallbackQueue:
+class _CallbackQueue(asyncio.Queue[dict[str, Any]]):
     """
     Shim that satisfies the ObservabilityService's list[asyncio.Queue] contract
     while routing events through a filter callback.
     """
 
-    def __init__(self, cb):
+    def __init__(self, cb) -> None:
+        super().__init__(maxsize=0)
         self._cb = cb
 
-    def put_nowait(self, event: dict) -> None:  # noqa: D401
-        self._cb(event)
+    def put_nowait(self, item: dict[str, Any]) -> None:  # noqa: D401
+        self._cb(item)
