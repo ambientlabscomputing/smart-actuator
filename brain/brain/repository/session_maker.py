@@ -13,7 +13,7 @@ _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
 def init_session_maker(cfg: Config) -> None:
     global _engine, _sessionmaker
-    _engine = create_async_engine(cfg.db.url, echo=True)
+    _engine = create_async_engine(cfg.db.url, echo=cfg.db.log_sql)
     _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
 
 
