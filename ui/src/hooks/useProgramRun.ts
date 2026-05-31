@@ -5,6 +5,7 @@
  * to stream live updates.  Mirrors useCalibrationJob.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getToken } from '../lib/authClient'
 
 export type ProgramRunStatus =
   | 'pending'
@@ -35,7 +36,7 @@ export const PROGRAM_RUN_TERMINAL: ProgramRunStatus[] = [
 ]
 
 function brainFetch(path: string, options?: RequestInit): Promise<Response> {
-  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const token = getToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -71,7 +72,7 @@ export function useProgramRun(runId: string | null): UseProgramRunResult {
       })
 
     // Open WebSocket for live updates
-    const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+    const token = getToken()
     const base = `/api/v1/runs/${encodeURIComponent(runId)}/ws`
     const url = token ? `${base}?token=${encodeURIComponent(token)}` : base
     const ws = new WebSocket(url)

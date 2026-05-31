@@ -57,5 +57,31 @@ export default defineConfig([
       ],
     },
   },
+  // Enforce the auth-boundary: only src/lib/authClient.ts may access
+  // localStorage directly. All other code must call authClient helpers.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/lib/authClient.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'localStorage',
+          property: 'getItem',
+          message: 'Use authClient.getToken() instead of localStorage directly.',
+        },
+        {
+          object: 'localStorage',
+          property: 'setItem',
+          message: 'Use authClient.setToken() instead of localStorage directly.',
+        },
+        {
+          object: 'localStorage',
+          property: 'removeItem',
+          message: 'Use authClient.setToken(null) instead of localStorage directly.',
+        },
+      ],
+    },
+  },
 ])
 

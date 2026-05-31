@@ -69,15 +69,15 @@ class SimLifecycleService:
 
         logger.info("SimLifecycle: recovering {} sim(s) from registry", len(rows))
         for row in rows:
-            machine_id = row["machine_id"]
-            slot = row["slot"]
-            old_pid = row["pid"]
-            old_actuator_id = row["actuator_id"]
-            joint_name = row["joint_name"]
+            machine_id = row.machine_id
+            slot = row.slot
+            old_pid = row.pid
+            old_actuator_id = row.actuator_id
+            joint_name = row.joint_name
 
             # Derive port from the stored address e.g. "http://127.0.0.1:50101"
             try:
-                port = int(row["address"].rsplit(":", 1)[-1])
+                port = int(row.address.rsplit(":", 1)[-1])
             except (ValueError, IndexError):
                 port = self._allocate_port()
 
@@ -217,18 +217,18 @@ class SimLifecycleService:
         Safe to call even if the process is already dead.
         """
         rows = await self._repo.sim.list_sims(machine_id)
-        row = next((r for r in rows if r["slot"] == slot), None)
+        row = next((r for r in rows if r.slot == slot), None)
         if row is None:
             logger.warning("SimLifecycle: teardown slot={} not in registry", slot)
             return
 
-        actuator_id = row["actuator_id"]
-        pid = row["pid"]
+        actuator_id = row.actuator_id
+        pid = row.pid
 
         await self._sidecar.deregister_peer(actuator_id=actuator_id)  # type: ignore[attr-defined]
         self._sidecar.untrack_actuator(actuator_id)  # type: ignore[attr-defined]
         self._kill_pid(pid)
-        self._allocated_ports.discard(self._port_from_address(row["address"]))
+        self._allocated_ports.discard(self._port_from_address(row.address))
         await self._repo.sim.delete_sim(machine_id, slot)
 
         logger.info("SimLifecycle: torn down machine={} slot={} pid={}", machine_id, slot, pid)
@@ -236,9 +236,9 @@ class SimLifecycleService:
     async def teardown_all_sims(self, machine_id: str) -> None:
         rows = await self._repo.sim.list_sims(machine_id)
         for row in rows:
-            await self._sidecar.deregister_peer(actuator_id=row["actuator_id"])  # type: ignore[attr-defined]
-            self._kill_pid(row["pid"])
-            self._allocated_ports.discard(self._port_from_address(row["address"]))
+            await self._sidecar.deregister_peer(actuator_id=row.actuator_id)  # type: ignore[attr-defined]
+            self._kill_pid(row.pid)
+            self._allocated_ports.discard(self._port_from_address(row.address))
         await self._repo.sim.delete_all_sims(machine_id)
 
     # ------------------------------------------------------------------
@@ -251,8 +251,7 @@ class SimLifecycleService:
         if row is None:
             return math.pi
         try:
-            description = row["description"]
-            params = description.get("parameters", {})
+            params = row.description.parameters
             limit_deg = float(params.get(f"joint{slot}_limit_deg", 180.0))
             return math.radians(limit_deg)
         except Exception:

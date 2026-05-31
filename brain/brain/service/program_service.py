@@ -176,7 +176,7 @@ class ProgramService:
         # Repository returns {id, updated_at} — load full meta for name/description
         metas: list[ProgramMeta] = []
         for row in rows:
-            prog = await self._repository.program.load_program(row["id"])
+            prog = await self._repository.program.load_program(row.program_id)
             if prog:
                 metas.append(Program.model_validate(prog).meta)
         return metas

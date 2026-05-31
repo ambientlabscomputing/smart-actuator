@@ -10,6 +10,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react'
 import { brainPost, brainGet } from '../../hooks/useJointState'
+import { getToken } from '../../lib/authClient'
 import type { Template, TemplateJoint } from '../../lib/types'
 import { MachineEditor } from '../MachineEditor'
 
@@ -42,7 +43,7 @@ function TemplatePicker({
     setTemplates(null)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 8000)
-    const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+    const token = getToken()
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     fetch('/api/v1/templates', { headers, signal: controller.signal })
@@ -67,7 +68,8 @@ function TemplatePicker({
       })
   }
 
-  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [])
 
   if (loading) {
     return <p style={hint}>Loading templates…</p>
@@ -159,12 +161,7 @@ function BindingStep({
     setHwInputs((prev) => ({
       ...prev,
       [slot]: {
-        transport: 'serial',
-        ip: '',
-        port: '50051',
-        serialPath: '',
-        baudRate: '921600',
-        ...prev[slot],
+        ...(prev[slot] ?? defaultHw()),
         [field]: val,
       },
     }))

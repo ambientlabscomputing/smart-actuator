@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, ProgramListView } from '@/components'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramListView } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
+import { LoginScreen } from '@/components/auth/LoginScreen'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
+import { RequireAuth } from '@/lib/RequireAuth'
+import { useAuth } from '@/lib/AuthContext'
 import type { Template } from './lib/types'
 import './App.css'
 
@@ -35,6 +39,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
   if (state) {
     for (let i = 0; i < state.measured.length; i++) {
       const j = state.measured[i]
+      // eslint-disable-next-line react-hooks/refs
       const buf = historyRef.current.get(i) ?? {
         angle_rad: [],
         velocity_rad_s: [],
@@ -47,6 +52,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
       buf.temperature_c.push(j.temperature_c)
       const MAX = 300
       if (buf.angle_rad.length > MAX) { buf.angle_rad.shift(); buf.velocity_rad_s.shift(); buf.current_a.shift(); buf.temperature_c.shift() }
+      // eslint-disable-next-line react-hooks/refs
       historyRef.current.set(i, buf)
     }
   }
@@ -145,7 +151,6 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
       <AppToolbar
         mode={mode}
         connected={connected}
-        angleRad={anglesRad[0] ?? 0}
         joints={joints}
         jointDegrees={jointDegrees}
         onJog={(jointName, deltaDeg) =>
@@ -172,6 +177,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
         </AppCanvas>
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
+          // eslint-disable-next-line react-hooks/refs
           history={selectedJoint !== null ? (historyRef.current.get(selectedJoint) ?? null) : null}
           machineId={machineId}
           jointIndex={selectedJoint}
@@ -250,14 +256,22 @@ interface MachineRecord {
 }
 
 export default function App() {
+  const { status } = useAuth()
   const [machineId, setMachineId] = useState<string | null>(null)
   const [linkLengths, setLinkLengths] = useState<number[]>([1.5, 1.0])
-  const [loading, setLoading] = useState(true)
+  const [machineLoading, setMachineLoading] = useState(true)
 
-  // On mount: fetch the machines list. If non-empty, use the first one.
-  // Retry up to ~15s if Brain isn't up yet — avoids opening the wizard
-  // before Brain is reachable (which would leave templates stuck loading).
+  // Fetch machines whenever auth becomes confirmed. Reset when logged out.
   useEffect(() => {
+    if (status !== 'authed') {
+      // Synchronous state reset on logout — react-hooks/set-state-in-effect
+      // flags this, but this is the correct pattern for clearing derived state
+      // when an external auth event happens.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMachineId(null)
+      setMachineLoading(true)
+      return
+    }
     let cancelled = false
     async function checkMachines() {
       const MAX_ATTEMPTS = 30   // 30 × 500 ms = 15 s
@@ -281,38 +295,43 @@ export default function App() {
               if (!cancelled) setMachineId(ids[0])
             }
           }
-          if (!cancelled) setLoading(false)
+          if (!cancelled) setMachineLoading(false)
           return
         } catch {
-          // Brain not ready yet — wait and retry
           await new Promise<void>((res) => setTimeout(res, 500))
         }
       }
-      // Gave up — show wizard anyway
-      if (!cancelled) setLoading(false)
+      if (!cancelled) setMachineLoading(false)
     }
     void checkMachines()
     return () => { cancelled = true }
-  }, [])
+  }, [status])
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#aaa' }}>
-        Connecting to Brain…
-      </div>
-    )
+  const handleWizardDone = (id: string, params: Record<string, number>) => {
+    setLinkLengths([params.link0_length_m ?? 1.5, params.link1_length_m ?? 1.0])
+    setMachineId(id)
   }
 
-  if (!machineId) {
-    return (
-      <OnboardingWizard
-        onDone={(id, params) => {
-          setLinkLengths([params.link0_length_m ?? 1.5, params.link1_length_m ?? 1.0])
-          setMachineId(id)
-        }}
-      />
-    )
-  }
+  // Root route: show loading spinner, redirect to onboarding, or show workspace.
+  const rootElement = machineLoading
+    ? <LoadingScreen />
+    : !machineId
+      ? <Navigate to="/onboarding" replace />
+      : <Workspace machineId={machineId} linkLengths={linkLengths} onLinkLengthsChange={setLinkLengths} />
 
-  return <Workspace machineId={machineId} linkLengths={linkLengths} onLinkLengthsChange={setLinkLengths} />
+  // Onboarding route: once machineId is set, go back to root.
+  const onboardingElement = machineId
+    ? <Navigate to="/" replace />
+    : <OnboardingWizard onDone={handleWizardDone} />
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginScreen />} />
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={rootElement} />
+        <Route path="/onboarding" element={onboardingElement} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
 }

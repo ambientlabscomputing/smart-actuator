@@ -22,7 +22,7 @@ from brain.interface.rest import (
     users_router,
 )
 from brain.interface.ros import RosGateway
-from brain.service import app_svc
+import brain.service as _svc_module
 from brain.utils.config import Config
 from brain.utils.context import journey_id_var
 from brain.utils.logger import logger
@@ -100,14 +100,14 @@ class _TokenMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         if request.url.path in _PUBLIC_PATHS:
             return await call_next(request)
-        if app_svc is None:
+        if _svc_module.app_svc is None:
             return self._unauthorized()
 
         token = self._extract_token(request)
         if not token:
             return self._unauthorized()
 
-        result = await app_svc.oauth_service.validate_token(token)
+        result = await _svc_module.app_svc.oauth_service.validate_token(token)
         match result:
             case Ok(user):
                 pass
@@ -121,7 +121,7 @@ class _TokenMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     config: Config = app.state.config
-    if app_svc is None:
+    if _svc_module.app_svc is None:
         raise RuntimeError(
             "BrainService not initialized — call init_brain_service() before create_app()"
         )
@@ -129,11 +129,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.ros = ros
 
-    await app_svc.start()
+    await _svc_module.app_svc.start()
     await ros.start()
     yield
     await ros.stop()
-    await app_svc.stop()
+    await _svc_module.app_svc.stop()
 
 
 def create_app(config: Config | None = None) -> FastAPI:

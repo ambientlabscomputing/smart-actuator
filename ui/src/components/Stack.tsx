@@ -6,13 +6,14 @@
  */
 import { Stack as MuiStack } from '@mui/material'
 import type { StackProps as MuiStackProps } from '@mui/material'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 export interface StackProps {
   direction?: MuiStackProps['direction']
   spacing?: number
-  alignItems?: MuiStackProps['alignItems']
-  justifyContent?: MuiStackProps['justifyContent']
+  // MUI v9: alignItems/justifyContent are not direct Stack props — passed via sx
+  alignItems?: CSSProperties['alignItems']
+  justifyContent?: CSSProperties['justifyContent']
   sx?: MuiStackProps['sx']
   children: ReactNode
 }
@@ -29,9 +30,7 @@ export function Stack({
     <MuiStack
       direction={direction}
       spacing={spacing}
-      alignItems={alignItems}
-      justifyContent={justifyContent}
-      sx={sx}
+      sx={{ alignItems, justifyContent, ...sx }}
     >
       {children}
     </MuiStack>

@@ -3,6 +3,7 @@
  * latest joint angles together with the current connection status.
  */
 import { useEffect, useRef, useState } from 'react'
+import { clearToken, getToken } from '@/lib/authClient'
 
 export interface JointState {
   joint_name: string
@@ -44,7 +45,7 @@ export function useJointState(machineId: string): UseJointStateResult {
     function connect() {
       if (unmounted.current) return
 
-      const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+      const token = getToken()
       const base = `/api/v1/state/ws?machine_id=${encodeURIComponent(machineId)}`
       const url = token ? `${base}&token=${encodeURIComponent(token)}` : base
       const ws = new WebSocket(url)
@@ -103,7 +104,7 @@ function journeyId(): string {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Journey-Id': journeyId(),
@@ -112,16 +113,18 @@ function authHeaders(): Record<string, string> {
   return headers
 }
 
+function handleResponse(res: Response, detail: unknown): never {
+  if (res.status === 401) clearToken()
+  throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
+}
+
 export async function brainPost(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`${BRAIN_BASE}${path}`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}))
-    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
-  }
+  if (!res.ok) handleResponse(res, await res.json().catch(() => ({})))
   return res.json()
 }
 
@@ -131,22 +134,13 @@ export async function brainPatch(path: string, body: unknown): Promise<unknown> 
     headers: authHeaders(),
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}))
-    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
-  }
+  if (!res.ok) handleResponse(res, await res.json().catch(() => ({})))
   return res.json()
 }
 
 export async function brainGet(path: string): Promise<unknown> {
-  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
-  const headers: Record<string, string> = { 'X-Journey-Id': journeyId() }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${BRAIN_BASE}${path}`, { headers })
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}))
-    throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status, detail })
-  }
+  const res = await fetch(`${BRAIN_BASE}${path}`, { headers: authHeaders() })
+  if (!res.ok) handleResponse(res, await res.json().catch(() => ({})))
   return res.json()
 }
 
