@@ -9,6 +9,7 @@ from result import Err, Ok
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
 
+import brain.service as _svc_module
 from brain.interface.rest import (
     actuators_router,
     calibrations_router,
@@ -22,7 +23,6 @@ from brain.interface.rest import (
     users_router,
 )
 from brain.interface.ros import RosGateway
-import brain.service as _svc_module
 from brain.utils.config import Config
 from brain.utils.context import journey_id_var
 from brain.utils.logger import logger

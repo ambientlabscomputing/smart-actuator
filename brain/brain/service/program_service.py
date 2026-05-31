@@ -137,8 +137,7 @@ class ProgramService:
         """
         rows = await self._repository.program.list_program_runs()
         interrupted = 0
-        for row in rows:
-            run = ProgramRunState(**row)
+        for run in rows:
             if run.status not in _TERMINAL:
                 run = run.model_copy(
                     update={

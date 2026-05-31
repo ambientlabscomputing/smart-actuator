@@ -1,22 +1,35 @@
 import asyncio
 
+import click
 import uvicorn
 
-from brain import Config, logger
+from brain import generate_default_config, load_config, logger, msg
 from brain.interface.app import create_app
 from brain.interface.grpc.server import create_grpc_server
 from brain.repository.session_maker import init_session_maker
 from brain.service import init_brain_service
 
 
+@click.group()
 def main() -> None:
-    asyncio.run(run())
+    pass
+
+@main.command()
+def cfggen() -> None:
+    """Generate a default config file."""
+    path = generate_default_config()
+    msg("Generated default config.", {"path": path})
 
 
-async def run() -> None:
-    config = Config()
+@main.command()
+def run() -> None:
+    asyncio.run(_run())
+
+
+async def _run() -> None:
+    config = load_config()
     init_session_maker(config)
-    logger.info("Starting Brain with config: {}", config)
+    logger.debug("Starting Brain with config: {}", config.model_dump_json(indent=4))
 
     # Single shared BrainService for both REST and gRPC.
     service = init_brain_service(config)

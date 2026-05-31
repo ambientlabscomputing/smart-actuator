@@ -1,6 +1,10 @@
+import os
 from pathlib import Path
 
+import yaml
 from pydantic import BaseModel, Field
+
+CONFIG_PATH = Path("config.yaml")
 
 
 class LogConfig(BaseModel):
@@ -111,3 +115,32 @@ class Config(BaseModel):
     oauth: OAuthConfig = Field(
         default_factory=OAuthConfig, description="OAuth server configuration"
     )
+
+config: Config | None = None
+
+def load_config() -> Config:
+    """Load configuration from a YAML file."""
+    path = CONFIG_PATH
+    if os.environ.get("BRAIN_CONFIG_PATH"):
+        path = os.environ["BRAIN_CONFIG_PATH"]
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"Config file not found at {path}."
+            " Please create one or set BRAIN_CONFIG_PATH."
+        )
+    global config
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    config = Config(**data)
+    return config
+
+def generate_default_config() -> str:
+    """Generate a default config.yaml file if it doesn't exist."""
+    if CONFIG_PATH.exists():
+        print(f"Config file already exists at {CONFIG_PATH}")
+        return str(CONFIG_PATH)
+    default_config = Config()
+    with open(CONFIG_PATH, "w") as f:
+        yaml.dump(default_config.dict(), f)
+    print(f"Generated default config at {CONFIG_PATH}")
+    return str(CONFIG_PATH)
