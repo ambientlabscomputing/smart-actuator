@@ -50,11 +50,11 @@ class HardwareLifecycleService:
 
         logger.info("HardwareLifecycle: recovering {} hardware endpoint(s)", len(rows))
         for row in rows:
-            machine_id = row["machine_id"]
-            slot = row["slot"]
-            actuator_id = row["actuator_id"]
-            address = row["address"]
-            joint_name = row["joint_name"]
+            machine_id = row.machine_id
+            slot = row.slot
+            actuator_id = row.actuator_id
+            address = row.address
+            joint_name = row.joint_name
 
             try:
                 await self._sidecar.register_peer(  # type: ignore[attr-defined]
@@ -171,11 +171,11 @@ class HardwareLifecycleService:
         Safe to call when no hardware is bound to this slot.
         """
         rows = await self._repo.hardware.list_hardware(machine_id)
-        row = next((r for r in rows if r["slot"] == slot), None)
+        row = next((r for r in rows if r.slot == slot), None)
         if row is None:
             return
 
-        actuator_id = row["actuator_id"]
+        actuator_id = row.actuator_id
         try:
             await self._sidecar.deregister_peer(actuator_id=actuator_id)  # type: ignore[attr-defined]
         except Exception:
@@ -198,7 +198,7 @@ class HardwareLifecycleService:
         if row is None:
             return math.pi
         try:
-            params = row["description"].get("parameters", {})
+            params = row.description.parameters
             return math.radians(float(params.get(f"joint{slot}_limit_deg", 180.0)))
         except Exception:
             return math.pi

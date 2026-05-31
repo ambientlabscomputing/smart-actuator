@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import type { JointState } from '../hooks/useJointState'
 import { InteractiveJob } from './calibration/InteractiveJob'
+import { getToken } from '../lib/authClient'
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
     if (jointIndex === null) return
     setCalBusy(true)
     try {
-      const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+      const token = getToken()
       const res = await fetch(`/api/v1/machines/${encodeURIComponent(machineId)}/calibrations`, {
         method: 'POST',
         headers: {

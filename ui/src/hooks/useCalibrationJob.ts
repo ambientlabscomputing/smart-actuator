@@ -5,6 +5,7 @@
  * stream live updates.  Exposes advance() and abort() actions.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getToken } from '../lib/authClient'
 
 export type CalibrationStatus =
   | 'started'
@@ -29,7 +30,7 @@ export interface CalibrationJobState {
 const TERMINAL: CalibrationStatus[] = ['completed', 'aborted', 'faulted']
 
 function brainFetch(path: string, options?: RequestInit): Promise<Response> {
-  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const token = getToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -66,7 +67,7 @@ export function useCalibrationJob(jobId: string | null): UseCalibrationJobResult
       })
 
     // Open WebSocket for live updates
-    const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+    const token = getToken()
     const base = `/api/v1/calibrations/${encodeURIComponent(jobId)}/ws`
     const url = token ? `${base}?token=${encodeURIComponent(token)}` : base
     const ws = new WebSocket(url)

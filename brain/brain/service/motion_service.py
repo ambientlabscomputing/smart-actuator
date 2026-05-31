@@ -73,9 +73,9 @@ class MotionService:
         hardware = await self._repository.hardware.list_hardware(machine_id)
         joint_to_actuator: dict[str, str] = {}
         for row in sims:
-            joint_to_actuator[row["joint_name"]] = row["actuator_id"]
+            joint_to_actuator[row.joint_name] = row.actuator_id
         for row in hardware:
-            joint_to_actuator[row["joint_name"]] = row["actuator_id"]
+            joint_to_actuator[row.joint_name] = row.actuator_id
         for joint_name, angle_rad in joint_targets.items():
             actuator_id = joint_to_actuator.get(joint_name)
             if actuator_id is None:

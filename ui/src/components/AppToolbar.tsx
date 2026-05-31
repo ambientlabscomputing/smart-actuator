@@ -11,13 +11,14 @@
  *  onResume     – async handler: () => void
  */
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/lib/AuthContext'
 
 const JOG_STEP_DEG = 5
 
 interface AppToolbarProps {
   mode: string
   connected: boolean
-  angleRad: number
   joints: string[]
   jointDegrees: Record<string, number>
   onJog: (jointName: string, deltaDeg: number) => Promise<void>
@@ -46,7 +47,6 @@ function modeColor(mode: string): string {
 export function AppToolbar({
   mode,
   connected,
-  angleRad,
   joints,
   jointDegrees,
   onJog,
@@ -57,6 +57,8 @@ export function AppToolbar({
   programsActive,
 }: AppToolbarProps) {
   const [busy, setBusy] = useState(false)
+  const { logout } = useAuth()
+  const navigate = useNavigate()
 
   const isDisabled = mode === 'offline' || mode === 'estopped' || busy
   const isEstopped = mode === 'estopped'
@@ -220,6 +222,24 @@ export function AppToolbar({
             {connected ? 'Live' : 'Offline'}
           </span>
         </div>
+
+        {/* Sign out */}
+        <button
+          onClick={() => { logout(); navigate('/login') }}
+          style={{
+            background: 'transparent',
+            border: '1px solid #4b5563',
+            borderRadius: 6,
+            color: '#9ca3af',
+            cursor: 'pointer',
+            fontSize: 12,
+            fontWeight: 500,
+            padding: '4px 10px',
+          }}
+          title="Sign out"
+        >
+          Sign out
+        </button>
       </div>
 
       {/* Jog buttons per joint */}

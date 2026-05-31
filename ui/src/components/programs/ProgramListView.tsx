@@ -7,6 +7,7 @@
  */
 import { useState } from 'react'
 import { ProgramRunView } from './ProgramRunView'
+import { getToken } from '../../lib/authClient'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ function programPayload(
 }
 
 function brainFetch(path: string, options?: RequestInit): Promise<Response> {
-  const token = import.meta.env.VITE_BRAIN_TOKEN as string | undefined
+  const token = getToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
