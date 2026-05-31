@@ -34,6 +34,10 @@ class SidecarConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     path: str = Field(default="brain.db", description="Path to the SQLite database")
+    log_sql: bool = Field(
+        default=False,
+        description="Whether to log SQL statements executed by SQLAlchemy (for debugging purposes)",
+    )
 
     @property
     def url(self) -> str:
