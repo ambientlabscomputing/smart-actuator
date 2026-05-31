@@ -26,6 +26,7 @@ dependencies = [
     "pyjwt[crypto]>=2.8",
     "cryptography>=48.0",
     "async-lru>=2.3",
+    "click>=8.4",
 ]
 
 [project.scripts]

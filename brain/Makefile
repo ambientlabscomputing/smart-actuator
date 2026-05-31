@@ -22,7 +22,11 @@ proto:
 
 ## run: Start the Brain REST+gRPC server
 run:
-	python -m brain.main
+	python -m brain.main run
+
+## cfggen: Create a default config file at brain/config.yaml
+cfggen:
+	python -m brain.main cfggen
 
 ## lint: use ruff to lint the codebase
 lint:
