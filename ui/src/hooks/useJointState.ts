@@ -62,6 +62,17 @@ export function useJointState(machineId: string): UseJointStateResult {
         if (unmounted.current) return
         try {
           const parsed = JSON.parse(event.data as string) as MachineState
+          // Dev-only diagnostic: log every WS frame's joint angles so we can
+          // see exactly what the brain is publishing. Helps diagnose ghost
+          // motion / snap-back issues that look like UI bugs but originate
+          // server-side.
+          if (import.meta.env.DEV) {
+            const angles = parsed.measured
+              .map((j) => `${j.joint_name}=${((j.angle_rad * 180) / Math.PI).toFixed(2)}°`)
+              .join('  ')
+            // eslint-disable-next-line no-console
+            console.debug(`[ws ${parsed.mode}]`, angles)
+          }
           setState(parsed)
         } catch {
           // ignore malformed frames

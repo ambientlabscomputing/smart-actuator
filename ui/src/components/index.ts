@@ -10,6 +10,7 @@
 export { AppCanvas } from './AppCanvas'
 export { AppToolbar } from './AppToolbar'
 export { ArmCanvas } from './ArmCanvas'
+export { WorkspaceMenu } from './WorkspaceMenu'
 export { Joint } from './Joint'
 export { JointDataPanel } from './JointDataPanel'
 export type { JointHistory } from './JointDataPanel'
