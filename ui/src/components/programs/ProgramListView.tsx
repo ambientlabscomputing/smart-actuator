@@ -5,7 +5,7 @@
  * and remove steps, then save and run the program.  When a run is in-flight
  * it shows ProgramRunView inline.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ProgramRunView } from './ProgramRunView'
 import { getToken } from '../../lib/authClient'
 
@@ -61,6 +61,42 @@ function programPayload(
     machine_id: machineId,
     root: { kind: 'sequence', children: steps.map(stepToNode), attributes: {} },
   }
+}
+
+// ── Response types (mirror brain/models/program.py) ─────────────────────────
+
+interface ProgramMeta {
+  program_id: string
+  name: string
+  description: string
+}
+
+interface ProgramNode {
+  kind: string
+  children: ProgramNode[]
+  attributes: Record<string, unknown>
+}
+
+interface SavedProgram {
+  meta: ProgramMeta
+  machine_id: string
+  root: ProgramNode
+}
+
+// ── AST → step conversion ─────────────────────────────────────────────────────
+
+function nodeToStep(node: ProgramNode): ProgramStep | null {
+  if (node.kind === 'move') {
+    return {
+      kind: 'move',
+      joint_name: String(node.attributes.joint_name ?? ''),
+      target_rad: Number(node.attributes.target_rad ?? 0),
+    }
+  }
+  if (node.kind === 'wait') {
+    return { kind: 'wait', duration_s: Number(node.attributes.duration_s ?? 1) }
+  }
+  return null
 }
 
 function brainFetch(path: string, options?: RequestInit): Promise<Response> {
@@ -218,7 +254,7 @@ const btnStyle: React.CSSProperties = {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
-  const [programId] = useState<string>(() => crypto.randomUUID())
+  const [programId, setProgramId] = useState<string>(() => crypto.randomUUID())
   const [name, setName] = useState('My program')
   const [steps, setSteps] = useState<ProgramStep[]>([
     { kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 },
@@ -227,6 +263,49 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [runId, setRunId] = useState<string | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
+  const [savedPrograms, setSavedPrograms] = useState<ProgramMeta[]>([])
+  const [listLoading, setListLoading] = useState(false)
+
+  // Fetch saved program list
+  const fetchPrograms = async () => {
+    setListLoading(true)
+    try {
+      const res = await brainFetch('/api/v1/programs')
+      if (res.ok) {
+        const data = (await res.json()) as ProgramMeta[]
+        setSavedPrograms(data)
+      }
+    } finally {
+      setListLoading(false)
+    }
+  }
+
+  // Load a specific program into the editor
+  const loadProgram = async (id: string) => {
+    const res = await brainFetch(`/api/v1/programs/${encodeURIComponent(id)}`)
+    if (!res.ok) return
+    const data = (await res.json()) as SavedProgram
+    setProgramId(data.meta.program_id)
+    setName(data.meta.name)
+    const parsed = data.root.children.map(nodeToStep).filter((s): s is ProgramStep => s !== null)
+    setSteps(parsed.length > 0 ? parsed : [{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }])
+    setRunId(null)
+    setSaveError(null)
+    setRunError(null)
+  }
+
+  // Start a blank program
+  const newProgram = () => {
+    setProgramId(crypto.randomUUID())
+    setName('My program')
+    setSteps([{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }])
+    setRunId(null)
+    setSaveError(null)
+    setRunError(null)
+  }
+
+  // Fetch list on mount
+  useEffect(() => { void fetchPrograms() }, [])
 
   // Update a step
   const updateStep = (i: number, s: ProgramStep) => {
@@ -271,6 +350,9 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           detail: string
         }
         setSaveError(err.detail ?? 'Save failed')
+      } else {
+        // Refresh the list so the newly saved program appears in the selector
+        await fetchPrograms()
       }
     } catch (e) {
       setSaveError(String(e))
@@ -308,6 +390,48 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
         height: '100%',
       }}
     >
+      {/* ── Saved programs selector ──────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+        <select
+          value={programId}
+          onChange={(e) => { void loadProgram(e.target.value) }}
+          disabled={listLoading}
+          style={{
+            flex: 1,
+            background: '#111827',
+            border: '1px solid #374151',
+            borderRadius: 6,
+            color: savedPrograms.some(p => p.program_id === programId) ? '#f3f4f6' : '#6b7280',
+            fontSize: 12,
+            padding: '4px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          {!savedPrograms.some(p => p.program_id === programId) && (
+            <option value={programId} disabled>— unsaved draft —</option>
+          )}
+          {savedPrograms.map((p) => (
+            <option key={p.program_id} value={p.program_id}>{p.name}</option>
+          ))}
+        </select>
+        <button
+          onClick={newProgram}
+          title="New program"
+          style={{
+            background: 'transparent',
+            border: '1px solid #374151',
+            borderRadius: 6,
+            color: '#9ca3af',
+            cursor: 'pointer',
+            fontSize: 12,
+            padding: '4px 10px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          + New
+        </button>
+      </div>
+
       {/* Program name */}
       <div style={{ marginBottom: 12 }}>
         <label
