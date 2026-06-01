@@ -22,6 +22,10 @@ import WifiOffIcon from '@mui/icons-material/WifiOff'
 import GamepadIcon from '@mui/icons-material/Gamepad'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import BlurOnIcon from '@mui/icons-material/BlurOn'
+import OpenWithIcon from '@mui/icons-material/OpenWith'
+
+import { CartesianJogPanel } from './CartesianJogPanel'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +71,16 @@ interface WorkspaceMenuProps {
   onEdit?: () => void
   onPrograms?: () => void
   programsActive?: boolean
+  showWorkspace?: boolean
+  onToggleWorkspace?: () => void
+  // ── Cartesian jog (optional; only shown when machineId is provided) ─────
+  machineId?: string | null
+  /** Joint names in chain order, e.g. ['shoulder', 'elbow']. */
+  jointNamesOrdered?: string[]
+  /** Current measured joint angles, radians, in chain order. */
+  currentQRad?: number[]
+  /** Current EE position from FK, metres, in world frame. */
+  currentEE?: [number, number, number] | null
 }
 
 export function WorkspaceMenu({
@@ -80,9 +94,16 @@ export function WorkspaceMenu({
   onEdit,
   onPrograms,
   programsActive,
+  showWorkspace,
+  onToggleWorkspace,
+  machineId,
+  jointNamesOrdered,
+  currentQRad,
+  currentEE,
 }: WorkspaceMenuProps) {
   const [busy, setBusy] = useState(false)
   const [jogAnchor, setJogAnchor] = useState<null | HTMLElement>(null)
+  const [cartesianAnchor, setCartesianAnchor] = useState<null | HTMLElement>(null)
 
   const isEstopped = mode === 'estopped'
   const isDisabled = mode === 'offline' || isEstopped || busy
@@ -197,6 +218,25 @@ export function WorkspaceMenu({
           </span>
         </Tooltip>
 
+        {/* Cartesian jog popover trigger ──────────────────────────────────── */}
+        {machineId && (
+          <Tooltip title="Cartesian jog (XYZ)" placement="right">
+            <span>
+              <IconButton
+                onClick={(e) => setCartesianAnchor(cartesianAnchor ? null : e.currentTarget)}
+                disabled={isDisabled}
+                style={{
+                  ...toolBtn(cartesianAnchor ? '#fbbf24' : undefined),
+                  background: cartesianAnchor ? 'rgba(251,191,36,0.18)' : 'transparent',
+                }}
+                size="small"
+              >
+                <OpenWithIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+
         {/* Edit machine ───────────────────────────────────────────────────── */}
         {onEdit && (
           <Tooltip title="Edit machine" placement="right">
@@ -218,6 +258,22 @@ export function WorkspaceMenu({
               size="small"
             >
               <PlaylistPlayIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Workspace overlay toggle ────────────────────────────────────────── */}
+        {onToggleWorkspace && (
+          <Tooltip title={showWorkspace ? 'Hide workspace' : 'Show workspace'} placement="right">
+            <IconButton
+              onClick={onToggleWorkspace}
+              style={{
+                ...toolBtn(showWorkspace ? '#a78bfa' : undefined),
+                background: showWorkspace ? 'rgba(124,58,237,0.2)' : 'transparent',
+              }}
+              size="small"
+            >
+              <BlurOnIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}
@@ -334,6 +390,38 @@ export function WorkspaceMenu({
             </div>
           )
         })}
+      </Popover>
+
+      {/* ── Cartesian jog popover ────────────────────────────────────────── */}
+      <Popover
+        open={Boolean(cartesianAnchor)}
+        anchorEl={cartesianAnchor}
+        onClose={() => setCartesianAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        marginThreshold={8}
+        slotProps={{
+          paper: {
+            sx: {
+              background: 'rgba(13,13,13,0.96)',
+              border: '1px solid #1f2937',
+              borderRadius: '10px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+              padding: '10px 12px',
+              backdropFilter: 'blur(8px)',
+            },
+          },
+        }}
+      >
+        {machineId && (
+          <CartesianJogPanel
+            machineId={machineId}
+            jointNames={jointNamesOrdered ?? joints}
+            currentQRad={currentQRad ?? []}
+            currentEE={currentEE ?? null}
+            disabled={isDisabled}
+          />
+        )}
       </Popover>
     </>
   )

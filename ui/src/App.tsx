@@ -6,9 +6,12 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
+import { useWorkspace } from './hooks/useWorkspace'
 import { RequireAuth } from '@/lib/RequireAuth'
 import { useAuth } from '@/lib/AuthContext'
-import type { Template } from './lib/types'
+import type { DHChainValues, DHJointValues, Template } from './lib/types'
+import { dhToLinkLengths, dhValuesFromSchema } from './lib/dh'
+import { forwardKinematics } from './lib/fk'
 import './App.css'
 
 // ── Workspace view (machine already exists) ──────────────────────────────────
@@ -16,19 +19,25 @@ import './App.css'
 interface WorkspaceProps {
   machineId: string
   linkLengths: number[]
-  onLinkLengthsChange: (ll: number[]) => void
+  dhJoints: DHJointValues[] | null
+  linkRadius: number | null
+  onDhChange: (dh: DHChainValues) => void
 }
 
-function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspaceProps) {
+function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }: WorkspaceProps) {
   const { state, connected } = useJointState(machineId)
   const { jog, estop, resume } = useMachineControl()
 
   const [editing, setEditing] = useState(false)
   const [editTemplate, setEditTemplate] = useState<Template | null>(null)
-  const [editParams, setEditParams] = useState<Record<string, number>>({})
+  const [editDhValues, setEditDhValues] = useState<DHChainValues>({ link_radius: 0.03, joints: [] })
   const [editError, setEditError] = useState<string | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [showPrograms, setShowPrograms] = useState(false)
+  const [showWorkspace, setShowWorkspace] = useState(false)
+
+  // Workspace overlay — lazy-loaded when toggled on; refetched after edits.
+  const { data: workspaceData, refetch: refetchWorkspace } = useWorkspace(machineId, showWorkspace)
 
   // ── Telemetry panel ────────────────────────────────────────────────────────
   const [selectedJoint, setSelectedJoint] = useState<number | null>(null)
@@ -58,12 +67,20 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
   }
 
   const mode = state?.mode ?? 'offline'
-  const joints = state?.measured.map((j) => j.joint_name) ?? []
+  // Show every configured joint in the jog panel, not just the ones currently
+  // reporting telemetry — so disconnected/offline actuators are still jog-able.
+  const joints = dhJoints && dhJoints.length > 0
+    ? dhJoints.map((j) => j.name)
+    : state?.measured.map((j) => j.joint_name) ?? []
   const jointDegrees: Record<string, number> = {}
+  for (const name of joints) jointDegrees[name] = 0
   for (const j of state?.measured ?? []) {
     jointDegrees[j.joint_name] = (j.angle_rad * 180) / Math.PI
   }
-  const anglesRad = state?.measured.map((j) => j.angle_rad) ?? []
+  const anglesRad = joints.map((name) => {
+    const m = state?.measured.find((j) => j.joint_name === name)
+    return m ? m.angle_rad : 0
+  })
 
   // Spacebar → E-stop
   useEffect(() => {
@@ -82,15 +99,21 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
     setEditLoading(true)
     try {
       const m = (await brainGet(`/machine/${encodeURIComponent(machineId)}`)) as {
-        description: { parameters: Record<string, number>; template_ref: { template_id: string } }
+        description: {
+          dh_chain?: DHChainValues
+          parameters: Record<string, number>
+          template_ref: { template_id: string }
+        }
       }
       const templateId = m.description.template_ref.template_id
       const tmpl = (await brainGet(`/templates/${encodeURIComponent(templateId)}`)) as Template
-      const params: Record<string, number> = {}
-      for (const [k, v] of Object.entries(m.description.parameters)) {
-        params[k] = Number(v)
-      }
-      setEditParams(params)
+
+      // Use dh_chain from server if present; fall back to schema defaults
+      const dh: DHChainValues =
+        m.description.dh_chain ??
+        (tmpl.dh ? dhValuesFromSchema(tmpl.dh) : { link_radius: 0.03, joints: [] })
+
+      setEditDhValues(dh)
       setEditTemplate(tmpl)
       setEditing(true)
     } catch (e) {
@@ -100,15 +123,15 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
     }
   }
 
-  const handleApplyEdit = async (params: Record<string, number>) => {
+  const handleApplyEdit = async (dh: DHChainValues) => {
     setEditError(null)
     try {
-      await brainPatch(`/machine/${encodeURIComponent(machineId)}`, { parameters: params })
-      onLinkLengthsChange([
-        params['link0_length_m'] ?? linkLengths[0],
-        params['link1_length_m'] ?? linkLengths[1],
-      ])
+      await brainPatch(`/machine/${encodeURIComponent(machineId)}`, { dh_chain: dh })
+      onDhChange(dh)
       setEditing(false)
+      // DH changed → reachable workspace will have been recomputed server-side.
+      // Refetch so the overlay reflects the new hull immediately.
+      refetchWorkspace()
     } catch (e) {
       setEditError(String(e))
     }
@@ -126,12 +149,14 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
         <div style={{ flex: 1, minHeight: 0 }}>
           <MachineEditor
             template={editTemplate}
-            params={editParams}
-            onParamsChange={setEditParams}
-            onSubmit={(p) => void handleApplyEdit(p)}
+            dhValues={editDhValues}
+            onDhChange={setEditDhValues}
+            onSubmit={(dh) => void handleApplyEdit(dh)}
             submitLabel="Apply"
             previewAngles={anglesRad}
             error={editError}
+            machineId={machineId}
+            showKinematicsTab={true}
             actionsLeft={
               <button
                 onClick={() => setEditing(false)}
@@ -159,7 +184,11 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
           <ArmCanvas
             anglesRad={anglesRad}
             linkLengths={linkLengths}
+            dhJoints={dhJoints ?? undefined}
+            radius={linkRadius ?? undefined}
             onJointClick={(i) => setSelectedJoint(prev => prev === i ? null : i)}
+            workspace={workspaceData}
+            showWorkspacePoints={showWorkspace}
           />
         </AppCanvas>
         <WorkspaceMenu
@@ -175,6 +204,12 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
           onEdit={() => void handleOpenEdit()}
           onPrograms={() => setShowPrograms((v) => !v)}
           programsActive={showPrograms}
+          showWorkspace={showWorkspace}
+          onToggleWorkspace={() => setShowWorkspace((v) => !v)}
+          machineId={machineId}
+          jointNamesOrdered={joints}
+          currentQRad={anglesRad}
+          currentEE={dhJoints ? forwardKinematics(dhJoints, anglesRad).ee : null}
         />
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
@@ -250,6 +285,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
 interface MachineRecord {
   description: {
     machine_id: string
+    dh_chain?: DHChainValues
     parameters: Record<string, number>
     template_ref: { template_id: string }
   }
@@ -260,7 +296,15 @@ export default function App() {
   const { status } = useAuth()
   const [machineId, setMachineId] = useState<string | null>(null)
   const [linkLengths, setLinkLengths] = useState<number[]>([1.5, 1.0])
+  const [dhJoints, setDhJoints] = useState<DHJointValues[] | null>(null)
+  const [linkRadius, setLinkRadius] = useState<number | null>(null)
   const [machineLoading, setMachineLoading] = useState(true)
+
+  const applyDh = (dh: DHChainValues) => {
+    setDhJoints(dh.joints)
+    setLinkRadius(dh.link_radius)
+    setLinkLengths(dhToLinkLengths(dh))
+  }
 
   // Fetch machines whenever auth becomes confirmed. Reset when logged out.
   useEffect(() => {
@@ -286,10 +330,14 @@ export default function App() {
               const m = (await brainGet(`/machine/${encodeURIComponent(ids[0])}`)) as MachineRecord
               if (!cancelled) {
                 const p = m.description.parameters
-                setLinkLengths([
-                  (p['link0_length_m'] as number) ?? 1.5,
-                  (p['link1_length_m'] as number) ?? 1.0,
-                ])
+                if (m.description.dh_chain) {
+                  applyDh(m.description.dh_chain)
+                } else {
+                  setLinkLengths([
+                    (p['link0_length_m'] as number) ?? 1.5,
+                    (p['link1_length_m'] as number) ?? 1.0,
+                  ])
+                }
                 setMachineId(m.description.machine_id)
               }
             } catch {
@@ -308,8 +356,8 @@ export default function App() {
     return () => { cancelled = true }
   }, [status])
 
-  const handleWizardDone = (id: string, params: Record<string, number>) => {
-    setLinkLengths([params.link0_length_m ?? 1.5, params.link1_length_m ?? 1.0])
+  const handleWizardDone = (id: string, dh: DHChainValues) => {
+    applyDh(dh)
     setMachineId(id)
   }
 
@@ -318,7 +366,7 @@ export default function App() {
     ? <LoadingScreen />
     : !machineId
       ? <Navigate to="/onboarding" replace />
-      : <Workspace machineId={machineId} linkLengths={linkLengths} onLinkLengthsChange={setLinkLengths} />
+      : <Workspace machineId={machineId} linkLengths={linkLengths} dhJoints={dhJoints} linkRadius={linkRadius} onDhChange={applyDh} />
 
   // Onboarding route: once machineId is set, go back to root.
   const onboardingElement = machineId

@@ -8,6 +8,7 @@ from brain.utils.logger import logger
 
 if False:  # TYPE_CHECKING guard to avoid circular imports
     from brain.service.lifecycle_service import LifecycleService
+    from brain.service.workspace_service import WorkspaceService
 
 
 class SafetyService:
@@ -26,12 +27,15 @@ class SafetyService:
         kinematics: KinematicsService,
         lifecycle: "LifecycleService",
         config: Config,
+        *,
+        workspace: "WorkspaceService | None" = None,
     ) -> None:
         self._repository = repository
         self._sidecar = sidecar
         self._kinematics = kinematics
         self._lifecycle = lifecycle
         self._config = config
+        self._workspace = workspace
 
     async def check_collision(
         self, machine_id: str, trajectory: JointTrajectory
@@ -42,6 +46,30 @@ class SafetyService:
         """
         # TODO: run collision check via kinematics / MuJoCo
         return {"ok": True, "violation_at_s": None, "message": ""}
+
+    async def check_jog_target(
+        self, machine_id: str, ee_target: tuple[float, float, float]
+    ) -> dict[str, object]:
+        """
+        Check whether a jog-step target EE position lies within the machine's
+        reachable workspace.  Returns {'ok': bool, 'message': str}.
+
+        Called by the jog handler before issuing the move command.  Other
+        safety layers (actuator watchdog, sidecar limits) remain active
+        regardless of this check.
+        """
+        if self._workspace is None:
+            return {"ok": True, "message": ""}
+        inside = await self._workspace.contains(machine_id, ee_target)
+        if inside:
+            return {"ok": True, "message": ""}
+        return {
+            "ok": False,
+            "message": (
+                f"Jog target {ee_target} is outside the reachable workspace "
+                f"for machine {machine_id!r}."
+            ),
+        }
 
     async def check_joint_coordination(
         self, machine_id: str, trajectory: JointTrajectory

@@ -27,6 +27,8 @@ dependencies = [
     "cryptography>=48.0",
     "async-lru>=2.3",
     "click>=8.4",
+    "scipy>=1.13",
+    "numpy>=1.26",
 ]
 
 [project.scripts]

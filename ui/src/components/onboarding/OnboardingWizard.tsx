@@ -11,7 +11,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { brainPost, brainGet } from '../../hooks/useJointState'
 import { getToken } from '../../lib/authClient'
-import type { Template, TemplateJoint } from '../../lib/types'
+import type { DHChainValues, Template, TemplateJoint } from '../../lib/types'
+import { dhValuesFromSchema } from '../../lib/dh'
 import { MachineEditor } from '../MachineEditor'
 
 interface BindingResult {
@@ -366,28 +367,29 @@ function BindingStep({
 }
 
 interface OnboardingWizardProps {
-  onDone: (machineId: string, params: Record<string, number>) => void
+  onDone: (machineId: string, dh: DHChainValues) => void
 }
 
 export function OnboardingWizard({ onDone }: OnboardingWizardProps) {
   const [step, setStep] = useState<'pick' | 'params' | 'bind'>('pick')
   const [template, setTemplate] = useState<Template | null>(null)
-  const [params, setParams] = useState<Record<string, number>>({})
+  const [dhValues, setDhValues] = useState<DHChainValues>({ link_radius: 0.03, joints: [] })
   const [machineId, setMachineId] = useState<string | null>(null)
   const [buildErr, setBuildErr] = useState<string | null>(null)
 
   const onPick = (t: Template) => {
-    // Initialise params from template defaults
-    const defaults: Record<string, number> = {}
-    for (const p of t.parameters ?? []) defaults[p.name] = Number(p.default)
-    setParams(defaults)
+    // Seed DH chain values from template schema defaults
+    const initial: DHChainValues = t.dh
+      ? dhValuesFromSchema(t.dh)
+      : { link_radius: 0.03, joints: [] }
+    setDhValues(initial)
     setTemplate(t)
     setStep('params')
   }
 
-  const onParams = async (p: Record<string, number>) => {
+  const onCommit = async (dh: DHChainValues) => {
     if (!template) return
-    setParams(p)
+    setDhValues(dh)
     setBuildErr(null)
     const mid = `arm-${Date.now()}`
     try {
@@ -400,7 +402,8 @@ export function OnboardingWizard({ onDone }: OnboardingWizardProps) {
           content_hash: 'in-tree',
           ref: 'in-tree',
         },
-        parameters: p,
+        dh_chain: dh,
+        parameters: {},
         actuator_bindings: [],
       })
       setMachineId(mid)
@@ -437,9 +440,9 @@ export function OnboardingWizard({ onDone }: OnboardingWizardProps) {
           {step === 'params' && template && (
             <MachineEditor
               template={template}
-              params={params}
-              onParamsChange={setParams}
-              onSubmit={(p) => void onParams(p)}
+              dhValues={dhValues}
+              onDhChange={setDhValues}
+              onSubmit={(dh) => void onCommit(dh)}
               submitLabel="Build machine →"
               error={buildErr}
               actionsLeft={
@@ -454,7 +457,7 @@ export function OnboardingWizard({ onDone }: OnboardingWizardProps) {
             <BindingStep
               machineId={machineId}
               joints={joints}
-              onDone={() => onDone(machineId, params)}
+              onDone={() => onDone(machineId, dhValues)}
             />
           )}
         </div>

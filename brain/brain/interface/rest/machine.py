@@ -4,7 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from brain.interface.rest.deps import get_service
-from brain.models.machine import Machine, MachineDescription
+from brain.models.machine import (
+    DHChainValues,
+    EndEffectorSpec,
+    IKNumericConfig,
+    IKOverrides,
+    IKVerification,
+    Machine,
+    MachineDescription,
+    WorkspaceResult,
+)
+from brain.models.motion import Pose
+from brain.service.ik import IKCallOptions, IKNoSolution, IKUnreachable
 from brain.service.service import BrainService
 
 router = APIRouter(prefix="/machine", tags=["machine"])
@@ -62,7 +73,8 @@ class BindingRequest(BaseModel):
 
 
 class UpdateParametersRequest(BaseModel):
-    parameters: dict[str, float]
+    parameters: dict[str, float] = {}
+    dh_chain: DHChainValues | None = None
 
 
 @router.post(
@@ -150,9 +162,220 @@ async def update_parameters(
     """
     try:
         return await svc.machine.update_parameters(
-            machine_id, body.parameters, created_by=request.state.user.username
+            machine_id,
+            body.parameters or None,
+            dh_chain=body.dh_chain,
+            created_by=request.state.user.username,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── Workspace endpoints ───────────────────────────────────────────────────────
+
+
+@router.get(
+    "/{machine_id}/workspace",
+    response_model=WorkspaceResult,
+    summary="Get the machine's pre-computed reachable workspace",
+)
+async def get_workspace(machine_id: str, svc: Service) -> WorkspaceResult:
+    """
+    Return the cached reachable end-effector workspace for the machine.
+    The workspace is computed eagerly when the machine is created or edited,
+    so this endpoint is a fast read of the persisted result.
+    Returns 404 if not yet computed (e.g. legacy machine without dh_chain).
+    """
+    result = await svc.workspace.get(machine_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Workspace not yet computed for machine {machine_id!r}. "
+                   "POST /machine/{id}/workspace/recompute to generate it.",
+        )
+    return result
+
+
+@router.post(
+    "/{machine_id}/workspace/recompute",
+    response_model=WorkspaceResult,
+    summary="Force-recompute the machine's reachable workspace",
+)
+async def recompute_workspace(machine_id: str, svc: Service, request: Request) -> WorkspaceResult:
+    """
+    Recompute the reachable workspace from the machine's current DH chain
+    and persist the result.  Useful after direct DB edits or to force a refresh.
+    """
+    try:
+        return await svc.workspace.recompute(
+            machine_id, created_by=request.state.user.username
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+class ContainsRequest(BaseModel):
+    point: list[float]  # [x, y, z] in metres
+
+
+@router.post(
+    "/{machine_id}/workspace/contains",
+    summary="Check if a 3-D point is within the machine's reachable workspace",
+)
+async def workspace_contains(
+    machine_id: str, body: ContainsRequest, svc: Service
+) -> dict:
+    """
+    Return {inside: bool} indicating whether *point* lies within the machine's
+    reachable end-effector envelope.  Uses the persisted convex hull.
+    """
+    if len(body.point) != 3:
+        raise HTTPException(status_code=422, detail="point must be [x, y, z] (3 floats)")
+    inside = await svc.workspace.contains(
+        machine_id, (body.point[0], body.point[1], body.point[2])
+    )
+    return {"machine_id": machine_id, "point": body.point, "inside": inside}
+
+
+# ── IK endpoints ───────────────────────────────────────────────────────────────
+
+
+class IKOverridesRequest(BaseModel):
+    force_numeric: bool = False
+    numeric: IKNumericConfig | None = None
+
+
+class EndEffectorRequest(BaseModel):
+    parent: str = ""
+    offset_m: list[float] = [0.0, 0.0, 0.0]
+    orientation_offset_deg: list[float] = [0.0, 0.0, 0.0]
+    task_space: str = "r3"
+
+
+class IKPreviewRequest(BaseModel):
+    target_pose: Pose
+    strategy: str = "auto"
+    branch_preference: str = ""
+    seed: list[float] = []
+
+
+class IKPreviewResponse(BaseModel):
+    machine_id: str
+    solved_q: list[float]
+    residual_m: float
+    strategy_used: str
+    elapsed_ms: float
+
+
+@router.put(
+    "/{machine_id}/ik_overrides",
+    response_model=Machine,
+    summary="Set IK solver overrides (force-numeric, numeric tuning)",
+)
+async def set_ik_overrides(
+    machine_id: str, body: IKOverridesRequest, svc: Service, request: Request
+) -> Machine:
+    """
+    Persist per-machine IK override settings.
+    Setting force_numeric=true bypasses analytic solvers entirely.
+    """
+    machine = await svc.machine.get_machine(machine_id)
+    if machine is None:
+        raise HTTPException(status_code=404, detail=f"Machine {machine_id!r} not found")
+    overrides = IKOverrides(force_numeric=body.force_numeric, numeric=body.numeric)
+    return await svc.machine.set_ik_overrides(machine_id, overrides, updated_by=request.state.user.username)
+
+
+@router.put(
+    "/{machine_id}/end_effector",
+    response_model=Machine,
+    summary="Update the end-effector frame definition",
+)
+async def set_end_effector(
+    machine_id: str, body: EndEffectorRequest, svc: Service, request: Request
+) -> Machine:
+    """
+    Update the EE offset/orientation and task-space declaration.
+    Changing the EE frame invalidates the cached workspace and triggers a
+    background recompute.
+    """
+    machine = await svc.machine.get_machine(machine_id)
+    if machine is None:
+        raise HTTPException(status_code=404, detail=f"Machine {machine_id!r} not found")
+    ee = EndEffectorSpec(
+        parent=body.parent,
+        offset_m=body.offset_m,
+        orientation_offset_deg=body.orientation_offset_deg,
+        task_space=body.task_space,
+    )
+    updated = await svc.machine.set_end_effector(machine_id, ee, updated_by=request.state.user.username)
+    # Invalidate workspace so it recomputes on next access
+    await svc.workspace.invalidate(machine_id)
+    return updated
+
+
+@router.post(
+    "/{machine_id}/ik/preview",
+    response_model=IKPreviewResponse,
+    summary="Preview IK solution for a target pose",
+)
+async def ik_preview(
+    machine_id: str, body: IKPreviewRequest, svc: Service
+) -> IKPreviewResponse:
+    """
+    Compute joint angles that achieve the requested pose without executing any
+    motion.  Returns the solved configuration, position residual, and the
+    strategy actually used (analytic or numeric).
+
+    Raises 404 if the machine is unknown, 422 if the target is outside the
+    workspace, and 409 if the solver cannot find a solution.
+    """
+    import time
+
+    machine = await svc.machine.get_machine(machine_id)
+    if machine is None:
+        raise HTTPException(status_code=404, detail=f"Machine {machine_id!r} not found")
+
+    opts = IKCallOptions(
+        strategy=body.strategy,
+        branch_preference=body.branch_preference,
+        seed=body.seed,
+    )
+
+    t0 = time.monotonic()
+    try:
+        solved_q = await svc.kinematics.inverse_kinematics(
+            machine_id, body.target_pose, options=opts
+        )
+    except IKUnreachable as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IKNoSolution as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    elapsed_ms = (time.monotonic() - t0) * 1000.0
+
+    # Compute residual post-hoc
+    dh = machine.description.dh_chain
+    ee = machine.description.end_effector
+    residual_m = 0.0
+    if dh and solved_q:
+        from brain.service.dh_fk import ee_position_with_spec
+        import math
+        x, y, z = ee_position_with_spec(dh, solved_q, ee)
+        pos = body.target_pose.position
+        residual_m = math.sqrt(
+            (x - pos[0])**2 + (y - pos[1])**2 + (z - pos[2])**2
+        )
+
+    strategy_used = "numeric" if (
+        machine.description.ik_overrides and machine.description.ik_overrides.force_numeric
+    ) else body.strategy
+
+    return IKPreviewResponse(
+        machine_id=machine_id,
+        solved_q=solved_q,
+        residual_m=residual_m,
+        strategy_used=strategy_used,
+        elapsed_ms=elapsed_ms,
+    )

@@ -18,6 +18,7 @@ from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
 from brain.service.template_service import TemplateService
 from brain.service.user_service import UserService
+from brain.service.workspace_service import WorkspaceService
 from brain.utils.logger import logger
 
 
@@ -46,6 +47,7 @@ class BrainService(Service):
         actuators: ActuatorService,
         machine: MachineService,
         kinematics: KinematicsService,
+        workspace: WorkspaceService,
         motion: MotionService,
         safety: SafetyService,
         state: StateService,
@@ -65,6 +67,7 @@ class BrainService(Service):
         self.actuators = actuators
         self.machine = machine
         self.kinematics = kinematics
+        self.workspace = workspace
         self.motion = motion
         self.safety = safety
         self.state = state

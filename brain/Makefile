@@ -32,6 +32,10 @@ cfggen:
 lint:
 	ruff check brain --fix --statistics
 
+## test: run the pytest test suite
+test:
+	pytest tests -v
+
 ## fmt: use ruff to format the codebase
 fmt:
 	ruff format brain

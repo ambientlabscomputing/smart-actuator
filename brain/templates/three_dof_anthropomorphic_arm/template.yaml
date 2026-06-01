@@ -1,0 +1,299 @@
+id: three_dof_anthropomorphic_arm
+name: "3-DOF Anthropomorphic Arm"
+version: "1.0.0"
+publisher: ambient-labs
+summary: >
+  A 3-DOF revolute arm in the classic anthropomorphic (elbow) configuration.
+  Joint 0 is the waist (vertical rotation), joints 1 and 2 are the shoulder
+  and elbow rotating in the sagittal plane.  Corresponds to the RRR arm in
+  Siciliano et al., Robotics — same geometry as the first three joints of the
+  6-DOF anthropomorphic arm with spherical wrist.
+
+brain_compatibility: ">=0.1.0"
+firmware_compatibility: ">=0.1.0"
+
+# ── End-effector ──────────────────────────────────────────────────────────────
+# The TCP is at the tip of the forearm (elbow joint frame + a₃ along +X).
+# task_space: r3 — pure position IK (no wrist, orientation is uncontrolled).
+end_effector:
+  parent: elbow
+  offset_m: [0.0, 0.0, 0.0]
+  orientation_offset_deg: [0.0, 0.0, 0.0]
+  task_space: r3
+
+# ── IK solver hints ───────────────────────────────────────────────────────────
+# DH parameters for this arm:
+#   Joint 0 (waist):    a=0,  α=90°, d=0  — base yaw around vertical Z
+#   Joint 1 (shoulder): a=a₂, α=0°,  d=0  — first planar link
+#   Joint 2 (elbow):    a=a₃, α=0°,  d=0  — second planar link
+#
+# The rrr_anthropomorphic solver:
+#   1. θ₀ = atan2(y, x)         (waist yaw)
+#   2. r  = sqrt(x² + y²)       (horizontal reach)
+#   3. [θ₁, θ₂] = planar_2r([r, 0, z], L₀=a₂, L₁=a₃)
+#
+# This requires L₀ and L₁ > 0 — both come from the 'a' field of joints 1
+# and 2 respectively.  The verifier checks that joints 1 and 2 have parallel
+# rotation axes (both α=0°, so this always passes).
+ik:
+  decomposition:
+    - kind: rrr_anthropomorphic
+      joints: [0, 1, 2]
+      branch_preference: elbow_up
+
+  numeric:
+    max_iters: 150
+    pos_tol_m: 1.0e-4
+    rot_tol_rad: 1.0e-3
+    damping: 0.01
+    seed: current_q
+
+  redundancy:
+    nullspace_objective: keep_near_seed
+
+# ── Joint slots ───────────────────────────────────────────────────────────────
+joints:
+  - slot: 0
+    name: waist
+    axis: z
+    parent: base
+  - slot: 1
+    name: shoulder
+    axis: z
+    parent: waist
+  - slot: 2
+    name: elbow
+    axis: z
+    parent: shoulder
+
+# ── DH kinematics ─────────────────────────────────────────────────────────────
+# Convention (matches ArmCanvas and brain/service/dh_fk.py):
+#   T_i = T_{i-1} · Rz(θ_offset + θ_i) · Tz(d) · Tx(a) · Rx(α)
+#
+# Typical industrial values; user can adjust in the Advanced tab.
+dh:
+  link_radius:
+    default: 0.03
+    min: 0.005
+    max: 0.15
+    unit: m
+    editable: true
+
+  joints:
+    # ── Joint 0: waist (base rotation around vertical axis) ─────────────────
+    - name: waist
+      slot: 0
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false        # no link offset at the base
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0          # π/2 — next Z-axis is horizontal (shoulder axis)
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.0
+        min: 0.1
+        max: 30.0
+        unit: kg
+        editable: true
+
+    # ── Joint 1: shoulder (first planar link, length = a₂) ──────────────────
+    - name: shoulder
+      slot: 1
+      type: revolute
+      axis: z
+      a:
+        default: 0.4           # upper-arm length (a₂)
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0           # shoulder and elbow axes are parallel
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -135.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 135.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.8
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+    # ── Joint 2: elbow (second planar link, length = a₃) ────────────────────
+    - name: elbow
+      slot: 2
+      type: revolute
+      axis: z
+      a:
+        default: 0.35          # forearm length (a₃)
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -150.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 150.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.5
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+# ── Easy-mode aliases ─────────────────────────────────────────────────────────
+easy:
+  - legacy_param: upper_arm_length_m
+    label: "Upper arm length (m)"
+    unit: m
+    description: "Length of the upper arm — distance from shoulder to elbow (a₂)"
+    target: joints[1].a
+
+  - legacy_param: forearm_length_m
+    label: "Forearm length (m)"
+    unit: m
+    description: "Length of the forearm — distance from elbow to TCP (a₃)"
+    target: joints[2].a
+
+  - legacy_param: link_radius_m
+    label: "Link radius (m)"
+    unit: m
+    description: "Visual / collision cylinder radius for all links"
+    target: link_radius
+
+  - legacy_param: waist_limit_deg
+    label: "Waist travel (±°)"
+    unit: deg
+    description: "Symmetric travel limit for the waist joint"
+    target: joints[0].limit_symmetric
+
+  - legacy_param: shoulder_limit_deg
+    label: "Shoulder travel (±°)"
+    unit: deg
+    description: "Symmetric travel limit for the shoulder joint"
+    target: joints[1].limit_symmetric
+
+  - legacy_param: elbow_limit_deg
+    label: "Elbow travel (±°)"
+    unit: deg
+    description: "Symmetric travel limit for the elbow joint"
+    target: joints[2].limit_symmetric
+
+# ── Legacy parameter schema ───────────────────────────────────────────────────
+parameters:
+  - name: upper_arm_length_m
+    label: "Upper arm length (m)"
+    type: float
+    default: 0.4
+    min: 0.05
+    max: 2.0
+    unit: m
+    description: "Distance from shoulder to elbow (a₂)"
+
+  - name: forearm_length_m
+    label: "Forearm length (m)"
+    type: float
+    default: 0.35
+    min: 0.05
+    max: 2.0
+    unit: m
+    description: "Distance from elbow to TCP (a₃)"
+
+  - name: link_radius_m
+    label: "Link radius (m)"
+    type: float
+    default: 0.03
+    min: 0.005
+    max: 0.15
+    unit: m
+    description: "Cylinder radius for all links"
+
+  - name: waist_limit_deg
+    label: "Waist travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 360.0
+    unit: deg
+    description: "Symmetric travel limit for the waist joint"
+
+  - name: shoulder_limit_deg
+    label: "Shoulder travel (±°)"
+    type: float
+    default: 135.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+    description: "Symmetric travel limit for the shoulder joint"
+
+  - name: elbow_limit_deg
+    label: "Elbow travel (±°)"
+    type: float
+    default: 150.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+    description: "Symmetric travel limit for the elbow joint"

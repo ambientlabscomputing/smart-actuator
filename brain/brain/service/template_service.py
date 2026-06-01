@@ -4,7 +4,19 @@ from pathlib import Path
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from brain.models.machine import TemplateMeta
+from brain.models.machine import (
+    DHChainSchema,
+    DHFieldSpec,
+    DHJointSpec,
+    EasyAlias,
+    EndEffectorSpec,
+    IKBlock,
+    IKNumericConfig,
+    IKRedundancyConfig,
+    IKSpec,
+    KNOWN_IK_BLOCK_KINDS,
+    TemplateMeta,
+)
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
@@ -14,6 +26,10 @@ class TemplateParamSchema(TemplateMeta):
 
     parameters: list[dict] = []
     joints: list[dict] = []
+    dh: DHChainSchema | None = None
+    easy: list[EasyAlias] = []
+    end_effector: EndEffectorSpec | None = None
+    ik: IKSpec | None = None
 
 
 class TemplateUpdateInfo:
@@ -55,17 +71,25 @@ class TemplateService:
         return metas
 
     async def get_template(self, template_id: str) -> TemplateParamSchema | None:
-        """Return full schema (including parameters + joints) for a single template."""
+        """Return full schema (including parameters + joints + dh + easy) for a single template."""
         manifest = self._templates_dir / template_id / "template.yaml"
         if not manifest.exists():
             return None
         try:
             data = yaml.safe_load(manifest.read_text())
             meta = self._parse_meta(data)
+            dh_schema = self._parse_dh_schema(data) if "dh" in data else None
+            easy = self._parse_easy(data) if "easy" in data else []
+            end_effector = self._parse_end_effector(data) if "end_effector" in data else None
+            ik = self._parse_ik(data) if "ik" in data else None
             return TemplateParamSchema(
                 **meta.model_dump(),
                 parameters=data.get("parameters", []),
                 joints=data.get("joints", []),
+                dh=dh_schema,
+                easy=easy,
+                end_effector=end_effector,
+                ik=ik,
             )
         except Exception:
             logger.exception("TemplateService: failed to parse {}", manifest)
@@ -117,3 +141,113 @@ class TemplateService:
             brain_compatibility=data.get("brain_compatibility", ""),
             firmware_compatibility=data.get("firmware_compatibility", ""),
         )
+
+    @staticmethod
+    def _parse_field_spec(raw: object, *, default: float = 0.0) -> DHFieldSpec:
+        """Parse a DH field spec from YAML.  Accepts a plain number or a dict."""
+        if isinstance(raw, (int, float)):
+            return DHFieldSpec(default=float(raw))
+        if isinstance(raw, dict):
+            return DHFieldSpec(
+                default=float(raw.get("default", default)),
+                min=float(raw["min"]) if "min" in raw else None,
+                max=float(raw["max"]) if "max" in raw else None,
+                unit=str(raw.get("unit", "")),
+                editable=bool(raw.get("editable", True)),
+            )
+        return DHFieldSpec(default=default)
+
+    @classmethod
+    def _parse_dh_schema(cls, data: dict) -> DHChainSchema:
+        """Parse the template's dh: block into a DHChainSchema."""
+        dh_raw = data.get("dh", {})
+        link_radius = cls._parse_field_spec(dh_raw.get("link_radius", 0.03), default=0.03)
+        joints: list[DHJointSpec] = []
+        for j in dh_raw.get("joints", []):
+            joints.append(
+                DHJointSpec(
+                    name=j["name"],
+                    slot=int(j["slot"]),
+                    type=j.get("type", "revolute"),
+                    axis=j.get("axis", "z"),
+                    a=cls._parse_field_spec(j.get("a", 0.0)),
+                    d=cls._parse_field_spec(j.get("d", 0.0)),
+                    alpha=cls._parse_field_spec(j.get("alpha", 0.0), default=0.0),
+                    theta_offset=cls._parse_field_spec(j.get("theta_offset", 0.0), default=0.0),
+                    limit_lower=cls._parse_field_spec(j.get("limit_lower", -180.0), default=-180.0),
+                    limit_upper=cls._parse_field_spec(j.get("limit_upper", 180.0), default=180.0),
+                    mass=cls._parse_field_spec(j.get("mass", 0.5), default=0.5),
+                )
+            )
+        return DHChainSchema(link_radius=link_radius, joints=joints)
+
+    @staticmethod
+    def _parse_easy(data: dict) -> list[EasyAlias]:
+        """Parse the template's easy: list into EasyAlias objects."""
+        aliases: list[EasyAlias] = []
+        for entry in data.get("easy", []):
+            aliases.append(
+                EasyAlias(
+                    legacy_param=entry["legacy_param"],
+                    label=entry.get("label", entry["legacy_param"]),
+                    unit=entry.get("unit", ""),
+                    description=entry.get("description", ""),
+                    target=entry["target"],
+                )
+            )
+        return aliases
+
+    @staticmethod
+    def _parse_end_effector(data: dict) -> EndEffectorSpec:
+        """Parse the template's end_effector: block into an EndEffectorSpec."""
+        raw = data.get("end_effector", {})
+        return EndEffectorSpec(
+            parent=raw["parent"],
+            offset_m=raw.get("offset_m", [0.0, 0.0, 0.0]),
+            orientation_offset_deg=raw.get("orientation_offset_deg", [0.0, 0.0, 0.0]),
+            task_space=raw.get("task_space", "se3"),
+        )
+
+    @classmethod
+    def _parse_ik(cls, data: dict) -> IKSpec:
+        """
+        Parse the template's ik: block into an IKSpec.
+        Rejects any block with an unrecognised kind so templates can't silently
+        request a solver the Brain doesn't have.
+        """
+        raw = data.get("ik", {})
+
+        blocks: list[IKBlock] = []
+        for i, b in enumerate(raw.get("decomposition", [])):
+            kind = str(b.get("kind", ""))
+            if kind not in KNOWN_IK_BLOCK_KINDS:
+                raise ValueError(
+                    f"ik.decomposition[{i}] has unknown kind {kind!r}. "
+                    f"Valid kinds: {sorted(KNOWN_IK_BLOCK_KINDS)}"
+                )
+            blocks.append(
+                IKBlock(
+                    kind=kind,
+                    joints=[int(j) for j in b.get("joints", [])],
+                    branch_preference=b.get("branch_preference", "nearest"),
+                    plane=b.get("plane", ""),
+                )
+            )
+
+        numeric_raw = raw.get("numeric", {})
+        numeric = IKNumericConfig(
+            max_iters=int(numeric_raw.get("max_iters", 150)),
+            pos_tol_m=float(numeric_raw.get("pos_tol_m", 1e-4)),
+            rot_tol_rad=float(numeric_raw.get("rot_tol_rad", 1e-3)),
+            damping=float(numeric_raw.get("damping", 0.01)),
+            seed=str(numeric_raw.get("seed", "current_q")),
+        )
+
+        redundancy_raw = raw.get("redundancy", {})
+        redundancy = IKRedundancyConfig(
+            nullspace_objective=str(
+                redundancy_raw.get("nullspace_objective", "keep_near_seed")
+            ),
+        )
+
+        return IKSpec(decomposition=blocks, numeric=numeric, redundancy=redundancy)

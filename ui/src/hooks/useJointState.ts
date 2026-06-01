@@ -149,6 +149,16 @@ export async function brainPatch(path: string, body: unknown): Promise<unknown> 
   return res.json()
 }
 
+export async function brainPut(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${BRAIN_BASE}${path}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) handleResponse(res, await res.json().catch(() => ({})))
+  return res.json()
+}
+
 export async function brainGet(path: string): Promise<unknown> {
   const res = await fetch(`${BRAIN_BASE}${path}`, { headers: authHeaders() })
   if (!res.ok) handleResponse(res, await res.json().catch(() => ({})))
