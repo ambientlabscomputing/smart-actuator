@@ -1,12 +1,16 @@
 /**
  * CartesianJogPanel — popover for jogging the end-effector in Cartesian space.
  *
- * Tracks a target XYZ position (initialised from the current EE pose), lets the
- * user nudge it by a configurable step, runs IK on each nudge, and sends the
- * resulting joint targets via /move/joint.
+ * Tracks a target SE(3) pose (position + quaternion orientation), lets the user
+ * nudge translation by a configurable step in metres and rotation by a step in
+ * degrees, runs IK on each nudge, and sends the resulting joint targets via
+ * /move/joint.
  *
- * Includes a small status row showing the current EE FK position, the last IK
- * residual, and the strategy used (analytic / numeric).
+ * Rotation jog can be applied in the EE's own tool frame (default) or the world
+ * frame, toggled with the World/Tool button.
+ *
+ * Rotation controls are disabled when the machine's task_space is not 'se3'
+ * (e.g. planar 2-DOF arms that can't satisfy orientation constraints).
  */
 import React, { useEffect, useState } from 'react'
 import IconButton from '@mui/material/IconButton'
@@ -14,6 +18,7 @@ import Tooltip from '@mui/material/Tooltip'
 import type { IKPreviewResponse } from '../lib/types'
 import { useMachineIK } from '../hooks/useMachineIK'
 import { brainPost } from '../hooks/useJointState'
+import { quatFromAxisAngle, quatMultiply, quatToEulerDeg } from '../lib/fk'
 
 interface CartesianJogPanelProps {
   machineId: string
@@ -23,57 +28,74 @@ interface CartesianJogPanelProps {
   currentQRad: number[]
   /** Current EE position from FK, metres. */
   currentEE: [number, number, number] | null
+  /** Current EE orientation from FK as quaternion [x, y, z, w]. */
+  currentEEQuat: [number, number, number, number] | null
   disabled?: boolean
 }
 
+const IDENTITY_QUAT: [number, number, number, number] = [0, 0, 0, 1]
+
 const DEFAULT_STEP_M = 0.01    // 1 cm
 const STEP_OPTIONS_M = [0.001, 0.005, 0.01, 0.05, 0.1]
+
+const DEFAULT_STEP_DEG = 10
+const STEP_OPTIONS_DEG = [1, 5, 10, 30, 90]
 
 export function CartesianJogPanel({
   machineId,
   jointNames,
   currentQRad,
   currentEE,
+  currentEEQuat,
   disabled = false,
 }: CartesianJogPanelProps) {
   const ik = useMachineIK(machineId)
   const [step, setStep] = useState<number>(DEFAULT_STEP_M)
-  const [target, setTarget] = useState<[number, number, number]>(
+  const [rotStep, setRotStep] = useState<number>(DEFAULT_STEP_DEG)
+  const [frame, setFrame] = useState<'tool' | 'world'>('tool')
+  const [targetPos, setTargetPos] = useState<[number, number, number]>(
     currentEE ?? [0, 0, 0]
+  )
+  const [targetQuat, setTargetQuat] = useState<[number, number, number, number]>(
+    currentEEQuat ?? IDENTITY_QUAT
   )
   const [lastResult, setLastResult] = useState<IKPreviewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Sync target to current EE only when there's no pending edit (avoid clobbering)
+  // Sync targets to live FK only when no edit is pending
   useEffect(() => {
-    if (currentEE && lastResult === null) {
-      setTarget(currentEE)
-    }
+    if (currentEE && lastResult === null) setTargetPos(currentEE)
   }, [currentEE, lastResult])
 
-  const jog = async (axis: 0 | 1 | 2, sign: 1 | -1) => {
-    if (disabled || busy) return
-    const newTarget: [number, number, number] = [...target] as [number, number, number]
-    newTarget[axis] += sign * step
+  useEffect(() => {
+    if (currentEEQuat && lastResult === null) setTargetQuat(currentEEQuat)
+  }, [currentEEQuat, lastResult])
 
+  // SE(3) capable = task_space is 'se3'; undefined machine = assume capable to avoid false-disables
+  const taskSpace = ik.machine?.description?.end_effector?.task_space
+  const isSE3 = taskSpace === undefined || taskSpace === 'se3'
+
+  const sendJog = async (
+    newPos: [number, number, number],
+    newQuat: [number, number, number, number],
+  ) => {
+    if (disabled || busy) return
     setBusy(true)
     setError(null)
     try {
-      // Use the current measured q as the seed for smoothest motion
-      const result = await ik.previewIK(newTarget, undefined, {
+      const result = await ik.previewIK(newPos, newQuat, {
         strategy: 'auto',
         seed: currentQRad,
       })
-      // Send absolute joint targets
       const joint_targets: Record<string, number> = {}
       result.solved_q.forEach((angleRad, i) => {
         const name = jointNames[i]
         if (name) joint_targets[name] = angleRad
       })
       await brainPost('/move/joint', { machine_id: machineId, joint_targets })
-
-      setTarget(newTarget)
+      setTargetPos(newPos)
+      setTargetQuat(newQuat)
       setLastResult(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -82,19 +104,38 @@ export function CartesianJogPanel({
     }
   }
 
-  const resetToCurrent = () => {
-    if (currentEE) {
-      setTarget(currentEE)
-      setLastResult(null)
-      setError(null)
-    }
+  const jog = (axis: 0 | 1 | 2, sign: 1 | -1) => {
+    const newPos: [number, number, number] = [...targetPos] as [number, number, number]
+    newPos[axis] += sign * step
+    void sendJog(newPos, targetQuat)
   }
 
+  const rotJog = (axis: 0 | 1 | 2, sign: 1 | -1) => {
+    const deltaRad = sign * rotStep * (Math.PI / 180)
+    const q_delta = quatFromAxisAngle(axis, deltaRad)
+    // Tool frame: post-multiply (rotate about EE's own axes)
+    // World frame: pre-multiply (rotate about world axes)
+    const newQuat = frame === 'tool'
+      ? quatMultiply(targetQuat, q_delta)
+      : quatMultiply(q_delta, targetQuat)
+    void sendJog(targetPos, newQuat)
+  }
+
+  const resetToCurrent = () => {
+    if (currentEE) setTargetPos(currentEE)
+    if (currentEEQuat) setTargetQuat(currentEEQuat)
+    setLastResult(null)
+    setError(null)
+  }
+
+  const euler = quatToEulerDeg(targetQuat)
+
   return (
-    <div style={{ minWidth: 260 }}>
+    <div style={{ minWidth: 280 }}>
       <div style={headerStyle}>Cartesian jog</div>
 
-      {/* Step size selector */}
+      {/* ── Translation ──────────────────────────────────────────────────── */}
+      <div style={sectionLabelStyle}>Translation</div>
       <div style={rowStyle}>
         <span style={labelStyle}>Step</span>
         <select
@@ -110,15 +151,14 @@ export function CartesianJogPanel({
         </select>
       </div>
 
-      {/* XYZ jog buttons */}
       {(['X', 'Y', 'Z'] as const).map((axisName, i) => (
         <div key={axisName} style={rowStyle}>
           <span style={axisLabelStyle}>{axisName}</span>
-          <span style={valStyle}>{target[i].toFixed(4)} m</span>
+          <span style={valStyle}>{targetPos[i].toFixed(4)} m</span>
           <Tooltip title={`−${axisName}`}>
             <span>
               <IconButton
-                onClick={() => void jog(i as 0 | 1 | 2, -1)}
+                onClick={() => jog(i as 0 | 1 | 2, -1)}
                 disabled={disabled || busy}
                 size="small"
                 style={btnStyle}
@@ -130,7 +170,7 @@ export function CartesianJogPanel({
           <Tooltip title={`+${axisName}`}>
             <span>
               <IconButton
-                onClick={() => void jog(i as 0 | 1 | 2, 1)}
+                onClick={() => jog(i as 0 | 1 | 2, 1)}
                 disabled={disabled || busy}
                 size="small"
                 style={btnStyle}
@@ -142,14 +182,78 @@ export function CartesianJogPanel({
         </div>
       ))}
 
-      {/* Reset to current EE */}
+      {/* ── Rotation ─────────────────────────────────────────────────────── */}
+      <div style={{ ...sectionLabelStyle, marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        Rotation
+        {isSE3 && (
+          <Tooltip title={frame === 'tool' ? 'Rotating in tool frame — click for world frame' : 'Rotating in world frame — click for tool frame'}>
+            <button
+              onClick={() => setFrame((f) => f === 'tool' ? 'world' : 'tool')}
+              style={frameToggleStyle(frame === 'tool')}
+            >
+              {frame === 'tool' ? 'Tool' : 'World'}
+            </button>
+          </Tooltip>
+        )}
+      </div>
+
+      <div style={rowStyle}>
+        <span style={labelStyle}>Step</span>
+        <select
+          value={rotStep}
+          onChange={(e) => setRotStep(parseFloat(e.target.value))}
+          style={selectStyle}
+          disabled={!isSE3}
+        >
+          {STEP_OPTIONS_DEG.map((s) => (
+            <option key={s} value={s}>{s}°</option>
+          ))}
+        </select>
+      </div>
+
+      {(['Rx', 'Ry', 'Rz'] as const).map((axisName, i) => (
+        <Tooltip
+          key={axisName}
+          title={!isSE3 ? `Rotation jog requires task_space: se3 (current: ${taskSpace ?? 'unknown'})` : ''}
+          placement="right"
+        >
+          <div style={rowStyle}>
+            <span style={{ ...axisLabelStyle, color: !isSE3 ? '#4b5563' : '#d1d5db' }}>{axisName}</span>
+            <span style={{ ...valStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}>
+              {euler[i].toFixed(1)}°
+            </span>
+            <span>
+              <IconButton
+                onClick={() => rotJog(i as 0 | 1 | 2, -1)}
+                disabled={disabled || busy || !isSE3}
+                size="small"
+                style={{ ...btnStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}
+              >
+                −
+              </IconButton>
+            </span>
+            <span>
+              <IconButton
+                onClick={() => rotJog(i as 0 | 1 | 2, 1)}
+                disabled={disabled || busy || !isSE3}
+                size="small"
+                style={{ ...btnStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}
+              >
+                +
+              </IconButton>
+            </span>
+          </div>
+        </Tooltip>
+      ))}
+
+      {/* ── Re-anchor ────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={resetToCurrent} disabled={!currentEE} style={resetBtnStyle}>
-          Reset to current
+          Re-anchor
         </button>
       </div>
 
-      {/* Status */}
+      {/* ── Status ───────────────────────────────────────────────────────── */}
       {lastResult && (
         <div style={statusStyle}>
           <div><strong>Strategy:</strong> {lastResult.strategy_used}</div>
@@ -174,6 +278,15 @@ const headerStyle: React.CSSProperties = {
   marginBottom: 8,
 }
 
+const sectionLabelStyle: React.CSSProperties = {
+  color: '#6b7280',
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  marginBottom: 4,
+}
+
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -193,7 +306,7 @@ const axisLabelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
   fontFamily: 'monospace',
-  minWidth: 14,
+  minWidth: 22,
 }
 
 const valStyle: React.CSSProperties = {
@@ -231,6 +344,20 @@ const resetBtnStyle: React.CSSProperties = {
   padding: '4px 10px',
   fontSize: 11,
   cursor: 'pointer',
+}
+
+function frameToggleStyle(isActive: boolean): React.CSSProperties {
+  return {
+    background: isActive ? 'rgba(251,191,36,0.18)' : '#1f2937',
+    color: isActive ? '#fbbf24' : '#9ca3af',
+    border: `1px solid ${isActive ? '#fbbf24' : '#374151'}`,
+    borderRadius: 4,
+    padding: '1px 6px',
+    fontSize: 10,
+    fontWeight: 600,
+    cursor: 'pointer',
+    letterSpacing: '0.05em',
+  }
 }
 
 const statusStyle: React.CSSProperties = {

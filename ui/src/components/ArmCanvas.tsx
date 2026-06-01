@@ -118,17 +118,18 @@ export function ArmCanvas({
       })
     }
 
-    // End-effector position (tip of last link) in world frame
+    // End-effector pose (tip of last link) in world frame
     let eePos: THREE.Vector3 | null = null
+    let eeMatrix: THREE.Matrix4 | null = null
     if (result.length > 0) {
       const last = result[result.length - 1]
-      const tipMat = last.linkFrameMatrix.clone().multiply(
+      eeMatrix = last.linkFrameMatrix.clone().multiply(
         new THREE.Matrix4().makeTranslation(last.a, 0, 0),
       )
-      eePos = new THREE.Vector3().setFromMatrixPosition(tipMat)
+      eePos = new THREE.Vector3().setFromMatrixPosition(eeMatrix)
     }
 
-    return { perJoint: result, eePos }
+    return { perJoint: result, eePos, eeMatrix }
   }, [joints, anglesRad, nJoints])
 
   // Arc radii — scale with shortest link so wedges aren't huge.
@@ -214,12 +215,20 @@ export function ArmCanvas({
         />
       ))}
 
-      {/* End-effector sphere */}
-      {frames.eePos && (
-        <mesh position={[frames.eePos.x, frames.eePos.y, frames.eePos.z]}>
-          <sphereGeometry args={[radius * 1.3, 14, 14]} />
-          <meshStandardMaterial color="#a5d6a7" />
-        </mesh>
+      {/* End-effector indicator: small sphere at the tool point + RGB triad
+          showing the tool frame orientation (X=red, Y=green, Z=blue). */}
+      {frames.eeMatrix && frames.eePos && (
+        <group matrix={frames.eeMatrix} matrixAutoUpdate={false}>
+          {/* Tool point */}
+          <mesh>
+            <sphereGeometry args={[radius * 0.6, 16, 16]} />
+            <meshStandardMaterial color="#ffffff" emissive="#a5d6a7" emissiveIntensity={0.6} />
+          </mesh>
+          {/* Axis triad — cylinders extend along their respective axis */}
+          <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color="#ef5350" />
+          <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color="#66bb6a" />
+          <EEAxis axis="z" length={radius * 4} thickness={radius * 0.25} color="#42a5f5" />
+        </group>
       )}
 
       {/* Workspace hull overlay */}
@@ -231,6 +240,43 @@ export function ArmCanvas({
       {workspace && showWorkspacePoints && workspace.points.length > 0 && (
         <WorkspacePoints points={workspace.points} />
       )}
+    </group>
+  )
+}
+
+// ── EEAxis ──────────────────────────────────────────────────────────────────
+
+interface EEAxisProps {
+  axis: 'x' | 'y' | 'z'
+  length: number
+  thickness: number
+  color: string
+}
+
+function EEAxis({ axis, length, thickness, color }: EEAxisProps) {
+  // cylinderGeometry is along local +Y; rotate to point along the requested axis.
+  const rotation: [number, number, number] =
+    axis === 'x' ? [0, 0, -Math.PI / 2] :
+    axis === 'z' ? [Math.PI / 2, 0, 0] :
+    [0, 0, 0]
+  const position: [number, number, number] =
+    axis === 'x' ? [length / 2, 0, 0] :
+    axis === 'y' ? [0, length / 2, 0] :
+    [0, 0, length / 2]
+  const tipPosition: [number, number, number] =
+    axis === 'x' ? [length, 0, 0] :
+    axis === 'y' ? [0, length, 0] :
+    [0, 0, length]
+  return (
+    <group>
+      <mesh position={position} rotation={rotation}>
+        <cylinderGeometry args={[thickness, thickness, length, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+      </mesh>
+      <mesh position={tipPosition} rotation={rotation}>
+        <coneGeometry args={[thickness * 2.2, thickness * 4, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+      </mesh>
     </group>
   )
 }

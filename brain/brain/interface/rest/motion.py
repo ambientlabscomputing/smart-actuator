@@ -33,7 +33,11 @@ async def move_joint(body: MoveJointBody, svc: Service) -> dict:
     """Move one or more joints to target angles (radians)."""
     mode = svc.lifecycle.get_mode(body.machine_id)
 
-    # Auto-transition IDLE → MANUAL on first jog.
+    # Auto-transition OFFLINE → IDLE (sidecar may not have sent its first frame yet)
+    # then IDLE → MANUAL on first jog.
+    if mode == MachineMode.OFFLINE:
+        await svc.lifecycle.request_mode(body.machine_id, MachineMode.IDLE, "jog from offline")
+        mode = MachineMode.IDLE
     if mode == MachineMode.IDLE:
         await svc.lifecycle.request_mode(body.machine_id, MachineMode.MANUAL, "jog started")
         mode = MachineMode.MANUAL

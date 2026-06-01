@@ -86,8 +86,16 @@ class SafetyService:
         """
         E-stop: flip mode to ESTOPPED first (gates further commands), then
         fan out Abort to all actuators via the sidecar.
+
+        No-op when already OFFLINE (nothing connected) or ESTOPPED (already done).
         """
         logger.warning("E-stop triggered for machine %s", machine_id)
+        current = self._lifecycle.get_mode(machine_id)
+        if current in (MachineMode.OFFLINE, MachineMode.ESTOPPED):
+            logger.info(
+                "E-stop no-op for machine %s: already in mode %s", machine_id, current
+            )
+            return
         await self._lifecycle.request_mode(machine_id, MachineMode.ESTOPPED, "estop")
         await self._sidecar.estop()
 

@@ -81,6 +81,8 @@ interface WorkspaceMenuProps {
   currentQRad?: number[]
   /** Current EE position from FK, metres, in world frame. */
   currentEE?: [number, number, number] | null
+  /** Current EE orientation from FK as quaternion [x, y, z, w]. */
+  currentEEQuat?: [number, number, number, number] | null
 }
 
 export function WorkspaceMenu({
@@ -100,6 +102,7 @@ export function WorkspaceMenu({
   jointNamesOrdered,
   currentQRad,
   currentEE,
+  currentEEQuat,
 }: WorkspaceMenuProps) {
   const [busy, setBusy] = useState(false)
   const [jogAnchor, setJogAnchor] = useState<null | HTMLElement>(null)
@@ -206,7 +209,6 @@ export function WorkspaceMenu({
           <span>
             <IconButton
               onClick={(e) => setJogAnchor(jogAnchor ? null : e.currentTarget)}
-              disabled={isDisabled}
               style={{
                 ...toolBtn(jogAnchor ? '#60a5fa' : undefined),
                 background: jogAnchor ? 'rgba(37,99,235,0.2)' : 'transparent',
@@ -419,6 +421,7 @@ export function WorkspaceMenu({
             jointNames={jointNamesOrdered ?? joints}
             currentQRad={currentQRad ?? []}
             currentEE={currentEE ?? null}
+            currentEEQuat={currentEEQuat ?? null}
             disabled={isDisabled}
           />
         )}

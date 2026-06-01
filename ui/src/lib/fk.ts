@@ -46,6 +46,80 @@ function trans(x: number, y: number, z: number): number[] {
   return [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1]
 }
 
+// ── Quaternion helpers (exported for jog panel use) ───────────────────────────
+
+/**
+ * Extract quaternion [x, y, z, w] from the rotation part of a row-major 4×4 matrix.
+ * Uses Shepperd's method — numerically stable across all configurations.
+ */
+export function matrixToQuat(m: number[]): [number, number, number, number] {
+  const trace = m[0] + m[5] + m[10]
+  let x: number, y: number, z: number, w: number
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1)
+    w = 0.25 / s
+    x = (m[9] - m[6]) * s
+    y = (m[2] - m[8]) * s
+    z = (m[4] - m[1]) * s
+  } else if (m[0] > m[5] && m[0] > m[10]) {
+    const s = 2 * Math.sqrt(1 + m[0] - m[5] - m[10])
+    w = (m[9] - m[6]) / s
+    x = 0.25 * s
+    y = (m[1] + m[4]) / s
+    z = (m[2] + m[8]) / s
+  } else if (m[5] > m[10]) {
+    const s = 2 * Math.sqrt(1 + m[5] - m[0] - m[10])
+    w = (m[2] - m[8]) / s
+    x = (m[1] + m[4]) / s
+    y = 0.25 * s
+    z = (m[6] + m[9]) / s
+  } else {
+    const s = 2 * Math.sqrt(1 + m[10] - m[0] - m[5])
+    w = (m[4] - m[1]) / s
+    x = (m[2] + m[8]) / s
+    y = (m[6] + m[9]) / s
+    z = 0.25 * s
+  }
+  const len = Math.sqrt(x * x + y * y + z * z + w * w)
+  return [x / len, y / len, z / len, w / len]
+}
+
+/** Build a unit quaternion [x, y, z, w] for a rotation of `rad` about a canonical axis (0=X, 1=Y, 2=Z). */
+export function quatFromAxisAngle(axis: 0 | 1 | 2, rad: number): [number, number, number, number] {
+  const s = Math.sin(rad / 2)
+  const q: [number, number, number, number] = [0, 0, 0, Math.cos(rad / 2)]
+  q[axis] = s
+  return q
+}
+
+/** Hamilton product of two quaternions [x, y, z, w]. */
+export function quatMultiply(
+  [x1, y1, z1, w1]: [number, number, number, number],
+  [x2, y2, z2, w2]: [number, number, number, number],
+): [number, number, number, number] {
+  return [
+    w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+    w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+    w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+    w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+  ]
+}
+
+/**
+ * Convert quaternion [x, y, z, w] to intrinsic ZYX Euler angles in degrees
+ * returned as [roll (about X), pitch (about Y), yaw (about Z)].
+ */
+export function quatToEulerDeg(
+  [x, y, z, w]: [number, number, number, number],
+): [number, number, number] {
+  const RAD = 180 / Math.PI
+  const roll = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
+  const sinp = 2 * (w * y - z * x)
+  const pitch = Math.abs(sinp) >= 1 ? (Math.sign(sinp) * Math.PI) / 2 : Math.asin(sinp)
+  const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+  return [roll * RAD, pitch * RAD, yaw * RAD]
+}
+
 /**
  * Compute joint-origin world positions and the end-effector position
  * for a DH chain at the given joint angles.
@@ -57,7 +131,11 @@ function trans(x: number, y: number, z: number): number[] {
 export function forwardKinematics(
   joints: DHJointValues[],
   anglesRad: number[],
-): { jointOrigins: [number, number, number][]; ee: [number, number, number] } {
+): {
+  jointOrigins: [number, number, number][]
+  ee: [number, number, number]
+  eeQuat: [number, number, number, number]
+} {
   let T = identity()
   const jointOrigins: [number, number, number][] = []
 
@@ -76,5 +154,6 @@ export function forwardKinematics(
   return {
     jointOrigins,
     ee: [T[3], T[7], T[11]],
+    eeQuat: matrixToQuat(T),
   }
 }
