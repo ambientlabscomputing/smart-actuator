@@ -1,288 +1,239 @@
 /**
- * AppToolbar — jog controls, E-stop, and mode status badge.
+ * AppToolbar — global top navigation bar, present on every authenticated page.
  *
- * Props:
- *  machineId    – the machine to control (e.g. "j1")
- *  mode         – current MachineMode string from WS state
- *  joints       – list of joint names (derived from measured state)
- *  jointDegrees – current angle per joint name, in degrees
- *  onJog        – async handler: (jointName, deltaDeg) => void
- *  onEstop      – async handler: () => void
- *  onResume     – async handler: () => void
+ * Left  : hamburger menu → slides open a side navigation drawer.
+ * Center: page title ("Jog Actuators").
+ * Right : avatar chip with user initials → small user menu (sign out, etc.)
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/AuthContext'
+import IconButton from '@mui/material/IconButton'
+import Avatar from '@mui/material/Avatar'
+import Drawer from '@mui/material/Drawer'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import Divider from '@mui/material/Divider'
+import List from '@mui/material/List'
+import ListItemButton from '@mui/material/ListItemButton'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
+import Tooltip from '@mui/material/Tooltip'
+import MenuIcon from '@mui/icons-material/Menu'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import LogoutIcon from '@mui/icons-material/Logout'
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlined'
 
-const JOG_STEP_DEG = 5
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-interface AppToolbarProps {
-  mode: string
-  connected: boolean
-  joints: string[]
-  jointDegrees: Record<string, number>
-  onJog: (jointName: string, deltaDeg: number) => Promise<void>
-  onEstop: () => Promise<void>
-  onResume: () => Promise<void>
-  onEdit?: () => void
-  onPrograms?: () => void
-  programsActive?: boolean
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function modeColor(mode: string): string {
-  switch (mode) {
-    case 'idle':
-    case 'manual':
-      return '#22c55e' // green
-    case 'estopped':
-    case 'fault':
-      return '#ef4444' // red
-    case 'run':
-      return '#3b82f6' // blue
-    default:
-      return '#6b7280' // gray / offline
-  }
-}
+// ── Side nav contents ─────────────────────────────────────────────────────────
 
-export function AppToolbar({
-  mode,
-  connected,
-  joints,
-  jointDegrees,
-  onJog,
-  onEstop,
-  onResume,
-  onEdit,
-  onPrograms,
-  programsActive,
-}: AppToolbarProps) {
-  const [busy, setBusy] = useState(false)
-  const { logout } = useAuth()
-  const navigate = useNavigate()
-
-  const isDisabled = mode === 'offline' || mode === 'estopped' || busy
-  const isEstopped = mode === 'estopped'
-
-  async function handleJog(jointName: string, delta: number) {
-    if (isDisabled) return
-    setBusy(true)
-    try {
-      await onJog(jointName, delta)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleEstop() {
-    if (isEstopped || busy) return
-    setBusy(true)
-    try {
-      await onEstop()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleResume() {
-    if (!isEstopped || busy) return
-    setBusy(true)
-    try {
-      await onResume()
-    } finally {
-      setBusy(false)
-    }
-  }
-
+function SideNav({ onClose }: { onClose: () => void }) {
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        padding: '12px 16px',
-        background: '#1a1a1a',
-        borderBottom: '1px solid #333',
-        userSelect: 'none',
-      }}
+      style={{ width: 260, height: '100%', background: '#111827', display: 'flex', flexDirection: 'column' }}
+      role="presentation"
     >
-      {/* Top row: mode badge + estop + resume */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Mode pill */}
-        <span
-          style={{
-            background: modeColor(mode),
-            color: '#fff',
-            borderRadius: 9999,
-            padding: '2px 10px',
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            minWidth: 70,
-            textAlign: 'center',
-          }}
-        >
-          {mode || 'offline'}
+      {/* Brand */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '20px 20px 16px',
+          borderBottom: '1px solid #1f2937',
+        }}
+      >
+        <SmartToyOutlinedIcon style={{ color: '#3b82f6', fontSize: 22 }} />
+        <span style={{ color: '#f9fafb', fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>
+          Smart Actuator
         </span>
-
-        {/* Big red E-Stop */}
-        <button
-          onClick={handleEstop}
-          disabled={isEstopped || busy}
-          style={{
-            background: isEstopped ? '#7f1d1d' : '#dc2626',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            padding: '6px 20px',
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: isEstopped ? 'not-allowed' : 'pointer',
-            opacity: isEstopped ? 0.6 : 1,
-            letterSpacing: '0.05em',
-          }}
-          title="Emergency Stop (Space)"
-        >
-          E-STOP
-        </button>
-
-        {/* Resume — only shown when ESTOPPED */}
-        {isEstopped && (
-          <button
-            onClick={handleResume}
-            disabled={busy}
-            style={{
-              background: '#16a34a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 16px',
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: busy ? 'not-allowed' : 'pointer',
-            }}
-          >
-            Resume
-          </button>
-        )}
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Edit machine button */}
-        {onEdit && (
-          <button
-            onClick={onEdit}
-            style={{
-              background: 'transparent',
-              border: '1px solid #4b5563',
-              borderRadius: 6,
-              color: '#9ca3af',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 500,
-              padding: '4px 12px',
-            }}
-          >
-            Edit machine
-          </button>
-        )}
-
-        {/* Programs toggle */}
-        {onPrograms && (
-          <button
-            onClick={onPrograms}
-            style={{
-              background: programsActive ? '#1d4ed8' : 'transparent',
-              border: `1px solid ${programsActive ? '#3b82f6' : '#4b5563'}`,
-              borderRadius: 6,
-              color: programsActive ? '#fff' : '#9ca3af',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 500,
-              padding: '4px 12px',
-            }}
-          >
-            Programs
-          </button>
-        )}
-
-        {/* Connection status + angle readout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: connected ? '#22c55e' : '#6b7280',
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'monospace' }}>
-            {connected ? 'Live' : 'Offline'}
-          </span>
-        </div>
-
-        {/* Sign out */}
-        <button
-          onClick={() => { logout(); navigate('/login') }}
-          style={{
-            background: 'transparent',
-            border: '1px solid #4b5563',
-            borderRadius: 6,
-            color: '#9ca3af',
-            cursor: 'pointer',
-            fontSize: 12,
-            fontWeight: 500,
-            padding: '4px 10px',
-          }}
-          title="Sign out"
-        >
-          Sign out
-        </button>
       </div>
 
-      {/* Jog buttons per joint */}
-      {joints.map((joint) => {
-        const deg = (jointDegrees[joint] ?? 0).toFixed(1)
-        return (
-          <div key={joint} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#9ca3af', fontSize: 12, width: 120, flexShrink: 0 }}>
-              {joint}
-            </span>
-            <span style={{ color: '#e5e7eb', fontSize: 12, width: 60, textAlign: 'right' }}>
-              {deg}°
-            </span>
-            <button
-              onClick={() => handleJog(joint, -JOG_STEP_DEG)}
-              disabled={isDisabled}
-              style={jogBtnStyle(isDisabled)}
-            >
-              −{JOG_STEP_DEG}°
-            </button>
-            <button
-              onClick={() => handleJog(joint, JOG_STEP_DEG)}
-              disabled={isDisabled}
-              style={jogBtnStyle(isDisabled)}
-            >
-              +{JOG_STEP_DEG}°
-            </button>
-          </div>
-        )
-      })}
+      <List disablePadding sx={{ flex: 1, padding: '8px 0' }}>
+        <ListItemButton
+          onClick={onClose}
+          sx={{
+            padding: '10px 20px',
+            borderRadius: 0,
+            '&:hover': { background: '#1f2937' },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+            <SmartToyOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Jog Actuators"
+            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+          />
+        </ListItemButton>
+      </List>
+
+      {/* Footer version hint */}
+      <div style={{ padding: '12px 20px', borderTop: '1px solid #1f2937' }}>
+        <span style={{ color: '#4b5563', fontSize: 11 }}>Smart Actuator UI</span>
+      </div>
     </div>
   )
 }
 
-function jogBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    background: disabled ? '#374151' : '#2563eb',
-    color: disabled ? '#6b7280' : '#fff',
-    border: 'none',
-    borderRadius: 4,
-    padding: '4px 12px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-  }
+// ── AppToolbar ────────────────────────────────────────────────────────────────
+
+interface AppToolbarProps {
+  title?: string
 }
+
+export function AppToolbar({ title = 'Jog Actuators' }: AppToolbarProps) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null)
+
+  const initials = user ? getInitials(user.name || user.username) : '?'
+
+  function handleSignOut() {
+    setUserAnchor(null)
+    logout()
+    navigate('/login')
+  }
+
+  return (
+    <>
+      <header
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          height: 52,
+          padding: '0 8px',
+          background: '#0d0d0d',
+          borderBottom: '1px solid #1f2937',
+          zIndex: 100,
+          flexShrink: 0,
+          userSelect: 'none',
+        }}
+      >
+        {/* ── Left: hamburger ─────────────────────────────────── */}
+        <Tooltip title="Menu" placement="bottom">
+          <IconButton
+            onClick={() => setDrawerOpen(true)}
+            size="small"
+            style={{ color: '#9ca3af' }}
+          >
+            <MenuIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+
+        {/* ── Center: page title ───────────────────────────────── */}
+        <span
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            color: '#f3f4f6',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            pointerEvents: 'none',
+          }}
+        >
+          {title}
+        </span>
+
+        {/* ── Right: user avatar ───────────────────────────────── */}
+        <div style={{ marginLeft: 'auto' }}>
+          <Tooltip title={user?.name ?? user?.username ?? 'User'} placement="bottom-end">
+            <IconButton
+              onClick={(e) => setUserAnchor(e.currentTarget)}
+              size="small"
+              style={{ padding: 4 }}
+            >
+              <Avatar
+                style={{
+                  width: 30,
+                  height: 30,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: '#2563eb',
+                  color: '#fff',
+                }}
+              >
+                {initials}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
+        </div>
+      </header>
+
+      {/* ── Side drawer ─────────────────────────────────────────── */}
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        slotProps={{ paper: { sx: { background: 'transparent', border: 'none', boxShadow: 'none' } } }}
+      >
+        <SideNav onClose={() => setDrawerOpen(false)} />
+      </Drawer>
+
+      {/* ── User menu ────────────────────────────────────────────── */}
+      <Menu
+        anchorEl={userAnchor}
+        open={Boolean(userAnchor)}
+        onClose={() => setUserAnchor(null)}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        slotProps={{
+          paper: {
+            sx: {
+              background: '#1a1a2e',
+              border: '1px solid #1f2937',
+              borderRadius: '8px',
+              minWidth: 180,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            },
+          },
+        }}
+      >
+        {/* User info header */}
+        <div style={{ padding: '12px 16px 10px' }}>
+          <div style={{ color: '#f3f4f6', fontSize: 13, fontWeight: 600 }}>
+            {user?.name ?? user?.username}
+          </div>
+          {user?.name && user.username && (
+            <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>
+              @{user.username}
+            </div>
+          )}
+        </div>
+
+        <Divider style={{ borderColor: '#1f2937', margin: '0 0 4px' }} />
+
+        <MenuItem
+          style={{ color: '#9ca3af', fontSize: 13, padding: '8px 16px', gap: 10 }}
+          disabled
+        >
+          <PersonOutlineIcon style={{ fontSize: 16, color: '#6b7280' }} />
+          Profile
+        </MenuItem>
+
+        <Divider style={{ borderColor: '#1f2937', margin: '4px 0' }} />
+
+        <MenuItem
+          onClick={handleSignOut}
+          style={{ color: '#f87171', fontSize: 13, padding: '8px 16px', gap: 10 }}
+        >
+          <LogoutIcon style={{ fontSize: 16 }} />
+          Sign out
+        </MenuItem>
+      </Menu>
+    </>
+  )
+}
+

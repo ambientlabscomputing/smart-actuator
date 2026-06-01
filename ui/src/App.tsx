@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramListView } from '@/components'
+import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramListView, WorkspaceMenu } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
@@ -148,20 +148,7 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppToolbar
-        mode={mode}
-        connected={connected}
-        joints={joints}
-        jointDegrees={jointDegrees}
-        onJog={(jointName, deltaDeg) =>
-          jog(machineId, jointName, deltaDeg, jointDegrees[jointName] ?? 0)
-        }
-        onEstop={() => estop(machineId)}
-        onResume={() => resume(machineId)}
-        onEdit={() => void handleOpenEdit()}
-        onPrograms={() => setShowPrograms((v) => !v)}
-        programsActive={showPrograms}
-      />
+      <AppToolbar />
       {editError && (
         <div style={{ background: '#7f1d1d', color: '#fca5a5', fontSize: 12, padding: '6px 16px' }}>
           {editError}
@@ -175,6 +162,20 @@ function Workspace({ machineId, linkLengths, onLinkLengthsChange }: WorkspacePro
             onJointClick={(i) => setSelectedJoint(prev => prev === i ? null : i)}
           />
         </AppCanvas>
+        <WorkspaceMenu
+          mode={mode}
+          connected={connected}
+          joints={joints}
+          jointDegrees={jointDegrees}
+          onJog={(jointName, deltaDeg) =>
+            jog(machineId, jointName, deltaDeg, jointDegrees[jointName] ?? 0)
+          }
+          onEstop={() => estop(machineId)}
+          onResume={() => resume(machineId)}
+          onEdit={() => void handleOpenEdit()}
+          onPrograms={() => setShowPrograms((v) => !v)}
+          programsActive={showPrograms}
+        />
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
           // eslint-disable-next-line react-hooks/refs
