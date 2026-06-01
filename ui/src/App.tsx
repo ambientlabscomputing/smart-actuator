@@ -81,6 +81,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
     const m = state?.measured.find((j) => j.joint_name === name)
     return m ? m.angle_rad : 0
   })
+  const eePose = dhJoints ? forwardKinematics(dhJoints, anglesRad) : null
 
   // Spacebar → E-stop
   useEffect(() => {
@@ -209,7 +210,8 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
           machineId={machineId}
           jointNamesOrdered={joints}
           currentQRad={anglesRad}
-          currentEE={dhJoints ? forwardKinematics(dhJoints, anglesRad).ee : null}
+          currentEE={eePose?.ee ?? null}
+          currentEEQuat={eePose?.eeQuat ?? null}
         />
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
