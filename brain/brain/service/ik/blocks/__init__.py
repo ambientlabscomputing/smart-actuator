@@ -1,0 +1,1 @@
+"""Block solver sub-package."""

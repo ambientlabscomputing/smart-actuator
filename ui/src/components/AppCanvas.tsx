@@ -5,13 +5,24 @@
  * All other files that need a 3-D canvas must use this component.
  *
  * Scene conventions:
- *   - Y-up world (three.js default; arm geometry lives in XY plane)
- *   - Ground plane is XZ at Y = 0 (the grid floor)
+ *   - Z-up world (matches ROS / URDF / DH convention used by the brain)
+ *   - Ground plane is XY at Z = 0 (the grid floor)
  *   - Units: metres
+ *
+ * Z-up is enforced by overriding three.js's default (Y-up) on both
+ * Object3D.DEFAULT_UP (so newly created cameras/lights inherit it) and on
+ * the existing camera + orbit controls in onCreated.  OrbitControls uses
+ * camera.up to compute its azimuth/polar frame, so this single source of
+ * truth keeps everything consistent.
  */
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei'
 import type { ReactNode } from 'react'
+import * as THREE from 'three'
+
+// Make every Object3D (cameras, lights, helpers) default to Z-up.
+// Set once at module load — affects new instances only, not ones already mounted.
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1)
 
 interface AppCanvasProps {
   children: ReactNode
@@ -21,7 +32,15 @@ export function AppCanvas({ children }: AppCanvasProps) {
   return (
     <Canvas
       style={{ width: '100%', height: '100%' }}
-      camera={{ position: [1.5, 1.0, 1.5], fov: 45, near: 0.01, far: 100 }}
+      camera={{ position: [1.5, 1.5, 1.0], fov: 45, near: 0.01, far: 100 }}
+      onCreated={({ camera, controls }) => {
+        camera.up.set(0, 0, 1)
+        camera.lookAt(0, 0, 0)
+        // OrbitControls (if already attached) needs to re-read camera.up.
+        if (controls && 'update' in controls) {
+          (controls as { update: () => void }).update()
+        }
+      }}
     >
       {/* ── Background ─────────────────────────────────────────────── */}
       <color attach="background" args={['#0a0e14']} />
@@ -31,13 +50,17 @@ export function AppCanvas({ children }: AppCanvasProps) {
       <ambientLight intensity={0.4} />
       {/* Sky/ground hemisphere tint for CAD-style shading */}
       <hemisphereLight args={['#3a4a6b', '#1a1a1a', 0.55]} />
-      {/* Key light from upper-right-back */}
-      <directionalLight position={[3, 3, 5]} intensity={0.9} />
+      {/* Key light from upper-right-back (above the ground plane in Z-up) */}
+      <directionalLight position={[3, 5, 3]} intensity={0.9} />
 
-      {/* ── Ground grid on XZ plane (Y-up, matches arm base at Y=0) ── */}
+      {/* ── Ground grid on XY plane (Z-up, arm base at Z=0) ────────── */}
+      {/* Grid is authored in three's XZ plane; rotate it +90° about X to
+          lay it into world XY, then push slightly below Z=0 to avoid
+          z-fighting with anything drawn at the origin. */}
       <Grid
         args={[10, 10]}
-        position={[0, -0.001, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, 0, -0.001]}
         cellSize={0.05}
         cellThickness={0.5}
         cellColor="#2a3340"
@@ -53,6 +76,8 @@ export function AppCanvas({ children }: AppCanvasProps) {
       <axesHelper args={[0.2]} />
 
       {/* ── Orbit controls ─────────────────────────────────────────── */}
+      {/* maxPolarAngle clamps "look-under-ground"; with Z-up the polar
+          angle is measured from camera.up (+Z), so π/2 == horizon. */}
       <OrbitControls
         makeDefault
         target={[0, 0, 0]}

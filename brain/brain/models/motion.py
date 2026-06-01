@@ -29,6 +29,22 @@ class MoveCommand(BaseModel):
         description="Ordered waypoints for FOLLOW_PATH",
     )
     speed_scale: float = Field(default=1.0, ge=0.0, le=1.0)
+    # ── IK overrides (optional; invisible to most users) ─────────────────────
+    ik_strategy: str = Field(
+        default="auto",
+        description="auto | analytic | numeric — selects IK solver for this move. "
+                    "auto (default) defers to the machine's configured strategy.",
+    )
+    branch_preference: str = Field(
+        default="",
+        description="elbow_up | elbow_down | nearest — overrides the template's "
+                    "branch_preference for this move only. Empty → use template default.",
+    )
+    ik_seed: list[float] = Field(
+        default_factory=list,
+        description="Explicit seed joint angles (rad) for the numeric solver. "
+                    "Empty → use machine's configured seed policy.",
+    )
 
 
 class JointTrajectoryPoint(BaseModel):

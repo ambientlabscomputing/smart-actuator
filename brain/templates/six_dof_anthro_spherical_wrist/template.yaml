@@ -1,0 +1,496 @@
+id: six_dof_anthro_spherical_wrist
+name: "6-DOF Anthropomorphic Arm + Spherical Wrist"
+version: "1.0.0"
+publisher: ambient-labs
+summary: >
+  Six-DOF revolute arm in the anthropomorphic configuration with a spherical
+  wrist.  Joints 0–2 form the RRR arm (waist + shoulder + elbow) that
+  positions the wrist centre; joints 3–5 form the ZYZ spherical wrist that
+  controls end-effector orientation.  DH parameters follow Siciliano et al.,
+  Robotics, Table 2.6.
+
+brain_compatibility: ">=0.1.0"
+firmware_compatibility: ">=0.1.0"
+
+# ── End-effector ──────────────────────────────────────────────────────────────
+# The TCP sits d₆ past the wrist centre along the wrist_3 frame Z-axis.
+# d₆ is already encoded in joint 5's DH 'd' parameter, so offset_m here is
+# zero — the last DH frame IS the TCP.  Add a tool offset here to model a
+# gripper extension without changing the DH chain.
+#
+# task_space: se3 — full position + orientation IK.
+end_effector:
+  parent: wrist_3
+  offset_m: [0.0, 0.0, 0.0]
+  orientation_offset_deg: [0.0, 0.0, 0.0]
+  task_space: se3
+
+# ── IK solver hints ───────────────────────────────────────────────────────────
+# DH parameters for this arm (Siciliano Table 2.6):
+#   Joint 0 (waist):         a=0,  α= 90°, d=0,  θ₁
+#   Joint 1 (shoulder):      a=a₂, α=  0°, d=0,  θ₂
+#   Joint 2 (elbow):         a=0,  α= 90°, d=0,  θ₃
+#   Joint 3 (wrist_1):       a=0,  α=-90°, d=d₄, θ₄
+#   Joint 4 (wrist_2):       a=0,  α= 90°, d=0,  θ₅
+#   Joint 5 (wrist_3):       a=0,  α=  0°, d=d₆, θ₆
+#
+# Decomposition note:
+#   The classic Pieper analytic solution for this arm partitions position
+#   (joints 0–2 + d₄) from orientation (joints 3–5 = spherical wrist).
+#   The existing rrr_anthropomorphic block solver reads link lengths from
+#   the DH 'a' field; for this geometry the wrist offset is in joint 3's
+#   'd' field, not in an 'a' field on the arm joints.  A future Pieper-aware
+#   block solver will enable a fully analytic decomposition.  Until then a
+#   single numeric block provides correct, well-converging solutions for 6-DOF
+#   (non-redundant) targets across the full workspace.
+ik:
+  decomposition:
+    - kind: numeric
+      joints: [0, 1, 2, 3, 4, 5]
+
+  numeric:
+    max_iters: 200
+    pos_tol_m: 1.0e-4
+    rot_tol_rad: 1.0e-3
+    damping: 0.005           # lower damping → tighter convergence for 6-DOF
+    seed: current_q
+
+  redundancy:
+    nullspace_objective: keep_near_seed
+
+# ── Joint slots ───────────────────────────────────────────────────────────────
+joints:
+  - slot: 0
+    name: waist
+    axis: z
+    parent: base
+  - slot: 1
+    name: shoulder
+    axis: z
+    parent: waist
+  - slot: 2
+    name: elbow
+    axis: z
+    parent: shoulder
+  - slot: 3
+    name: wrist_1
+    axis: z
+    parent: elbow
+  - slot: 4
+    name: wrist_2
+    axis: z
+    parent: wrist_1
+  - slot: 5
+    name: wrist_3
+    axis: z
+    parent: wrist_2
+
+# ── DH kinematics ─────────────────────────────────────────────────────────────
+# Reference: Siciliano et al. Table 2.6.
+# Convention: T_i = T_{i-1} · Rz(θ_offset + θ_i) · Tz(d) · Tx(a) · Rx(α)
+dh:
+  link_radius:
+    default: 0.04
+    min: 0.005
+    max: 0.15
+    unit: m
+    editable: true
+
+  joints:
+    # ── Joint 0: waist ──────────────────────────────────────────────────────
+    # α=90° rotates the next Z-axis to point horizontally (shoulder axis).
+    - name: waist
+      slot: 0
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0          # π/2 rad
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 2.0
+        min: 0.1
+        max: 50.0
+        unit: kg
+        editable: true
+
+    # ── Joint 1: shoulder ───────────────────────────────────────────────────
+    # a₂ is the upper-arm length; α=0° keeps shoulder and elbow axes parallel.
+    # θ_offset=+90° lifts the upper arm to vertical at the home pose so the
+    # arm starts in a candlestick-like pose rather than along the floor.
+    - name: shoulder
+      slot: 1
+      type: revolute
+      axis: z
+      a:
+        default: 0.4           # a₂ — upper-arm length
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 90.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -135.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 135.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.5
+        min: 0.1
+        max: 30.0
+        unit: kg
+        editable: true
+
+    # ── Joint 2: elbow ──────────────────────────────────────────────────────
+    # a=0 — no link offset here; the forearm reach comes from d₄ on wrist_1.
+    # α=90° twists the next Z-axis to point toward the wrist intersection.
+    # θ_offset=+90° aligns the forearm with the upper arm at the home pose
+    # (paired with the shoulder offset to give a vertical candlestick start).
+    - name: elbow
+      slot: 2
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0          # π/2 — connects arm to wrist
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 90.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -135.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 135.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.0
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+    # ── Joint 3: wrist_1 (first wrist DOF) ──────────────────────────────────
+    # d₄ is the physical forearm length — distance along the elbow Z-axis
+    # to the wrist axes intersection.  α=−90° starts the ZYZ wrist sequence.
+    - name: wrist_1
+      slot: 3
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.35          # d₄ — forearm / wrist-centre offset
+        min: 0.05
+        max: 1.5
+        unit: m
+        editable: true
+      alpha:
+        default: -90.0         # −π/2
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.5
+        min: 0.05
+        max: 10.0
+        unit: kg
+        editable: true
+
+    # ── Joint 4: wrist_2 (second wrist DOF) ─────────────────────────────────
+    - name: wrist_2
+      slot: 4
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0          # π/2
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -120.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 120.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.3
+        min: 0.05
+        max: 10.0
+        unit: kg
+        editable: true
+
+    # ── Joint 5: wrist_3 (third wrist DOF / tool flange) ────────────────────
+    # d₆ is the offset from the wrist intersection to the tool flange.
+    - name: wrist_3
+      slot: 5
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.08          # d₆ — wrist to flange
+        min: 0.0
+        max: 0.5
+        unit: m
+        editable: true
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.2
+        min: 0.02
+        max: 5.0
+        unit: kg
+        editable: true
+
+# ── Easy-mode aliases ─────────────────────────────────────────────────────────
+easy:
+  - legacy_param: upper_arm_length_m
+    label: "Upper arm length (m)"
+    unit: m
+    description: "Shoulder to elbow link length (a₂ in Table 2.6)"
+    target: joints[1].a
+
+  - legacy_param: forearm_offset_m
+    label: "Forearm / wrist-centre offset (m)"
+    unit: m
+    description: "Elbow to wrist-centre distance along Z (d₄ in Table 2.6)"
+    target: joints[3].d
+
+  - legacy_param: flange_offset_m
+    label: "Flange offset (m)"
+    unit: m
+    description: "Wrist-centre to tool flange distance (d₆ in Table 2.6)"
+    target: joints[5].d
+
+  - legacy_param: link_radius_m
+    label: "Link radius (m)"
+    unit: m
+    description: "Visual / collision cylinder radius for all links"
+    target: link_radius
+
+  - legacy_param: waist_limit_deg
+    label: "Waist travel (±°)"
+    unit: deg
+    target: joints[0].limit_symmetric
+
+  - legacy_param: shoulder_limit_deg
+    label: "Shoulder travel (±°)"
+    unit: deg
+    target: joints[1].limit_symmetric
+
+  - legacy_param: elbow_limit_deg
+    label: "Elbow travel (±°)"
+    unit: deg
+    target: joints[2].limit_symmetric
+
+  - legacy_param: wrist1_limit_deg
+    label: "Wrist-1 travel (±°)"
+    unit: deg
+    target: joints[3].limit_symmetric
+
+  - legacy_param: wrist2_limit_deg
+    label: "Wrist-2 travel (±°)"
+    unit: deg
+    target: joints[4].limit_symmetric
+
+  - legacy_param: wrist3_limit_deg
+    label: "Wrist-3 travel (±°)"
+    unit: deg
+    target: joints[5].limit_symmetric
+
+# ── Legacy parameter schema ───────────────────────────────────────────────────
+parameters:
+  - name: upper_arm_length_m
+    label: "Upper arm length (m)"
+    type: float
+    default: 0.4
+    min: 0.05
+    max: 2.0
+    unit: m
+    description: "Shoulder to elbow link length (a₂)"
+
+  - name: forearm_offset_m
+    label: "Forearm / wrist-centre offset (m)"
+    type: float
+    default: 0.35
+    min: 0.05
+    max: 1.5
+    unit: m
+    description: "Elbow to wrist-centre distance (d₄)"
+
+  - name: flange_offset_m
+    label: "Flange offset (m)"
+    type: float
+    default: 0.08
+    min: 0.0
+    max: 0.5
+    unit: m
+    description: "Wrist-centre to tool flange (d₆)"
+
+  - name: link_radius_m
+    label: "Link radius (m)"
+    type: float
+    default: 0.04
+    min: 0.005
+    max: 0.15
+    unit: m
+
+  - name: waist_limit_deg
+    label: "Waist travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 360.0
+    unit: deg
+
+  - name: shoulder_limit_deg
+    label: "Shoulder travel (±°)"
+    type: float
+    default: 135.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: elbow_limit_deg
+    label: "Elbow travel (±°)"
+    type: float
+    default: 135.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: wrist1_limit_deg
+    label: "Wrist-1 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 360.0
+    unit: deg
+
+  - name: wrist2_limit_deg
+    label: "Wrist-2 travel (±°)"
+    type: float
+    default: 120.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: wrist3_limit_deg
+    label: "Wrist-3 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 360.0
+    unit: deg

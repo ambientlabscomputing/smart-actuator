@@ -1,77 +1,163 @@
 /**
- * ArmCanvas — renders a 2-DOF planar arm as rods connecting joint spheres.
+ * ArmCanvas — renders a revolute serial chain using standard DH transforms.
  *
- * Each link is a cylinder anchored at the midpoint between joints,
- * aligned along its link direction via FK in the XY plane.
- * Link lengths come from the machine's parameters.
+ * The chain is built from per-joint DH parameters:
+ *   T_i = T_{i-1} · Rz(θ_offset + angle) · Tz(d) · Tx(a) · Rx(α)
  *
- * If jointLimitsDeg is provided, a translucent arc sector is drawn at each
- * joint showing the symmetric travel envelope (±limit) centred on the
- * incoming parent-link direction.
+ * Each link is a cylinder extending along its joint frame's +X by length a.
+ * Joints rotate about their frame's +Z axis. Joint-limit arc wedges are
+ * drawn in each joint's XY plane spanning [θ_offset + lower, θ_offset + upper].
+ *
+ * Backward-compat: callers that pass only `linkLengths` get a synthetic
+ * chain with d=α=θ_offset=0, which produces the original planar XY arm.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import * as THREE from 'three'
+import type { DHJointValues, WorkspaceResult } from '../lib/types'
 
 interface ArmCanvasProps {
   /** Current joint angles in radians, one per joint in slot order. */
   anglesRad: number[]
-  /** Visual length for each link in metres. */
+  /** Legacy: per-link length when dhJoints is not provided. */
   linkLengths: number[]
   /** Visual cylinder radius for all links. */
   radius?: number
-  /** Symmetric travel limits in degrees per joint (e.g. [180, 150]). */
+  /**
+   * Optional full DH chain. When provided, supersedes linkLengths and the
+   * preview reflects d, alpha, theta_offset, and asymmetric limits.
+   */
+  dhJoints?: DHJointValues[]
+  /** Legacy symmetric travel limits in degrees (one per joint). */
   jointLimitsDeg?: number[]
   /**
    * Called when a joint sphere (actuator) is clicked.
    * index = actuator slot index (0 = shoulder, 1 = elbow, …)
    */
   onJointClick?: (index: number) => void
+  /** Pre-computed reachable workspace to render as an overlay hull. */
+  workspace?: WorkspaceResult | null
+  /** When true, also render the raw sampled point cloud (default false). */
+  showWorkspacePoints?: boolean
 }
 
 const LINK_COLORS = ['#4fc3f7', '#81d4fa', '#b3e5fc']
-// Number of theta segments for ring arc smoothness
-const ARC_SEGS = 48
+const ARC_SEGS = 64
+const DEG = Math.PI / 180
 
-export function ArmCanvas({ anglesRad, linkLengths, radius = 0.05, jointLimitsDeg, onJointClick }: ArmCanvasProps) {
-  const nJoints = Math.min(anglesRad.length, linkLengths.length)
+export function ArmCanvas({
+  anglesRad,
+  linkLengths,
+  radius = 0.05,
+  dhJoints,
+  jointLimitsDeg,
+  onJointClick,
+  workspace,
+  showWorkspacePoints = false,
+}: ArmCanvasProps) {
+  // Build a uniform joint list. If dhJoints isn't given, synthesise from
+  // linkLengths so old callers keep working.
+  const joints = useMemo<DHJointValues[]>(() => {
+    if (dhJoints && dhJoints.length > 0) return dhJoints
+    return linkLengths.map((a, i) => ({
+      name: `joint${i}`,
+      slot: i,
+      a,
+      d: 0,
+      alpha: 0,
+      theta_offset: 0,
+      limit_lower: jointLimitsDeg?.[i] !== undefined ? -jointLimitsDeg[i] : -180,
+      limit_upper: jointLimitsDeg?.[i] !== undefined ? jointLimitsDeg[i] : 180,
+      mass: 1,
+    }))
+  }, [dhJoints, linkLengths, jointLimitsDeg])
 
-  // Forward-kinematics: accumulate angle + tip position
-  // Also track parentCumAngle (cumAngle BEFORE applying joint i) for arc orientation.
-  const segments: { pos: [number, number, number]; rotZ: number; len: number; color: string }[] = []
-  const joints: [number, number][] = [[0, 0]]  // all joint positions (including base)
-  const jointBaseAngles: number[] = []          // parentCumAngle at each joint hinge
-  let cumAngle = 0
-  let tipX = 0
-  let tipY = 0
+  // Always render every defined joint. Pad missing telemetry angles with 0
+  // so joints show at their resting position when offline or partially connected.
+  const nJoints = joints.length
 
-  for (let i = 0; i < nJoints; i++) {
-    jointBaseAngles.push(cumAngle)  // angle before this joint contributes
-    cumAngle += anglesRad[i] ?? 0
-    const len = linkLengths[i] ?? 1.0
-    const midX = tipX + Math.cos(cumAngle) * (len / 2)
-    const midY = tipY + Math.sin(cumAngle) * (len / 2)
-    segments.push({ pos: [midX, midY, 0], rotZ: cumAngle, len, color: LINK_COLORS[i % LINK_COLORS.length] })
-    tipX += Math.cos(cumAngle) * len
-    tipY += Math.sin(cumAngle) * len
-    joints.push([tipX, tipY])
-  }
+  // ── Forward kinematics ──────────────────────────────────────────────────────
+  const frames = useMemo(() => {
+    const result: Array<{
+      preJointMatrix: THREE.Matrix4
+      linkFrameMatrix: THREE.Matrix4
+      jointOrigin: THREE.Vector3
+      a: number
+      limitLowerRad: number
+      limitUpperRad: number
+      thetaOffsetRad: number
+    }> = []
 
+    let T = new THREE.Matrix4()  // identity = world base frame
+
+    for (let i = 0; i < nJoints; i++) {
+      const j = joints[i]
+      const preJointMatrix = T.clone()
+
+      const theta = j.theta_offset * DEG + (anglesRad[i] ?? 0)
+
+      // T_joint = T · Rz(theta) · Tz(d)
+      const Rz = new THREE.Matrix4().makeRotationZ(theta)
+      const Tz = new THREE.Matrix4().makeTranslation(0, 0, j.d)
+      const linkFrameMatrix = preJointMatrix.clone().multiply(Rz).multiply(Tz)
+
+      const jointOrigin = new THREE.Vector3().setFromMatrixPosition(linkFrameMatrix)
+
+      // Next base: link tip · Rx(alpha)
+      const Tx = new THREE.Matrix4().makeTranslation(j.a, 0, 0)
+      const Rx = new THREE.Matrix4().makeRotationX(j.alpha * DEG)
+      T = linkFrameMatrix.clone().multiply(Tx).multiply(Rx)
+
+      result.push({
+        preJointMatrix,
+        linkFrameMatrix,
+        jointOrigin,
+        a: j.a,
+        limitLowerRad: j.limit_lower * DEG,
+        limitUpperRad: j.limit_upper * DEG,
+        thetaOffsetRad: j.theta_offset * DEG,
+      })
+    }
+
+    // End-effector position (tip of last link) in world frame
+    let eePos: THREE.Vector3 | null = null
+    if (result.length > 0) {
+      const last = result[result.length - 1]
+      const tipMat = last.linkFrameMatrix.clone().multiply(
+        new THREE.Matrix4().makeTranslation(last.a, 0, 0),
+      )
+      eePos = new THREE.Vector3().setFromMatrixPosition(tipMat)
+    }
+
+    return { perJoint: result, eePos }
+  }, [joints, anglesRad, nJoints])
+
+  // Arc radii — scale with shortest link so wedges aren't huge.
+  const minA = joints.slice(0, nJoints).reduce(
+    (m, j) => Math.min(m, j.a || 1),
+    Number.POSITIVE_INFINITY,
+  )
   const arcInnerR = radius * 2.5
-  const arcOuterR = radius * 2.5 + Math.min(...(linkLengths.length ? linkLengths : [0.3])) * 0.35
+  const arcOuterR = arcInnerR + (isFinite(minA) ? minA : 0.3) * 0.35
 
   return (
     <group>
-      {/* Joint-limit arc sectors — drawn behind everything at z=-0.002 */}
-      {jointLimitsDeg && joints.slice(0, nJoints).map(([jx, jy], i) => {
-        const limitDeg = jointLimitsDeg[i]
-        if (!limitDeg) return null
-        const limitRad = (limitDeg * Math.PI) / 180
-        const parentAngle = jointBaseAngles[i] ?? 0
+      {/* Joint-limit arc sectors */}
+      {frames.perJoint.map((f, i) => {
+        const lower = f.thetaOffsetRad + f.limitLowerRad
+        const upper = f.thetaOffsetRad + f.limitUpperRad
+        const span = upper - lower
+        if (span <= 0) return null
         return (
-          <mesh key={`arc${i}`} position={[jx, jy, -0.002]}>
-            {/* ringGeometry lies in XY; thetaStart at positive-X, counterclockwise */}
-            <ringGeometry args={[arcInnerR, arcOuterR, ARC_SEGS, 1, parentAngle - limitRad, limitRad * 2]} />
-            <meshStandardMaterial color="#ffca28" transparent opacity={0.18} side={2} />
-          </mesh>
+          <group
+            key={`arc${i}`}
+            matrix={f.preJointMatrix}
+            matrixAutoUpdate={false}
+          >
+            <mesh position={[0, 0, -0.002]}>
+              <ringGeometry args={[arcInnerR, arcOuterR, ARC_SEGS, 1, lower, span]} />
+              <meshStandardMaterial color="#ffca28" transparent opacity={0.18} side={THREE.DoubleSide} />
+            </mesh>
+          </group>
         )
       })}
 
@@ -81,35 +167,69 @@ export function ArmCanvas({ anglesRad, linkLengths, radius = 0.05, jointLimitsDe
         <meshStandardMaterial color="#546e7a" />
       </mesh>
 
-      {/* Link rods — cylinders align along Y; rotate +π/2 around Z to lie along X-axis direction */}
-      {segments.map((seg, i) => (
-        <mesh key={i} position={seg.pos} rotation={[0, 0, seg.rotZ + Math.PI / 2]}>
-          <cylinderGeometry args={[radius, radius, seg.len, 16]} />
-          <meshStandardMaterial color={seg.color} />
-        </mesh>
+      {/* Link cylinders — extend along each joint frame's +X by length a */}
+      {frames.perJoint.map((f, i) => (
+        <group key={`link${i}`} matrix={f.linkFrameMatrix} matrixAutoUpdate={false}>
+          {/* cylinderGeometry is along Y; rotate -π/2 about Z so it aligns with +X */}
+          {Math.abs(f.a) > 1e-6 && (
+            <mesh position={[f.a / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+              <cylinderGeometry args={[radius, radius, Math.abs(f.a), 16]} />
+              <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
+            </mesh>
+          )}
+        </group>
       ))}
 
-      {/* Joint spheres — indices 0..nJoints-1 are actuator hinges, nJoints is the EE */}
-      {joints.map(([jx, jy], i) => {
-        const isActuator = i < nJoints
+      {/* d-offset cylinders — extend along the previous frame's +Z by length d
+          (after Rz(theta) is applied).  This is what gives 6-DOF / 7-DOF arms
+          their visible "forearm" when reach is stored in DH 'd' (not 'a'). */}
+      {frames.perJoint.map((f, i) => {
+        const d = joints[i].d
+        if (Math.abs(d) <= 1e-6) return null
+        const theta = f.thetaOffsetRad + (anglesRad[i] ?? 0)
+        // After Rz(theta) on the previous frame, the d translation is along +Z.
+        // Build a matrix that places a cylinder midway along that segment.
+        const Rz = new THREE.Matrix4().makeRotationZ(theta)
+        const placement = f.preJointMatrix.clone().multiply(Rz)
         return (
-          <JointSphere
-            key={`j${i}`}
-            position={[jx, jy, 0]}
-            radius={radius * 1.6}
-            baseColor={i === 0 ? '#546e7a' : '#ff8a65'}
-            clickable={isActuator && !!onJointClick}
-            onClick={isActuator && onJointClick ? () => onJointClick(i) : undefined}
-          />
+          <group key={`dlink${i}`} matrix={placement} matrixAutoUpdate={false}>
+            {/* cylinderGeometry is along Y; rotate π/2 about X so it aligns with +Z */}
+            <mesh position={[0, 0, d / 2]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[radius, radius, Math.abs(d), 16]} />
+              <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
+            </mesh>
+          </group>
         )
       })}
 
-      {/* End-effector sphere (distinct colour) */}
-      {joints.length > 0 && (
-        <mesh position={[joints[joints.length - 1][0], joints[joints.length - 1][1], 0]}>
+      {/* Joint spheres at each joint origin */}
+      {frames.perJoint.map((f, i) => (
+        <JointSphere
+          key={`j${i}`}
+          position={[f.jointOrigin.x, f.jointOrigin.y, f.jointOrigin.z]}
+          radius={radius * 1.6}
+          baseColor={i === 0 ? '#546e7a' : '#ff8a65'}
+          clickable={!!onJointClick}
+          onClick={onJointClick ? () => onJointClick(i) : undefined}
+        />
+      ))}
+
+      {/* End-effector sphere */}
+      {frames.eePos && (
+        <mesh position={[frames.eePos.x, frames.eePos.y, frames.eePos.z]}>
           <sphereGeometry args={[radius * 1.3, 14, 14]} />
           <meshStandardMaterial color="#a5d6a7" />
         </mesh>
+      )}
+
+      {/* Workspace hull overlay */}
+      {workspace && workspace.hull && (
+        <WorkspaceOverlay hull={workspace.hull} />
+      )}
+
+      {/* Workspace point cloud (behind sub-toggle) */}
+      {workspace && showWorkspacePoints && workspace.points.length > 0 && (
+        <WorkspacePoints points={workspace.points} />
       )}
     </group>
   )
@@ -142,5 +262,58 @@ function JointSphere({ position, radius, baseColor, clickable, onClick }: JointS
         emissiveIntensity={hovered ? 0.4 : 0}
       />
     </mesh>
+  )
+}
+
+// ── WorkspaceOverlay ──────────────────────────────────────────────────────────
+
+interface WorkspaceHullData {
+  vertices: [number, number, number][]
+  faces: [number, number, number][]
+}
+
+function WorkspaceOverlay({ hull }: { hull: WorkspaceHullData }) {
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry()
+
+    // Flat Float32Array of vertex positions [x,y,z, x,y,z, ...]
+    const positions = new Float32Array(hull.vertices.flatMap(v => v))
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+    // Face index buffer
+    const indices = new Uint32Array(hull.faces.flatMap(f => f))
+    geo.setIndex(new THREE.BufferAttribute(indices, 1))
+
+    geo.computeVertexNormals()
+    return geo
+  }, [hull])
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial
+        color="#4fc3f7"
+        transparent
+        opacity={0.15}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+// ── WorkspacePoints ───────────────────────────────────────────────────────────
+
+function WorkspacePoints({ points }: { points: [number, number, number][] }) {
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry()
+    const positions = new Float32Array(points.flatMap(p => p))
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    return geo
+  }, [points])
+
+  return (
+    <points geometry={geometry}>
+      <pointsMaterial color="#80cbc4" size={0.01} sizeAttenuation />
+    </points>
   )
 }

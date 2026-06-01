@@ -1,0 +1,548 @@
+id: seven_dof_dlr
+name: "7-DOF DLR Manipulator"
+version: "1.0.0"
+publisher: ambient-labs
+summary: >
+  Seven-DOF kinematically redundant arm modelled on the DLR LWR (Light-Weight
+  Robot) manipulator.  All joints are revolute and collinear with their
+  respective frame Z-axes; link offsets d₃, d₅, d₇ provide the arm geometry.
+  DH parameters follow Siciliano et al., Robotics, Table 2.7.  The extra DOF
+  is resolved by keeping joint angles near their seed (null-space objective).
+
+brain_compatibility: ">=0.1.0"
+firmware_compatibility: ">=0.1.0"
+
+# ── End-effector ──────────────────────────────────────────────────────────────
+# The TCP is d₇ past the last joint along Z₇.  d₇ is encoded in joint 6's
+# DH 'd', so offset_m is zero.  Add a tool offset here for a mounted gripper.
+#
+# task_space: se3 — full position + orientation IK (7-DOF provides one
+# redundant DOF after the 6 constraints; resolved via null-space optimisation).
+end_effector:
+  parent: joint_7
+  offset_m: [0.0, 0.0, 0.0]
+  orientation_offset_deg: [0.0, 0.0, 0.0]
+  task_space: se3
+
+# ── IK solver hints ───────────────────────────────────────────────────────────
+# DH parameters for this arm (Siciliano Table 2.7):
+#   Joint 0: a=0, α= 90°, d=0,  θ₁
+#   Joint 1: a=0, α= 90°, d=0,  θ₂
+#   Joint 2: a=0, α= 90°, d=d₃, θ₃   (upper arm length)
+#   Joint 3: a=0, α= 90°, d=0,  θ₄
+#   Joint 4: a=0, α= 90°, d=d₅, θ₅   (lower arm length)
+#   Joint 5: a=0, α= 90°, d=0,  θ₆
+#   Joint 6: a=0, α=  0°, d=d₇, θ₇   (wrist-to-flange offset)
+#
+# All link lengths are zero (a=0); arm geometry comes entirely from the d
+# offsets at joints 2, 4, 6.  All intermediate α values are π/2, giving the
+# alternating-twist structure characteristic of the DLR/KUKA LWR family.
+#
+# The arm is inherently redundant (7 DOF, 6 task constraints).  No analytic
+# closed-form partition exists within the current block-solver registry for
+# this geometry, so a single numeric DLS block is used.  The null-space
+# objective 'keep_near_seed' uses the redundant DOF to stay close to the
+# current joint configuration, producing smooth, predictable motions.
+ik:
+  decomposition:
+    - kind: numeric
+      joints: [0, 1, 2, 3, 4, 5, 6]
+
+  numeric:
+    max_iters: 300            # more iters for 7-DOF null-space convergence
+    pos_tol_m: 1.0e-4
+    rot_tol_rad: 1.0e-3
+    damping: 0.008
+    seed: current_q
+
+  redundancy:
+    nullspace_objective: keep_near_seed
+
+# ── Joint slots ───────────────────────────────────────────────────────────────
+joints:
+  - slot: 0
+    name: joint_1
+    axis: z
+    parent: base
+  - slot: 1
+    name: joint_2
+    axis: z
+    parent: joint_1
+  - slot: 2
+    name: joint_3
+    axis: z
+    parent: joint_2
+  - slot: 3
+    name: joint_4
+    axis: z
+    parent: joint_3
+  - slot: 4
+    name: joint_5
+    axis: z
+    parent: joint_4
+  - slot: 5
+    name: joint_6
+    axis: z
+    parent: joint_5
+  - slot: 6
+    name: joint_7
+    axis: z
+    parent: joint_6
+
+# ── DH kinematics ─────────────────────────────────────────────────────────────
+# Reference: Siciliano et al. Table 2.7.
+# Convention: T_i = T_{i-1} · Rz(θ_offset + θ_i) · Tz(d) · Tx(a) · Rx(α)
+#
+# All 'a' parameters are zero — geometry comes from 'd' offsets only.
+dh:
+  link_radius:
+    default: 0.05
+    min: 0.01
+    max: 0.15
+    unit: m
+    editable: true
+
+  joints:
+    # ── Joint 0 (θ₁): base rotation ─────────────────────────────────────────
+    - name: joint_1
+      slot: 0
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0          # π/2
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 2.5
+        min: 0.1
+        max: 50.0
+        unit: kg
+        editable: true
+
+    # ── Joint 1 (θ₂) ────────────────────────────────────────────────────────
+    # θ_offset=+90° here (paired with joint_4 and joint_6) gives a sensible
+    # "reach forward and up" home pose at (0.4, 0, 0.3) m instead of collapsing
+    # to the textbook all-zeros pose that dives below the floor.
+    - name: joint_2
+      slot: 1
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 90.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -120.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 120.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 2.0
+        min: 0.1
+        max: 30.0
+        unit: kg
+        editable: true
+
+    # ── Joint 2 (θ₃): d₃ is the upper arm length ────────────────────────────
+    - name: joint_3
+      slot: 2
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.3           # d₃ — upper-arm length
+        min: 0.05
+        max: 1.5
+        unit: m
+        editable: true
+      alpha:
+        default: 90.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.5
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+    # ── Joint 3 (θ₄) ────────────────────────────────────────────────────────
+    - name: joint_4
+      slot: 3
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 90.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -120.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 120.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.2
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+    # ── Joint 4 (θ₅): d₅ is the lower arm length ────────────────────────────
+    - name: joint_5
+      slot: 4
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.3           # d₅ — lower-arm length
+        min: 0.05
+        max: 1.5
+        unit: m
+        editable: true
+      alpha:
+        default: 90.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 1.0
+        min: 0.1
+        max: 20.0
+        unit: kg
+        editable: true
+
+    # ── Joint 5 (θ₆) ────────────────────────────────────────────────────────
+    - name: joint_6
+      slot: 5
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 90.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 90.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -120.0
+        min: -180.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 120.0
+        min: 0.0
+        max: 180.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.8
+        min: 0.05
+        max: 10.0
+        unit: kg
+        editable: true
+
+    # ── Joint 6 (θ₇): wrist / tool-flange ───────────────────────────────────
+    # α=0° — final frame, no further twist.  d₇ is the wrist-to-flange offset.
+    - name: joint_7
+      slot: 6
+      type: revolute
+      axis: z
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.1           # d₇ — wrist to flange
+        min: 0.0
+        max: 0.5
+        unit: m
+        editable: true
+      alpha:
+        default: 0.0           # last joint — no twist
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -170.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 170.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.5
+        min: 0.05
+        max: 10.0
+        unit: kg
+        editable: true
+
+# ── Easy-mode aliases ─────────────────────────────────────────────────────────
+easy:
+  - legacy_param: upper_arm_length_m
+    label: "Upper arm length (m)"
+    unit: m
+    description: "Shoulder-to-elbow segment length (d₃ in Table 2.7)"
+    target: joints[2].d
+
+  - legacy_param: lower_arm_length_m
+    label: "Lower arm length (m)"
+    unit: m
+    description: "Elbow-to-wrist segment length (d₅ in Table 2.7)"
+    target: joints[4].d
+
+  - legacy_param: flange_offset_m
+    label: "Flange offset (m)"
+    unit: m
+    description: "Wrist-to-tool-flange distance (d₇ in Table 2.7)"
+    target: joints[6].d
+
+  - legacy_param: link_radius_m
+    label: "Link radius (m)"
+    unit: m
+    description: "Visual / collision cylinder radius for all links"
+    target: link_radius
+
+  - legacy_param: j1_limit_deg
+    label: "Joint 1 travel (±°)"
+    unit: deg
+    target: joints[0].limit_symmetric
+
+  - legacy_param: j2_limit_deg
+    label: "Joint 2 travel (±°)"
+    unit: deg
+    target: joints[1].limit_symmetric
+
+  - legacy_param: j3_limit_deg
+    label: "Joint 3 travel (±°)"
+    unit: deg
+    target: joints[2].limit_symmetric
+
+  - legacy_param: j4_limit_deg
+    label: "Joint 4 travel (±°)"
+    unit: deg
+    target: joints[3].limit_symmetric
+
+  - legacy_param: j5_limit_deg
+    label: "Joint 5 travel (±°)"
+    unit: deg
+    target: joints[4].limit_symmetric
+
+  - legacy_param: j6_limit_deg
+    label: "Joint 6 travel (±°)"
+    unit: deg
+    target: joints[5].limit_symmetric
+
+  - legacy_param: j7_limit_deg
+    label: "Joint 7 travel (±°)"
+    unit: deg
+    target: joints[6].limit_symmetric
+
+# ── Legacy parameter schema ───────────────────────────────────────────────────
+parameters:
+  - name: upper_arm_length_m
+    label: "Upper arm length (m)"
+    type: float
+    default: 0.3
+    min: 0.05
+    max: 1.5
+    unit: m
+    description: "Shoulder-to-elbow segment (d₃)"
+
+  - name: lower_arm_length_m
+    label: "Lower arm length (m)"
+    type: float
+    default: 0.3
+    min: 0.05
+    max: 1.5
+    unit: m
+    description: "Elbow-to-wrist segment (d₅)"
+
+  - name: flange_offset_m
+    label: "Flange offset (m)"
+    type: float
+    default: 0.1
+    min: 0.0
+    max: 0.5
+    unit: m
+    description: "Wrist to tool flange (d₇)"
+
+  - name: link_radius_m
+    label: "Link radius (m)"
+    type: float
+    default: 0.05
+    min: 0.01
+    max: 0.15
+    unit: m
+
+  - name: j1_limit_deg
+    label: "Joint 1 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j2_limit_deg
+    label: "Joint 2 travel (±°)"
+    type: float
+    default: 120.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j3_limit_deg
+    label: "Joint 3 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j4_limit_deg
+    label: "Joint 4 travel (±°)"
+    type: float
+    default: 120.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j5_limit_deg
+    label: "Joint 5 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j6_limit_deg
+    label: "Joint 6 travel (±°)"
+    type: float
+    default: 120.0
+    min: 10.0
+    max: 180.0
+    unit: deg
+
+  - name: j7_limit_deg
+    label: "Joint 7 travel (±°)"
+    type: float
+    default: 170.0
+    min: 10.0
+    max: 360.0
+    unit: deg

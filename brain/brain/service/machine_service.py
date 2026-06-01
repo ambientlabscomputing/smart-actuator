@@ -3,14 +3,17 @@ from typing import TYPE_CHECKING
 
 from brain.models.machine import Machine, MachineDescription, SqlHardwareEntry, SqlSimEntry
 from brain.repository.repository import Repository
+from brain.service.dh_urdf import dh_chain_to_urdf, dh_values_to_parameters, parameters_to_dh_values
 from brain.service.template_service import TemplateService
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
+    from brain.models.machine import DHChainValues, EndEffectorSpec, IKOverrides
     from brain.service.hardware_lifecycle_service import HardwareLifecycleService
     from brain.service.sidecar_bridge import SidecarBridge
     from brain.service.sim_lifecycle_service import SimLifecycleService
+    from brain.service.workspace_service import WorkspaceService
 
 
 class MachineService:
@@ -31,12 +34,14 @@ class MachineService:
         *,
         sim_lifecycle: "SimLifecycleService | None" = None,
         hardware_lifecycle: "HardwareLifecycleService | None" = None,
+        workspace: "WorkspaceService | None" = None,
     ) -> None:
         self._repository = repository
         self._templates = template_service
         self._config = config
         self._sim_lifecycle = sim_lifecycle  # injected after construction to break circular dep
         self._hardware_lifecycle = hardware_lifecycle
+        self._workspace = workspace
 
     def set_sim_lifecycle(self, sim_lifecycle: "SimLifecycleService") -> None:
         self._sim_lifecycle = sim_lifecycle
@@ -48,6 +53,9 @@ class MachineService:
         """
         Expand the description into a Machine: resolve the template,
         substitute parameters into the URDF skeleton, persist.
+
+        If the template declares a dh: block the canonical DH path is used.
+        Otherwise falls back to the Jinja template expansion for legacy templates.
         """
         logger.info(
             "Building machine {} from template {}",
@@ -55,18 +63,46 @@ class MachineService:
             description.template_ref.template_id,
         )
         template_id = description.template_ref.template_id
-
-        # Expand URDF — store for J6/J7 without requiring a schema migration.
-        expanded_urdf = ""
-        try:
-            expanded_urdf = self._templates.expand(template_id, dict(description.parameters))
-        except Exception:
-            logger.exception(
-                "URDF expansion failed for template {}; storing empty URDF", template_id
-            )
-
-        # Derive joint names from the template joint list.
         tmpl = await self._templates.get_template(template_id)
+
+        # ── Resolve / seed the DH chain ──────────────────────────────────────
+        if tmpl and tmpl.dh:
+            dh_schema = tmpl.dh
+            easy = tmpl.easy
+
+            if description.dh_chain is not None:
+                dh_values = description.dh_chain
+            elif description.parameters:
+                # Migrate from legacy parameters dict
+                dh_values = parameters_to_dh_values(dh_schema, easy, dict(description.parameters))
+            else:
+                from brain.models.machine import DHChainValues
+                dh_values = DHChainValues.from_schema_defaults(dh_schema)
+
+            # Keep dh_chain on description
+            description.dh_chain = dh_values
+            # Sync derived legacy parameters projection
+            description.parameters = dh_values_to_parameters(easy, dh_values)
+
+            # Expand URDF generically from DH chain
+            expanded_urdf = ""
+            try:
+                expanded_urdf = dh_chain_to_urdf(dh_schema, dh_values, robot_name=template_id)
+            except Exception:
+                logger.exception(
+                    "DH URDF expansion failed for template {}; storing empty URDF", template_id
+                )
+        else:
+            # Legacy Jinja path
+            expanded_urdf = ""
+            try:
+                expanded_urdf = self._templates.expand(template_id, dict(description.parameters))
+            except Exception:
+                logger.exception(
+                    "URDF expansion failed for template {}; storing empty URDF", template_id
+                )
+
+        # Derive joint names
         joint_names = (
             [j["name"] for j in tmpl.joints]
             if tmpl and tmpl.joints
@@ -81,6 +117,20 @@ class MachineService:
 
         await self._persist(machine, created_by=created_by)
         logger.info("Machine {} persisted ({} joints)", description.machine_id, len(joint_names))
+
+        # Eager workspace compute
+        if self._workspace is not None and machine.description.dh_chain is not None:
+            try:
+                tmpl_schema = tmpl.dh if tmpl else None
+                await self._workspace.compute_for_machine_object(
+                    description.machine_id, machine.description.dh_chain, tmpl_schema
+                )
+            except Exception:
+                logger.exception(
+                    "Workspace compute failed for machine {} — continuing",
+                    description.machine_id,
+                )
+
         return machine
 
     async def get_machine(self, machine_id: str) -> Machine | None:
@@ -88,8 +138,8 @@ class MachineService:
         if machine is None:
             return None
         try:
-            # Derive joint names from the template (not stored in DB).
-            tmpl = await self._templates.get_template(machine.description.template_ref.template_id)
+            template_id = machine.description.template_ref.template_id
+            tmpl = await self._templates.get_template(template_id)
             machine.joint_names = (
                 [j["name"] for j in tmpl.joints]
                 if tmpl and tmpl.joints
@@ -97,6 +147,17 @@ class MachineService:
                     f"joint{i}" for i in range(max(len(machine.description.actuator_bindings), 1))
                 ]
             )
+
+            # Backward-compat migration: seed dh_chain from legacy parameters when absent.
+            if tmpl and tmpl.dh and machine.description.dh_chain is None:
+                from brain.models.machine import DHChainValues
+                if machine.description.parameters:
+                    machine.description.dh_chain = parameters_to_dh_values(
+                        tmpl.dh, tmpl.easy, dict(machine.description.parameters)
+                    )
+                else:
+                    machine.description.dh_chain = DHChainValues.from_schema_defaults(tmpl.dh)
+
             return machine
         except Exception:
             logger.exception("Failed to deserialize machine {}", machine_id)
@@ -237,6 +298,32 @@ class MachineService:
     async def save_machine(self, machine: Machine, *, created_by: str) -> None:
         await self._persist(machine, created_by=created_by)
 
+    async def set_ik_overrides(
+        self, machine_id: str, overrides: "IKOverrides", *, updated_by: str
+    ) -> "Machine":
+        """Persist IK solver overrides (force-numeric flag, numeric config)."""
+        from brain.models.machine import IKOverrides as _IKOverrides  # noqa: F401
+        machine = await self.get_machine(machine_id)
+        if machine is None:
+            raise ValueError(f"Machine {machine_id!r} not found")
+        machine.description.ik_overrides = overrides
+        await self._persist(machine, created_by=updated_by)
+        logger.info("Updated IK overrides for machine {}", machine_id)
+        return machine
+
+    async def set_end_effector(
+        self, machine_id: str, ee: "EndEffectorSpec", *, updated_by: str
+    ) -> "Machine":
+        """Persist a new end-effector frame definition."""
+        from brain.models.machine import EndEffectorSpec as _EE  # noqa: F401
+        machine = await self.get_machine(machine_id)
+        if machine is None:
+            raise ValueError(f"Machine {machine_id!r} not found")
+        machine.description.end_effector = ee
+        await self._persist(machine, created_by=updated_by)
+        logger.info("Updated end-effector for machine {}", machine_id)
+        return machine
+
     async def expand_urdf(self, description: MachineDescription) -> str:
         try:
             return self._templates.expand(
@@ -258,15 +345,24 @@ class MachineService:
         logger.info("Bound actuators to machine {}", machine_id)
 
     async def update_parameters(
-        self, machine_id: str, parameters: dict[str, float], *, created_by: str
+        self,
+        machine_id: str,
+        parameters: dict[str, float] | None = None,
+        *,
+        dh_chain: "DHChainValues | None" = None,
+        created_by: str,
     ) -> Machine:
         """
-        Update geometry parameters on an existing machine.
+        Update an existing machine's kinematics.
 
-        Validates each supplied parameter against the template schema (min/max),
-        merges with existing params, re-expands the URDF, and persists.
-        Actuator bindings are preserved unchanged.
+        Accepts either a dh_chain (new canonical form) or a legacy parameters
+        dict (or both).  When dh_chain is supplied it becomes the source of
+        truth and the legacy parameters projection is re-derived.  When only
+        parameters are supplied they are applied via the easy aliases onto the
+        existing dh_chain (or legacy path if the template has no dh: block).
         """
+        from brain.models.machine import DHChainValues  # local to avoid circular at module level
+
         machine = await self.get_machine(machine_id)
         if machine is None:
             raise ValueError(f"Machine {machine_id!r} not found")
@@ -274,45 +370,85 @@ class MachineService:
         template_id = machine.description.template_ref.template_id
         tmpl = await self._templates.get_template(template_id)
 
-        # Validate supplied values against template schema
-        if tmpl and tmpl.parameters:
-            schema = {p["name"]: p for p in tmpl.parameters}
-            for name, value in parameters.items():
-                if name not in schema:
-                    continue  # unknown params are silently ignored
-                p = schema[name]
-                if "min" in p and value < p["min"]:
-                    raise ValueError(
-                        f"Parameter '{name}' value {value} is below minimum {p['min']}"
-                    )
-                if "max" in p and value > p["max"]:
-                    raise ValueError(
-                        f"Parameter '{name}' value {value} is above maximum {p['max']}"
-                    )
+        if tmpl and tmpl.dh:
+            dh_schema = tmpl.dh
+            easy = tmpl.easy
 
-        # Merge (allow partial updates)
-        updated: dict[str, float | str] = dict(machine.description.parameters)
-        updated.update(parameters)
-        machine.description.parameters = updated
+            # Determine canonical DH values to use
+            if dh_chain is not None:
+                new_dh = dh_chain
+            elif machine.description.dh_chain is not None:
+                new_dh = machine.description.dh_chain
+            elif machine.description.parameters:
+                new_dh = parameters_to_dh_values(
+                    dh_schema, easy, dict(machine.description.parameters)
+                )
+            else:
+                new_dh = DHChainValues.from_schema_defaults(dh_schema)
 
-        # Re-expand URDF
-        try:
-            machine.expanded_urdf = self._templates.expand(template_id, dict(updated))
-        except Exception:
-            logger.exception(
-                "URDF re-expansion failed after parameter update for machine {}", machine_id
-            )
+            # Apply any legacy parameters on top via easy aliases
+            if parameters:
+                for alias in easy:
+                    if alias.legacy_param in parameters:
+                        new_dh.apply_easy_alias(alias.target, parameters[alias.legacy_param])
+
+            machine.description.dh_chain = new_dh
+            machine.description.parameters = dh_values_to_parameters(easy, new_dh)
+
+            try:
+                machine.expanded_urdf = dh_chain_to_urdf(
+                    dh_schema, new_dh, robot_name=template_id
+                )
+            except Exception:
+                logger.exception(
+                    "DH URDF re-expansion failed for machine {}", machine_id
+                )
+        else:
+            # Legacy path: validate + merge parameters
+            if parameters is None:
+                parameters = {}
+            if tmpl and tmpl.parameters:
+                schema = {p["name"]: p for p in tmpl.parameters}
+                for name, value in parameters.items():
+                    if name not in schema:
+                        continue
+                    p = schema[name]
+                    if "min" in p and value < p["min"]:
+                        raise ValueError(
+                            f"Parameter '{name}' value {value} is below minimum {p['min']}"
+                        )
+                    if "max" in p and value > p["max"]:
+                        raise ValueError(
+                            f"Parameter '{name}' value {value} is above maximum {p['max']}"
+                        )
+            updated: dict[str, float | str] = dict(machine.description.parameters)
+            updated.update(parameters)
+            machine.description.parameters = updated
+            try:
+                machine.expanded_urdf = self._templates.expand(template_id, dict(updated))
+            except Exception:
+                logger.exception(
+                    "URDF re-expansion failed after parameter update for machine {}", machine_id
+                )
 
         await self._persist(machine, created_by=created_by)
-        logger.info(
-            "Updated parameters for machine {} (keys: {})",
-            machine_id,
-            list(parameters.keys()),
-        )
+        logger.info("Updated kinematics for machine {}", machine_id)
 
-        # Push updated soft limits to any running sims AND hardware for this machine.
-        # Best-effort: failure is logged but does not abort the update.
-        bridge: SidecarBridge | None = None
+        # Eager workspace recompute
+        if self._workspace is not None and machine.description.dh_chain is not None:
+            try:
+                tmpl_schema2 = tmpl.dh if tmpl else None
+                await self._workspace.compute_for_machine_object(
+                    machine_id, machine.description.dh_chain, tmpl_schema2
+                )
+            except Exception:
+                logger.exception(
+                    "Workspace recompute failed for machine {} after update — continuing",
+                    machine_id,
+                )
+
+        # Push updated soft limits to any running sims / hardware.
+        bridge: "SidecarBridge | None" = None
         if self._sim_lifecycle is not None:
             bridge = self._sim_lifecycle._sidecar  # type: ignore[attr-defined]
         elif self._hardware_lifecycle is not None:
@@ -335,7 +471,7 @@ class MachineService:
                     await bridge.set_soft_limits(actuator_id, min_rad=-limit_rad, max_rad=limit_rad)
                 except Exception:
                     logger.warning(
-                        "Could not update soft limits for actuator {} after parameter update",
+                        "Could not update soft limits for actuator {} after update",
                         actuator_id,
                     )
 

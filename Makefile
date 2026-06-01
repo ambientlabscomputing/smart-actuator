@@ -34,3 +34,7 @@ stop:
 ## firmware-%: Delegate firmware targets to the actuator-firmware crate Makefile
 firmware-%:
 	$(MAKE) -C smart-actuator/crates/actuator-firmware $@
+
+clean-db:
+	@rm -rf brain/brain.db
+	@echo "Deleted brain/brain.db. The next 'make run' will start with a fresh database."

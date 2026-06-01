@@ -1,16 +1,71 @@
 id: two_dof_planar_arm
 name: "2-DOF Planar Arm"
-version: "1.0.0"
+version: "1.3.0"
 publisher: ambient-labs
 summary: >
-  A two-joint revolute arm constrained to the XZ plane.
-  Joint 0 is the shoulder (base rotation), joint 1 is the elbow.
+  A two-joint revolute arm.  Both joints rotate about the world +Z axis
+  (vertical), so the arm sweeps in the horizontal XY plane — the canonical
+  planar 2R configuration under our Z-up world.  Joint 0 is the shoulder
+  (base rotation), joint 1 is the elbow.
 
 brain_compatibility: ">=0.1.0"
 firmware_compatibility: ">=0.1.0"
 
+# ── End-effector ──────────────────────────────────────────────────────────────
+# Top-level definition of where the tool-centre-point (TCP) is relative to
+# the last joint frame.  Seeded onto the machine at build time; users can
+# adjust offset_m in the Kinematics tab without forking the template.
+#
+# For this 2-DOF planar arm the EE is a fixed distance along +X past the
+# elbow joint (the physical tip of the forearm).  The chain already places
+# the forearm along +X via the 'a' DH parameter, so offset_m here is zero —
+# the last joint frame *is* the TCP.  Change offset_m to model a tool
+# extension (e.g. a gripper that adds 50 mm: offset_m: [0.05, 0.0, 0.0]).
+#
+# task_space: planar_xy — both joints rotate about world +Z (vertical), so
+# the arm sweeps in the horizontal XY plane.  IK targets (x, y) and ignores
+# z / orientation.
+end_effector:
+  parent: elbow
+  offset_m: [0.0, 0.0, 0.0]
+  orientation_offset_deg: [0.0, 0.0, 0.0]
+  task_space: planar_xy
+
+# ── IK solver hints ───────────────────────────────────────────────────────────
+# The Brain owns all solver code; this block is a hint, not a contract.
+# If the decomposition cannot be verified against the actual DH chain, or if
+# the Brain version does not recognise a block kind, it silently falls back
+# to the numeric Jacobian solver (configured under ik.numeric below).
+#
+# decomposition: a single planar_2r block covering both joints.  The Brain
+# will verify that joints 0 and 1 share parallel rotation axes (they do —
+# both are Z-axis revolutes in this template) and that the geometry is
+# non-degenerate.  On success it uses the closed-form 2-DOF planar analytic
+# solver; branch_preference elects the elbow-up solution by default.
+ik:
+  decomposition:
+    - kind: planar_2r
+      joints: [0, 1]
+      branch_preference: elbow_up
+      plane: xy_of_parent
+
+  # Numeric fallback / polish settings.
+  # Used whenever: force_numeric is on, decomposition fails verification,
+  # or as a polish step after analytic to tighten residual.
+  numeric:
+    max_iters: 150
+    pos_tol_m: 1.0e-4
+    rot_tol_rad: 1.0e-3
+    damping: 0.01
+    seed: current_q   # current_q | zero | sampled
+
+  # Redundancy (N/A for this 2-DOF arm — included as documentation).
+  redundancy:
+    nullspace_objective: keep_near_seed
+
 # ── Joint slots ───────────────────────────────────────────────────────────────
 # Each slot becomes a binding target in the machine description.
+# Kept for backward-compatibility with bind_slot and legacy clients.
 joints:
   - slot: 0
     name: shoulder
@@ -21,8 +76,185 @@ joints:
     axis: z
     parent: shoulder
 
-# ── Parameter schema ──────────────────────────────────────────────────────────
-# Rendered by the UI's ParamForm component.
+# ── DH kinematics (source of truth) ──────────────────────────────────────────
+# The generic dh_urdf generator reads this block.  A new template defines its
+# own kinematic chain here — no Python changes needed.
+#
+# Shared geometry:
+#   link_radius:  {default, min, max, unit, editable}
+#
+# Per-joint DH row (modified Denavit–Hartenberg, links along +Z):
+#   Each numeric field is a spec:
+#     default  — value used when no stored dh_chain is present
+#     min/max  — clamp / UI range (omit to mean unconstrained)
+#     unit     — "m", "deg", or "rad" (display only; storage always SI)
+#     editable — whether the Advanced tab exposes this field for editing
+#   Non-numeric fields (name, slot, type, axis) are plain scalars.
+#
+# DH convention used here (matches current +Z-link URDF / ArmCanvas):
+#   a     = link length along the previous Z axis (= physical link length)
+#   d     = offset along the current Z axis (prismatic offset between planes)
+#   alpha = twist angle about the common normal (rotation between Z axes)
+#   theta_offset = constant joint-angle offset added at zero position
+#   limit_lower / limit_upper = joint travel limits (stored in radians)
+dh:
+  link_radius:
+    default: 0.03
+    min: 0.005
+    max: 0.15
+    unit: m
+    editable: true
+
+  joints:
+    - name: shoulder
+      slot: 0
+      type: revolute
+      axis: z
+      a:
+        default: 0.4
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      d:
+        default: 0.0
+        min: -1.0
+        max: 1.0
+        unit: m
+        editable: true
+      alpha:
+        default: 0.0
+        min: -180.0
+        max: 180.0
+        unit: deg
+        editable: true
+      theta_offset:
+        default: 0.0
+        min: -180.0
+        max: 180.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -180.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 180.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.5
+        min: 0.01
+        max: 20.0
+        unit: kg
+        editable: true
+
+    - name: elbow
+      slot: 1
+      type: revolute
+      axis: z
+      a:
+        default: 0.35
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      d:
+        default: 0.0
+        min: -1.0
+        max: 1.0
+        unit: m
+        editable: true
+      alpha:
+        default: 0.0
+        min: -180.0
+        max: 180.0
+        unit: deg
+        editable: true
+      theta_offset:
+        default: 0.0
+        min: -180.0
+        max: 180.0
+        unit: deg
+        editable: true
+      limit_lower:
+        default: -150.0
+        min: -360.0
+        max: 0.0
+        unit: deg
+        editable: true
+      limit_upper:
+        default: 150.0
+        min: 0.0
+        max: 360.0
+        unit: deg
+        editable: true
+      mass:
+        default: 0.3
+        min: 0.01
+        max: 20.0
+        unit: kg
+        editable: true
+
+# ── Easy-mode aliases ─────────────────────────────────────────────────────────
+# Each entry exposes a single friendly slider in the "Easy" tab of the editor.
+# 'target' is a dot-path into the dh: block resolved by the UI and backend.
+# Special targets:
+#   joints[N].limit_symmetric  — reads/writes both limit_lower and limit_upper
+#                                 as a symmetric ±value in degrees.
+# 'legacy_param' is the key that was used in the old 'parameters' dict; used
+# for migrating existing machines that lack a dh_chain.
+easy:
+  - legacy_param: link0_length_m
+    label: "Link 0 length (m)"
+    unit: m
+    description: "Length of the upper arm (shoulder → elbow)"
+    target: joints[0].a
+
+  - legacy_param: link1_length_m
+    label: "Link 1 length (m)"
+    unit: m
+    description: "Length of the forearm (elbow → end-effector)"
+    target: joints[1].a
+
+  - legacy_param: link_radius_m
+    label: "Link radius (m)"
+    unit: m
+    description: "Cylinder radius for both links (visual + collision)"
+    target: link_radius
+
+  - legacy_param: joint0_limit_deg
+    label: "Shoulder travel (±°)"
+    unit: deg
+    description: "Symmetric travel limit for the shoulder joint"
+    target: joints[0].limit_symmetric
+
+  - legacy_param: joint1_limit_deg
+    label: "Elbow travel (±°)"
+    unit: deg
+    description: "Symmetric travel limit for the elbow joint"
+    target: joints[1].limit_symmetric
+
+  - legacy_param: link0_mass_kg
+    label: "Link 0 mass (kg)"
+    unit: kg
+    description: "Mass of the upper arm link (used by shared-world physics in J7)"
+    target: joints[0].mass
+
+  - legacy_param: link1_mass_kg
+    label: "Link 1 mass (kg)"
+    unit: kg
+    description: "Mass of the forearm link (used by shared-world physics in J7)"
+    target: joints[1].mass
+
+# ── Legacy parameter schema ───────────────────────────────────────────────────
+# Retained for backward-compatibility; new code reads from dh: + easy: above.
+# The 'parameters' dict on MachineDescription is now a DERIVED projection of
+# the DH chain values (via the easy aliases), kept in sync automatically.
 parameters:
   - name: link0_length_m
     label: "Link 0 length (m)"
