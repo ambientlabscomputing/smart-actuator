@@ -70,7 +70,7 @@ export function useJointState(machineId: string): UseJointStateResult {
             const angles = parsed.measured
               .map((j) => `${j.joint_name}=${((j.angle_rad * 180) / Math.PI).toFixed(2)}°`)
               .join('  ')
-            // eslint-disable-next-line no-console
+             
             console.debug(`[ws ${parsed.mode}]`, angles)
           }
           setState(parsed)
