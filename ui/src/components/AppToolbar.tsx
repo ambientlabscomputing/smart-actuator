@@ -23,6 +23,7 @@ import MenuIcon from '@mui/icons-material/Menu'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined'
+import CodeIcon from '@mui/icons-material/Code'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,13 @@ function getInitials(name: string): string {
 // ── Side nav contents ─────────────────────────────────────────────────────────
 
 function SideNav({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
+
+  function go(path: string) {
+    onClose()
+    navigate(path)
+  }
+
   return (
     <div
       style={{ width: 260, height: '100%', background: '#111827', display: 'flex', flexDirection: 'column' }}
@@ -58,18 +66,26 @@ function SideNav({ onClose }: { onClose: () => void }) {
 
       <List disablePadding sx={{ flex: 1, padding: '8px 0' }}>
         <ListItemButton
-          onClick={onClose}
-          sx={{
-            padding: '10px 20px',
-            borderRadius: 0,
-            '&:hover': { background: '#1f2937' },
-          }}
+          onClick={() => go('/')}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
         >
           <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
             <SmartToyOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary="Jog Actuators"
+            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => go('/programs')}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+            <CodeIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Programs"
             slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>

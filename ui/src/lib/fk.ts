@@ -106,6 +106,29 @@ export function quatMultiply(
 }
 
 /**
+ * Convert intrinsic ZYX Euler angles in degrees [roll, pitch, yaw] to a
+ * unit quaternion [x, y, z, w].  Inverse of quatToEulerDeg.
+ */
+export function quatFromEulerDeg(
+  roll_deg: number,
+  pitch_deg: number,
+  yaw_deg: number,
+): [number, number, number, number] {
+  const r = (roll_deg * Math.PI) / 180
+  const p = (pitch_deg * Math.PI) / 180
+  const y = (yaw_deg * Math.PI) / 180
+  const cr = Math.cos(r / 2), sr = Math.sin(r / 2)
+  const cp = Math.cos(p / 2), sp = Math.sin(p / 2)
+  const cy = Math.cos(y / 2), sy = Math.sin(y / 2)
+  return [
+    sr * cp * cy - cr * sp * sy,
+    cr * sp * cy + sr * cp * sy,
+    cr * cp * sy - sr * sp * cy,
+    cr * cp * cy + sr * sp * sy,
+  ]
+}
+
+/**
  * Convert quaternion [x, y, z, w] to intrinsic ZYX Euler angles in degrees
  * returned as [roll (about X), pitch (about Y), yaw (about Z)].
  */
