@@ -53,6 +53,7 @@ def new_brain_service(config: Config) -> BrainService:
         state=state,
         lifecycle=lifecycle,
         observability=observability,
+        kinematics=kinematics,
     )
     calibration = CalibrationService(repository, config, observability=observability)
     user_service = UserService(repository, config)

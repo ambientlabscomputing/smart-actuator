@@ -24,6 +24,7 @@ import asyncio
 import uuid
 from typing import TYPE_CHECKING
 
+from brain.models.motion import Pose
 from brain.models.program import (
     NodeKind,
     Program,
@@ -37,6 +38,7 @@ from brain.utils.config import Config
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
+    from brain.service.kinematics_service import KinematicsService
     from brain.service.lifecycle_service import LifecycleService
     from brain.service.motion_service import MotionService
     from brain.service.observability_service import ObservabilityService
@@ -82,14 +84,25 @@ def _flatten_steps(root: ProgramNode) -> list[ProgramNode]:
 def _validate_steps(steps: list[ProgramNode]) -> None:
     """Raise ValueError if any step is not a supported node kind."""
     for i, node in enumerate(steps):
-        if node.kind not in (NodeKind.MOVE, NodeKind.WAIT):
+        if node.kind not in (NodeKind.MOVE, NodeKind.MOVE_SE3, NodeKind.WAIT):
             raise ValueError(
-                f"Step {i}: unsupported node kind {node.kind!r} — J5 accepts only MOVE and WAIT"
+                f"Step {i}: unsupported node kind {node.kind!r} — accepts MOVE, MOVE_SE3, and WAIT"
             )
         if node.kind == NodeKind.MOVE:
             if "joint_name" not in node.attributes or "target_rad" not in node.attributes:
                 raise ValueError(
                     f"Step {i} (MOVE): missing required attributes 'joint_name' and/or 'target_rad'"
+                )
+        if node.kind == NodeKind.MOVE_SE3:
+            pos = node.attributes.get("position")
+            quat = node.attributes.get("orientation_quat")
+            if not isinstance(pos, list) or len(pos) != 3:
+                raise ValueError(
+                    f"Step {i} (MOVE_SE3): 'position' must be a list of 3 floats"
+                )
+            if not isinstance(quat, list) or len(quat) != 4:
+                raise ValueError(
+                    f"Step {i} (MOVE_SE3): 'orientation_quat' must be a list of 4 floats [x,y,z,w]"
                 )
         if node.kind == NodeKind.WAIT:
             if "duration_s" not in node.attributes:
@@ -117,6 +130,7 @@ class ProgramService:
         state: StateService,
         lifecycle: LifecycleService,
         observability: ObservabilityService,
+        kinematics: KinematicsService,
     ) -> None:
         self._repository = repository
         self._config = config
@@ -124,6 +138,7 @@ class ProgramService:
         self._state = state
         self._lifecycle = lifecycle
         self._obs = observability
+        self._kinematics = kinematics
         self._runs: dict[str, ProgramRunState] = {}
         self._run_actors: dict[str, str] = {}
 
@@ -273,6 +288,8 @@ class ProgramService:
 
                 if node.kind == NodeKind.MOVE:
                     await self._execute_move(run_id, machine_id, node, i)
+                elif node.kind == NodeKind.MOVE_SE3:
+                    await self._execute_move_se3(run_id, machine_id, node, i)
                 elif node.kind == NodeKind.WAIT:
                     await self._execute_wait(run_id, node)
 
@@ -347,6 +364,69 @@ class ProgramService:
             if run is not None and run.status == ProgramRunStatus.running:
                 raise TimeoutError(
                     f"Step {step_index} (MOVE {joint_name}→{target_rad:.3f} rad) "
+                    f"did not converge within {_STEP_TIMEOUT_S}s"
+                )
+
+    async def _execute_move_se3(
+        self, run_id: str, machine_id: str, node: ProgramNode, step_index: int
+    ) -> None:
+        position: list[float] = [float(v) for v in node.attributes["position"]]
+        orientation_quat: list[float] = [float(v) for v in node.attributes["orientation_quat"]]
+        pose = Pose(position=position, orientation_quat=orientation_quat)
+
+        # Run IK to get joint-space target, then dispatch via move_joint —
+        # the trajectory pipeline (_split_trajectory) is currently a stub, so
+        # MOVE_TO_POSE through MotionService.execute() never reaches the sidecar.
+        target_q = await self._kinematics.inverse_kinematics(machine_id, pose)
+
+        # Map IK output (positional list of angles) to joint names from DH chain.
+        machine = await self._repository.machine.load_machine(machine_id)
+        if machine is None or machine.description.dh_chain is None:
+            raise RuntimeError(
+                f"Step {step_index} (MOVE_SE3): machine {machine_id} has no DH chain"
+            )
+        joint_names = [j.name for j in machine.description.dh_chain.joints]
+        if len(target_q) < len(joint_names):
+            raise RuntimeError(
+                f"Step {step_index} (MOVE_SE3): IK returned {len(target_q)} angles "
+                f"but chain has {len(joint_names)} joints"
+            )
+        target_joints: dict[str, float] = {
+            name: float(target_q[i]) for i, name in enumerate(joint_names)
+        }
+
+        await self._motion.move_joint(machine_id, target_joints)
+
+        loop = asyncio.get_running_loop()
+        done: asyncio.Future[None] = loop.create_future()
+
+        def _check(machine_state) -> None:
+            if done.done():
+                return
+            if machine_state.machine_id != machine_id:
+                return
+            run = self._runs.get(run_id)
+            if run is None or run.status != ProgramRunStatus.running:
+                if not done.done():
+                    done.set_result(None)
+                return
+            measured = {js.joint_name: js.angle_rad for js in machine_state.measured}
+            for jname, target_rad in target_joints.items():
+                actual = measured.get(jname)
+                if actual is None or abs(actual - target_rad) >= _TOLERANCE_RAD:
+                    return
+            if not done.done():
+                done.set_result(None)
+
+        self._state.subscribe(_check)
+
+        try:
+            await asyncio.wait_for(done, timeout=_STEP_TIMEOUT_S)
+        except TimeoutError:
+            run = self._runs.get(run_id)
+            if run is not None and run.status == ProgramRunStatus.running:
+                raise TimeoutError(
+                    f"Step {step_index} (MOVE_SE3 pos={position}) "
                     f"did not converge within {_STEP_TIMEOUT_S}s"
                 )
 

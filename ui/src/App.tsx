@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramListView, WorkspaceMenu } from '@/components'
+import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramRunPanel, WorkspaceMenu } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
 import { LoginScreen } from '@/components/auth/LoginScreen'
+import { ProgramsPage } from '@/components/programs/ProgramsPage'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
 import { useWorkspace } from './hooks/useWorkspace'
 import { RequireAuth } from '@/lib/RequireAuth'
@@ -273,7 +274,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
               </button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
-              <ProgramListView machineId={machineId} joints={joints} />
+              <ProgramRunPanel machineId={machineId} />
             </div>
           </div>
         )}
@@ -370,6 +371,17 @@ export default function App() {
       ? <Navigate to="/onboarding" replace />
       : <Workspace machineId={machineId} linkLengths={linkLengths} dhJoints={dhJoints} linkRadius={linkRadius} onDhChange={applyDh} />
 
+  // Programs route: redirect to onboarding if no machine, or show full editor.
+  const programsElement = machineLoading
+    ? <LoadingScreen />
+    : !machineId
+      ? <Navigate to="/onboarding" replace />
+      : <ProgramsPage
+          machineId={machineId}
+          joints={dhJoints ? dhJoints.map((j) => j.name) : []}
+          dhJoints={dhJoints}
+        />
+
   // Onboarding route: once machineId is set, go back to root.
   const onboardingElement = machineId
     ? <Navigate to="/" replace />
@@ -381,6 +393,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={rootElement} />
         <Route path="/onboarding" element={onboardingElement} />
+        <Route path="/programs" element={programsElement} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -5,23 +5,13 @@
  * Mirrors the calibration InteractiveJob layout.
  */
 import { useProgramRun, PROGRAM_RUN_TERMINAL } from '../../hooks/useProgramRun'
-import type { ProgramStep } from './ProgramListView'
+import type { ProgramStep } from './programAst'
+import { stepLabel } from './programAst'
 
 interface ProgramRunViewProps {
   runId: string | null
   steps: ProgramStep[]
   onClose: () => void
-}
-
-function stepLabel(step: ProgramStep, index: number): string {
-  if (step.kind === 'move') {
-    const deg = ((step.target_rad ?? 0) * 180) / Math.PI
-    return `Move ${step.joint_name ?? '?'} → ${deg.toFixed(1)}°`
-  }
-  if (step.kind === 'wait') {
-    return `Wait ${step.duration_s ?? 0}s`
-  }
-  return `Step ${index + 1}`
 }
 
 const statusColor: Record<string, string> = {

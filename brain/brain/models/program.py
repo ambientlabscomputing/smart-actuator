@@ -15,6 +15,7 @@ class NodeKind(StrEnum):
     CONDITIONAL = "conditional"
     LOOP = "loop"
     MOVE = "move"
+    MOVE_SE3 = "move_se3"
     WAIT = "wait"
     SENSOR_READ = "sensor_read"
     MODE_TRANSITION = "mode_transition"
@@ -29,6 +30,7 @@ class ProgramNode(BaseModel):
         description=(
             "Node-kind-specific parameters.\n"
             "  MOVE: {joint_name: str, target_rad: float}\n"
+            "  MOVE_SE3: {position: [x, y, z], orientation_quat: [x, y, z, w]}\n"
             "  WAIT: {duration_s: float}"
         ),
     )
