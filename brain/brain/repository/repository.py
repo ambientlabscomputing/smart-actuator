@@ -1,5 +1,6 @@
 from brain.models.base import SqlBase
 from brain.repository.calibration_repository import CalibrationRepository
+from brain.repository.file_repository import FileRepository
 from brain.repository.hardware_repository import HardwareRepository
 from brain.repository.machine_repository import MachineRepository
 from brain.repository.mode_event_repository import ModeEventRepository
@@ -25,6 +26,7 @@ class Repository:
         self.program = ProgramRepository()
         self.mode_event = ModeEventRepository()
         self.user = UserRepository()
+        self.files = FileRepository()
 
     async def start(self) -> None:
         """Open the database, run migrations, and initialise sub-repositories."""

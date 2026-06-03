@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 
 import click
 import uvicorn
@@ -19,6 +20,73 @@ def cfggen() -> None:
     """Generate a default config file."""
     path = generate_default_config()
     msg("Generated default config.", {"path": path})
+
+
+@main.command("gcode-samples")
+@click.option(
+    "--name",
+    "-n",
+    "names",
+    multiple=True,
+    help=(
+        "Sample name(s) to generate.  May be repeated.  "
+        "Omit to generate ALL samples."
+    ),
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    default=".",
+    show_default=True,
+    type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
+    help="Directory where .gcode files are written.",
+)
+@click.option(
+    "--list",
+    "list_only",
+    is_flag=True,
+    default=False,
+    help="List available sample names and exit.",
+)
+def gcode_samples(
+    names: tuple[str, ...],
+    output_dir: pathlib.Path,
+    list_only: bool,
+) -> None:
+    """Generate sample G-code files with recognisable motions and arcs.
+
+    Each sample stays within 100–250 mm of the base (0.1–0.25 m) so it
+    exercises a realistic working envelope without extreme reach.
+
+    \b
+    Examples:
+      brain gcode-samples --list
+      brain gcode-samples -n circle -n helix -o /tmp/gcode
+      brain gcode-samples -o ./samples   # generate all
+    """
+    from brain.service.gcode.samples import SAMPLE_NAMES, generate_sample
+
+    if list_only:
+        click.echo("Available samples:")
+        for s in SAMPLE_NAMES:
+            click.echo(f"  {s}")
+        return
+
+    targets = list(names) if names else SAMPLE_NAMES
+    unknown = [n for n in targets if n not in SAMPLE_NAMES]
+    if unknown:
+        raise click.BadParameter(
+            f"Unknown sample(s): {', '.join(unknown)}.  "
+            f"Use --list to see available names.",
+            param_hint="--name",
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name in targets:
+        content = generate_sample(name)
+        dest = output_dir / f"{name}.gcode"
+        dest.write_text(content, encoding="utf-8")
+        msg(f"Wrote {name}.gcode", {"path": str(dest), "lines": content.count("\n") + 1})
 
 
 @main.command()

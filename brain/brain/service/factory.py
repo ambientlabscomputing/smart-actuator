@@ -1,7 +1,10 @@
 from brain import Config
+from brain.models.gcode import _rebuild_translation_result
 from brain.repository.repository import Repository
 from brain.service.actuator_service import ActuatorService
 from brain.service.calibration_service import CalibrationService
+from brain.service.file_service import FileService
+from brain.service.gcode_service import GCodeService
 from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 from brain.service.kinematics_service import KinematicsService
 from brain.service.lifecycle_service import LifecycleService
@@ -16,6 +19,10 @@ from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
 from brain.service.template_service import TemplateService
+
+# Resolve the forward-reference `Program` inside GCodeTranslationResult so
+# Pydantic v2 can fully validate the model at runtime.
+_rebuild_translation_result()
 from brain.service.user_service import UserService
 from brain.service.workspace_service import WorkspaceService
 
@@ -58,6 +65,8 @@ def new_brain_service(config: Config) -> BrainService:
     calibration = CalibrationService(repository, config, observability=observability)
     user_service = UserService(repository, config)
     oauth_service = OAuthService(repository, config)
+    file_service = FileService(repository, config)
+    gcode = GCodeService(file_service, programs)
 
     return BrainService(
         repository=repository,
@@ -79,4 +88,6 @@ def new_brain_service(config: Config) -> BrainService:
         hardware_lifecycle=hardware_lifecycle,
         user_service=user_service,
         oauth_service=oauth_service,
+        file_service=file_service,
+        gcode=gcode,
     )

@@ -6,6 +6,7 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { ProgramsPage } from '@/components/programs/ProgramsPage'
+import { GCodePage } from '@/components/programs/GCodePage'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
 import { useWorkspace } from './hooks/useWorkspace'
 import { RequireAuth } from '@/lib/RequireAuth'
@@ -387,6 +388,13 @@ export default function App() {
     ? <Navigate to="/" replace />
     : <OnboardingWizard onDone={handleWizardDone} />
 
+  // G-code route: share the same guard as programs.
+  const gcodeElement = machineLoading
+    ? <LoadingScreen />
+    : !machineId
+      ? <Navigate to="/onboarding" replace />
+      : <GCodePage machineId={machineId} />
+
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
@@ -394,6 +402,7 @@ export default function App() {
         <Route path="/" element={rootElement} />
         <Route path="/onboarding" element={onboardingElement} />
         <Route path="/programs" element={programsElement} />
+        <Route path="/gcode" element={gcodeElement} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

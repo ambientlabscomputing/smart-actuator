@@ -14,6 +14,8 @@ from brain.interface.rest import (
     actuators_router,
     calibrations_router,
     events_router,
+    files_router,
+    gcode_router,
     machine_router,
     mode_router,
     motion_router,
@@ -161,6 +163,8 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     app.include_router(actuators_router, prefix=_API_PREFIX)
     app.include_router(calibrations_router, prefix=_API_PREFIX)
+    app.include_router(files_router, prefix=_API_PREFIX)
+    app.include_router(gcode_router, prefix=_API_PREFIX)
     app.include_router(machine_router, prefix=_API_PREFIX)
     app.include_router(mode_router, prefix=_API_PREFIX)
     app.include_router(motion_router, prefix=_API_PREFIX)
