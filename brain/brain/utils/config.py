@@ -83,6 +83,13 @@ class TemplateConfig(BaseModel):
     )
 
 
+class FilesConfig(BaseModel):
+    storage_dir: str = Field(
+        default="~/.brain/files",
+        description="Directory where uploaded files are stored on disk",
+    )
+
+
 class OAuthConfig(BaseModel):
     """OAuth Server configuration"""
 
@@ -114,6 +121,9 @@ class Config(BaseModel):
     )
     oauth: OAuthConfig = Field(
         default_factory=OAuthConfig, description="OAuth server configuration"
+    )
+    files: FilesConfig = Field(
+        default_factory=FilesConfig, description="File storage configuration"
     )
 
 config: Config | None = None

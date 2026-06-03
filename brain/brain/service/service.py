@@ -16,6 +16,8 @@ from brain.service.safety_service import SafetyService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
+from brain.service.file_service import FileService
+from brain.service.gcode_service import GCodeService
 from brain.service.template_service import TemplateService
 from brain.service.user_service import UserService
 from brain.service.workspace_service import WorkspaceService
@@ -57,6 +59,8 @@ class BrainService(Service):
         observability: ObservabilityService,
         user_service: UserService,
         oauth_service: OAuthService,
+        file_service: FileService,
+        gcode: GCodeService,
         sim_lifecycle: SimLifecycleService | None = None,
         hardware_lifecycle: HardwareLifecycleService | None = None,
     ) -> None:
@@ -79,6 +83,8 @@ class BrainService(Service):
         self.hardware_lifecycle = hardware_lifecycle
         self.user_service = user_service
         self.oauth_service = oauth_service
+        self.file_service = file_service
+        self.gcode = gcode
 
     async def start(self) -> None:
         logger.info("Starting BrainService")

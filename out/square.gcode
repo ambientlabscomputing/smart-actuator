@@ -1,0 +1,11 @@
+; Sample: Square traverse (200×200 mm @ Z=150)
+G21 ; mm
+G90 ; absolute
+G0 Z200 F3000 ; safe height
+G0 X-100.000 Y-100.000 Z150.000
+G1 X100.000 Y-100.000 Z150.000 F1200
+G1 X100.000 Y100.000 Z150.000 F1200
+G1 X-100.000 Y100.000 Z150.000 F1200
+G1 X-100.000 Y-100.000 Z150.000 F1200
+G0 Z200 F3000 ; return to safe height
+; end of program

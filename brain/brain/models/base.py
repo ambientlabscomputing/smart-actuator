@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Select
 
 
 class Base(BaseModel):
@@ -42,3 +43,14 @@ class BaseListResponse[T: BaseModel](BaseModel):
     query: BaseListRequest | None = Field(
         None, description="Original query parameters used for the request", exclude_if=None
     )
+
+def build_query(model: type[SqlBase], list_request: BaseListRequest) -> Select:
+    query = Select(model)
+    if list_request.sort_by:
+        sort_column = getattr(model, list_request.sort_by, None)
+        if sort_column is not None:
+            if list_request.sort_order == "desc":
+                sort_column = sort_column.desc()
+            query = query.order_by(sort_column)
+    query = query.limit(list_request.limit).offset(list_request.offset)
+    return query
