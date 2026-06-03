@@ -77,3 +77,6 @@ make run
 - [RFD-9: Actuator Contract](RFDs/RFD-9.md)
 - [RFD-10: The Testbench Actuator](RFDs/RFD-10.md)
 - [RFD-11: The Smart Actuator AST](RFDs/RFD-11.md)
+- [RFD-12: Prismatic Joints and the Cartesian Gantry Template](RFDs/RFD-12.md)
+- [RFD-13: Teach Mode — Record-and-Replay and Drag-to-Pose](RFDs/RFD-13.md)
+- [RFD-14: Aesthetic Pass — A Teenage Engineering–Inspired UI](RFDs/RFD-14.md)
