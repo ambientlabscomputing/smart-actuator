@@ -6,7 +6,7 @@
  *   Right column : 2-D XY path preview (SVG, color-coded by motion type)
  *                  + run progress when a run is in-flight
  */
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppToolbar } from '../AppToolbar'
 import { ProgramRunView } from './ProgramRunView'
 import { nodeToStep } from './programAst'
@@ -15,6 +15,8 @@ import {
   translateGcode,
   previewGcode,
   uploadGcodeFile,
+  listGcodeSamples,
+  generateGcodeSample,
 } from '../../lib/gcodeApi'
 import type { GCodePreview, GCodeTranslationResult } from '../../lib/gcodeApi'
 
@@ -203,6 +205,63 @@ interface GCodePageProps {
 const TOOL_DOWN_QUAT: [number, number, number, number] = [1, 0, 0, 0]
 
 export function GCodePage({ machineId }: GCodePageProps) {
+  // ── Sample state ──────────────────────────────────────────────────────────
+  const [sampleNames, setSampleNames] = useState<string[]>([])
+  const [selectedSample, setSelectedSample] = useState<string>('')
+  const [sampleOriginX, setSampleOriginX] = useState('150')
+  const [sampleOriginY, setSampleOriginY] = useState('150')
+  const [sampleOriginZ, setSampleOriginZ] = useState('150')
+  const [sampleWidth, setSampleWidth] = useState('200')
+  const [sampleHeight, setSampleHeight] = useState('200')
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+
+  useEffect(() => {
+    listGcodeSamples()
+      .then((names) => {
+        setSampleNames(names)
+        setSelectedSample(names[0] ?? '')
+      })
+      .catch(() => {/* non-fatal */})
+  }, [])
+
+  async function handleGenerateSample() {
+    if (!selectedSample) return
+    setGenerating(true)
+    setGenerateError(null)
+    try {
+      const res = await generateGcodeSample({
+        name: selectedSample,
+        machine_id: machineId,
+        program_name: `${selectedSample} (gantry)`,
+        origin_mm: [
+          parseFloat(sampleOriginX) || 150,
+          parseFloat(sampleOriginY) || 150,
+          parseFloat(sampleOriginZ) || 150,
+        ],
+        width_mm: parseFloat(sampleWidth) || 200,
+        height_mm: parseFloat(sampleHeight) || 200,
+        orientation_quat: TOOL_DOWN_QUAT,
+      })
+      setResult(res)
+      setPreview({
+        positions: res.program.root.children.map(
+          (n) => (((n as unknown) as { attributes: { position?: number[] } }).attributes.position ?? [0, 0, 0]),
+        ),
+        motion_types: res.program.root.children.map(
+          (n) => String((((n as unknown) as { attributes: { motion_type?: string } }).attributes.motion_type) ?? 'feed'),
+        ),
+        warnings: res.warnings,
+        truncated: false,
+        pose_count: res.pose_count,
+      })
+    } catch (e) {
+      setGenerateError(String(e))
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   // ── Upload state ──────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -357,6 +416,74 @@ export function GCodePage({ machineId }: GCodePageProps) {
       >
         {/* ── Left column ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Sample generator card */}
+          <div style={card}>
+            <div style={label}>Generate sample G-code</div>
+
+            <div>
+              <div style={label}>Pattern</div>
+              <select
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                value={selectedSample}
+                onChange={(e) => setSelectedSample(e.target.value)}
+              >
+                {sampleNames.map((n) => (
+                  <option key={n} value={n}>{n.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div>
+                <div style={label}>Origin X (mm)</div>
+                <input style={inputStyle} type="number" value={sampleOriginX}
+                  onChange={(e) => setSampleOriginX(e.target.value)} />
+              </div>
+              <div>
+                <div style={label}>Origin Y (mm)</div>
+                <input style={inputStyle} type="number" value={sampleOriginY}
+                  onChange={(e) => setSampleOriginY(e.target.value)} />
+              </div>
+              <div>
+                <div style={label}>Work Z (mm)</div>
+                <input style={inputStyle} type="number" value={sampleOriginZ}
+                  onChange={(e) => setSampleOriginZ(e.target.value)} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <div style={label}>Width (mm)</div>
+                <input style={inputStyle} type="number" min="1" value={sampleWidth}
+                  onChange={(e) => setSampleWidth(e.target.value)} />
+              </div>
+              <div>
+                <div style={label}>Height (mm)</div>
+                <input style={inputStyle} type="number" min="1" value={sampleHeight}
+                  onChange={(e) => setSampleHeight(e.target.value)} />
+              </div>
+            </div>
+
+            <button
+              onClick={() => void handleGenerateSample()}
+              disabled={!selectedSample || generating}
+              style={btn('#7c3aed', !selectedSample || generating)}
+            >
+              {generating ? 'Generating…' : 'Generate & save program'}
+            </button>
+
+            {generateError && (
+              <span style={{ color: '#f87171', fontSize: 12 }}>{generateError}</span>
+            )}
+            <div style={{ color: '#6b7280', fontSize: 11, lineHeight: 1.4 }}>
+              Tip: set Origin X = Width/2, Origin Y = Height/2 to keep the entire
+              pattern in the positive quadrant (required for CNC gantries).
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ color: '#4b5563', fontSize: 11, textAlign: 'center' }}>— or upload a file —</div>
 
           {/* Upload card */}
           <div style={card}>

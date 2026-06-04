@@ -144,11 +144,21 @@ class WorkspaceService:
     async def contains(self, machine_id: str, point: tuple[float, float, float]) -> bool:
         """
         Return True if *point* lies inside (or on) the machine's reachable
-        workspace hull.  Loads the persisted hull; returns False if none exists.
+        workspace hull.  Loads the persisted hull, computing it on demand when
+        no cached result exists (e.g. legacy machines saved before the EE spec
+        was carried over from the template).
         """
         result = await self._repository.machine.load_workspace(machine_id)
         if result is None or result.hull is None:
-            return False
+            try:
+                result = await self.recompute(machine_id)
+            except Exception:
+                logger.exception(
+                    "Lazy workspace compute failed for machine {}", machine_id
+                )
+                return False
+            if result is None or result.hull is None:
+                return False
         return _point_in_hull(point, result.hull.equations)
 
     async def invalidate(self, machine_id: str) -> None:
@@ -195,11 +205,15 @@ class WorkspaceService:
         # Per-joint resolution from budget
         k = max(2, int(self._budget ** (1.0 / n_joints)))
 
-        # Build per-joint angle grids (radians)
+        # Build per-joint sample grids in SI units (radians for revolute,
+        # metres for prismatic).  Without honouring the joint type the
+        # prismatic 0.3 m limit collapses to 0.005 "rad", producing a hull
+        # only ~5 mm on a side.
+        from brain.models.machine import joint_limit_to_si
         grids: list[list[float]] = []
         for jv in dh.joints:
-            lo = math.radians(jv.limit_lower)
-            hi = math.radians(jv.limit_upper)
+            lo = joint_limit_to_si(jv, jv.limit_lower)
+            hi = joint_limit_to_si(jv, jv.limit_upper)
             if lo >= hi:
                 hi = lo + 1e-6
             step = (hi - lo) / (k - 1) if k > 1 else 0.0

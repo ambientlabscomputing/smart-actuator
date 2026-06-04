@@ -16,7 +16,8 @@ export type StepKind = 'move' | 'wait'
 export interface ProgramStep {
   kind: StepKind
   joint_name?: string
-  target_rad?: number
+  /** SI target: radians for revolute, metres for prismatic */
+  target?: number
   duration_s?: number
 }
 
@@ -28,7 +29,7 @@ interface ProgramListViewProps {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function emptyStep(kind: StepKind): ProgramStep {
-  if (kind === 'move') return { kind: 'move', joint_name: '', target_rad: 0 }
+  if (kind === 'move') return { kind: 'move', joint_name: '', target: 0 }
   return { kind: 'wait', duration_s: 1 }
 }
 
@@ -39,7 +40,7 @@ function stepToNode(step: ProgramStep) {
       children: [],
       attributes: {
         joint_name: step.joint_name ?? '',
-        target_rad: step.target_rad ?? 0,
+        target: step.target ?? 0,
       },
     }
   }
@@ -87,10 +88,12 @@ interface SavedProgram {
 
 function nodeToStep(node: ProgramNode): ProgramStep | null {
   if (node.kind === 'move') {
+    // Support both 'target' (current) and 'target_rad' (legacy) attribute names.
+    const rawTarget = node.attributes.target ?? node.attributes.target_rad ?? 0
     return {
       kind: 'move',
       joint_name: String(node.attributes.joint_name ?? ''),
-      target_rad: Number(node.attributes.target_rad ?? 0),
+      target: Number(rawTarget),
     }
   }
   if (node.kind === 'wait') {
@@ -190,11 +193,11 @@ function StepRow({
           <span style={labelStyle}>Target (°)</span>
           <input
             type="number"
-            value={Math.round(((step.target_rad ?? 0) * 180) / Math.PI)}
+            value={Math.round(((step.target ?? 0) * 180) / Math.PI)}
             onChange={(e) =>
               onChange({
                 ...step,
-                target_rad: (Number(e.target.value) * Math.PI) / 180,
+                target: (Number(e.target.value) * Math.PI) / 180,
               })
             }
             style={{ ...inputStyle, width: 64 }}
@@ -257,7 +260,7 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
   const [programId, setProgramId] = useState<string>(() => crypto.randomUUID())
   const [name, setName] = useState('My program')
   const [steps, setSteps] = useState<ProgramStep[]>([
-    { kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 },
+    { kind: 'move', joint_name: joints[0] ?? '', target: 0 },
   ])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -288,7 +291,7 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
     setProgramId(data.meta.program_id)
     setName(data.meta.name)
     const parsed = data.root.children.map(nodeToStep).filter((s): s is ProgramStep => s !== null)
-    setSteps(parsed.length > 0 ? parsed : [{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }])
+    setSteps(parsed.length > 0 ? parsed : [{ kind: 'move', joint_name: joints[0] ?? '', target: 0 }])
     setRunId(null)
     setSaveError(null)
     setRunError(null)
@@ -298,7 +301,7 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
   const newProgram = () => {
     setProgramId(crypto.randomUUID())
     setName('My program')
-    setSteps([{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }])
+    setSteps([{ kind: 'move', joint_name: joints[0] ?? '', target: 0 }])
     setRunId(null)
     setSaveError(null)
     setRunError(null)

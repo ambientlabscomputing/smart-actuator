@@ -14,7 +14,7 @@ import math
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-from brain.models.machine import DHChainSchema, DHChainValues, DHJointValues, EasyAlias
+from brain.models.machine import DHChainSchema, DHChainValues, DHJointValues, EasyAlias, joint_limit_to_si
 
 
 # ── Public: URDF generation ───────────────────────────────────────────────────
@@ -48,8 +48,9 @@ def dh_chain_to_urdf(
     for i, jv in enumerate(values.joints):
         js = schema.joints[i] if i < len(schema.joints) else None
 
-        limit_lower_rad = math.radians(jv.limit_lower)
-        limit_upper_rad = math.radians(jv.limit_upper)
+        joint_type = getattr(jv, "type", "revolute")
+        limit_lower_si = joint_limit_to_si(jv, jv.limit_lower)
+        limit_upper_si = joint_limit_to_si(jv, jv.limit_upper)
         alpha_rad = math.radians(jv.alpha)
         theta_offset_rad = math.radians(jv.theta_offset)
 
@@ -57,8 +58,10 @@ def dh_chain_to_urdf(
         child_link = f"link{i}"
         joint_name = jv.name
 
-        # Joint — translates by prev link length along Z, applies d offset, alpha twist
-        joint_el = ET.SubElement(root, "joint", name=joint_name, type="revolute")
+        urdf_joint_type = "prismatic" if joint_type == "prismatic" else "revolute"
+
+        # Joint element
+        joint_el = ET.SubElement(root, "joint", name=joint_name, type=urdf_joint_type)
         ET.SubElement(joint_el, "parent", link=parent_link)
         ET.SubElement(joint_el, "child", link=child_link)
 
@@ -71,19 +74,24 @@ def dh_chain_to_urdf(
             rpy=f"{alpha_rad:.6f} 0 {theta_offset_rad:.6f}",
         )
 
-        ET.SubElement(joint_el, "axis", xyz="0 0 1")
+        # Axis: derive from jv.axis field (x/y/z → unit vector)
+        axis_str = _axis_xyz_string(getattr(jv, "axis", "z"))
+        ET.SubElement(joint_el, "axis", xyz=axis_str)
+
+        # Limits: radians for revolute, metres for prismatic
+        velocity_limit = "3.14" if joint_type == "revolute" else "0.5"
         ET.SubElement(
             joint_el,
             "limit",
-            lower=f"{limit_lower_rad:.6f}",
-            upper=f"{limit_upper_rad:.6f}",
+            lower=f"{limit_lower_si:.6f}",
+            upper=f"{limit_upper_si:.6f}",
             effort="50",
-            velocity="3.14",
+            velocity=velocity_limit,
         )
 
-        # Link — cylinder of length = a, radius = shared link_radius
+        # Link — cylinder (revolute) or thin slider box (prismatic)
         link_el = ET.SubElement(root, "link", name=child_link)
-        link_length = jv.a
+        link_length = jv.a if joint_type == "revolute" else max(jv.limit_upper, 0.05)
         half = link_length / 2.0
         mass = jv.mass
         Ixy = mass * link_length**2 / 12.0
@@ -106,12 +114,21 @@ def dh_chain_to_urdf(
         for geom_tag in ("visual", "collision"):
             el = ET.SubElement(link_el, geom_tag)
             geom = ET.SubElement(el, "geometry")
-            ET.SubElement(
-                geom,
-                "cylinder",
-                radius=f"{radius:.6f}",
-                length=f"{link_length:.6f}",
-            )
+            if joint_type == "prismatic":
+                # Slider rail: thin box oriented along the joint axis
+                rail_cross = radius * 0.5  # narrow cross-section
+                ET.SubElement(
+                    geom,
+                    "box",
+                    size=f"{rail_cross:.6f} {rail_cross:.6f} {link_length:.6f}",
+                )
+            else:
+                ET.SubElement(
+                    geom,
+                    "cylinder",
+                    radius=f"{radius:.6f}",
+                    length=f"{link_length:.6f}",
+                )
             ET.SubElement(el, "origin", xyz=f"0 0 {half:.6f}", rpy="0 0 0")
 
         prev_length = link_length
@@ -171,6 +188,11 @@ def dh_values_to_parameters(
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _axis_xyz_string(axis: str) -> str:
+    """Convert axis shorthand ('x', 'y', 'z') to URDF xyz attribute string."""
+    return {"x": "1 0 0", "y": "0 1 0", "z": "0 0 1"}.get(axis.lower(), "0 0 1")
 
 
 def _add_base_link(root: ET.Element) -> None:

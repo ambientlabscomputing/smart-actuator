@@ -13,9 +13,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from brain.models.gcode import GCodePreview, GCodeTranslationRequest, GCodeTranslationResult
+from brain.models.gcode import GCodePreview, GCodeTranslationRequest, GCodeTranslationResult, GantrySampleRequest
 from brain.service.gcode.parser import parse_gcode
 from brain.service.gcode.translator import make_preview, translate
+from brain.service.gcode.samples import SAMPLE_NAMES, generate_gantry_sample
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
@@ -93,3 +94,54 @@ class GCodeService:
         """
         result = await self.translate_file(request)
         return make_preview(result)
+
+    # ── Sample generation ─────────────────────────────────────────────────────
+
+    def list_samples(self) -> list[str]:
+        """Return the sorted list of built-in sample names."""
+        return list(SAMPLE_NAMES)
+
+    async def generate_and_save_sample(
+        self, request: GantrySampleRequest, *, created_by: str
+    ) -> GCodeTranslationResult:
+        """
+        Generate a built-in G-code sample with gantry-friendly coordinates,
+        translate it in memory, persist the resulting Program, and return the
+        translation result.
+
+        No file upload is required — the G-code is generated server-side.
+        """
+        origin = tuple(request.origin_mm[:3]) if len(request.origin_mm) >= 3 else (150.0, 150.0, 150.0)
+        text = generate_gantry_sample(
+            request.name,
+            origin_mm=origin,  # type: ignore[arg-type]
+            width_mm=request.width_mm,
+            height_mm=request.height_mm,
+        )
+
+        parse_result = parse_gcode(text)
+
+        # Build a synthetic translation request (file_id is unused for in-memory text).
+        tr_request = GCodeTranslationRequest(
+            file_id=-1,
+            name=request.program_name,
+            description=request.description,
+            machine_id=request.machine_id,
+            orientation_quat=request.orientation_quat,
+            chord_tolerance_mm=request.chord_tolerance_mm,
+            arc_plane=request.arc_plane,
+        )
+        result = translate(
+            parse_result.program.commands,
+            tr_request,
+            source_lines=parse_result.source_lines,
+            parser_dropped=parse_result.dropped_lines,
+        )
+        await self._programs.save_program(result.program, created_by=created_by)
+        logger.info(
+            "GCodeService: generated sample '{}' → program {} ({} poses)",
+            request.name,
+            result.program.meta.program_id,
+            result.pose_count,
+        )
+        return result

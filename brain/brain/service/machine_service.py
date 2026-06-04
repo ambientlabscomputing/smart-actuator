@@ -16,6 +16,26 @@ if TYPE_CHECKING:
     from brain.service.workspace_service import WorkspaceService
 
 
+def _joint_limit_rad(description: "MachineDescription", slot: int) -> float:
+    """
+    Return the symmetric soft-limit to apply for a joint slot (in metres for
+    prismatic joints, radians for revolute joints).
+
+    Looks up dh_chain first, then falls back to the legacy parameters dict.
+    """
+    dh = description.dh_chain
+    if dh is not None:
+        joint = next((j for j in dh.joints if j.slot == slot), None)
+        if joint is not None:
+            if joint.type == "prismatic":
+                return float(joint.limit_upper)   # metres
+            else:
+                return math.radians(float(joint.limit_upper))  # deg → rad
+    # Legacy fallback.
+    limit_deg = float(description.parameters.get(f"joint{slot}_limit_deg", 180.0))
+    return math.radians(limit_deg)
+
+
 class MachineService:
     """
     Builds and maintains the canonical machine model (C1).
@@ -35,6 +55,7 @@ class MachineService:
         sim_lifecycle: "SimLifecycleService | None" = None,
         hardware_lifecycle: "HardwareLifecycleService | None" = None,
         workspace: "WorkspaceService | None" = None,
+        sidecar: "SidecarBridge | None" = None,
     ) -> None:
         self._repository = repository
         self._templates = template_service
@@ -42,6 +63,7 @@ class MachineService:
         self._sim_lifecycle = sim_lifecycle  # injected after construction to break circular dep
         self._hardware_lifecycle = hardware_lifecycle
         self._workspace = workspace
+        self._sidecar = sidecar
 
     def set_sim_lifecycle(self, sim_lifecycle: "SimLifecycleService") -> None:
         self._sim_lifecycle = sim_lifecycle
@@ -109,6 +131,12 @@ class MachineService:
             else [f"joint{i}" for i in range(max(len(description.actuator_bindings), 1))]
         )
 
+        # Carry the EE spec from the template into the persisted description
+        # if the caller didn't override it.  Without this the kinematics layer
+        # defaults task_space to "se3" and IK will fail for R3/planar machines.
+        if description.end_effector is None and tmpl and tmpl.end_effector is not None:
+            description.end_effector = tmpl.end_effector
+
         machine = Machine(
             description=description,
             expanded_urdf=expanded_urdf,
@@ -117,6 +145,10 @@ class MachineService:
 
         await self._persist(machine, created_by=created_by)
         logger.info("Machine {} persisted ({} joints)", description.machine_id, len(joint_names))
+
+        # Register joint types with the sidecar bridge so that streamed
+        # JointState frames carry the correct 'type' field without a DB lookup.
+        self._register_joint_types(description)
 
         # Eager workspace compute
         if self._workspace is not None and machine.description.dh_chain is not None:
@@ -157,6 +189,15 @@ class MachineService:
                     )
                 else:
                     machine.description.dh_chain = DHChainValues.from_schema_defaults(tmpl.dh)
+
+            # Back-fill end_effector from the template when missing (legacy
+            # rows saved before EE was carried over from the template).
+            if (
+                machine.description.end_effector is None
+                and tmpl is not None
+                and tmpl.end_effector is not None
+            ):
+                machine.description.end_effector = tmpl.end_effector
 
             return machine
         except Exception:
@@ -202,8 +243,7 @@ class MachineService:
         if kind == "sim":
             if self._sim_lifecycle is None:
                 raise RuntimeError("SimLifecycleService not wired — cannot spawn sim")
-            limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))
-            limit_rad = math.radians(limit_deg)
+            limit_rad = _joint_limit_rad(machine.description, slot)
             address, pid, actuator_id = await self._sim_lifecycle.spawn_sim(
                 machine_id,
                 slot,
@@ -233,8 +273,7 @@ class MachineService:
                 raise ValueError("kind='hardware' requires ip+port (TCP) or serial_path (USB-CDC)")
             if self._hardware_lifecycle is None:
                 raise RuntimeError("HardwareLifecycleService not wired — cannot bind hardware")
-            limit_deg = float(machine.description.parameters.get(f"joint{slot}_limit_deg", 180.0))
-            limit_rad = math.radians(limit_deg)
+            limit_rad = _joint_limit_rad(machine.description, slot)
             address, bound_actuator_id = await self._hardware_lifecycle.bind_hardware(
                 machine_id,
                 slot,
@@ -284,6 +323,22 @@ class MachineService:
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+
+    def _register_joint_types(self, description: "MachineDescription") -> None:
+        """Push joint-type metadata to the sidecar bridge if available."""
+        if self._sidecar is None or description.dh_chain is None:
+            return
+        joint_types = {
+            jv.name: getattr(jv, "type", "revolute")
+            for jv in description.dh_chain.joints
+        }
+        try:
+            self._sidecar.register_joint_types(description.machine_id, joint_types)
+        except Exception:
+            logger.warning(
+                "Could not register joint types for machine {} with sidecar",
+                description.machine_id,
+            )
 
     async def _persist(self, machine: Machine, *, created_by: str) -> None:
         await self._repository.machine.save_machine(

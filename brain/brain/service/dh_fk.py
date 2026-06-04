@@ -75,6 +75,14 @@ def _tz(dist: float) -> list[float]:
             0, 0, 0, 1]
 
 
+def _ty(dist: float) -> list[float]:
+    """Translation along Y."""
+    return [1, 0, 0, 0,
+            0, 1, 0, dist,
+            0, 0, 1, 0,
+            0, 0, 0, 1]
+
+
 def _tx(dist: float) -> list[float]:
     """Translation along X."""
     return [1, 0, 0, dist,
@@ -96,16 +104,39 @@ def joint_transforms(values: "DHChainValues", angles_rad: list[float]) -> list[l
     transforms: list[list[float]] = []
     T = _identity()
     for i, jv in enumerate(values.joints):
-        theta_i = angles_rad[i] if i < len(angles_rad) else 0.0
-        theta_total = math.radians(jv.theta_offset) + theta_i
+        q_i = angles_rad[i] if i < len(angles_rad) else 0.0
         alpha_rad = math.radians(jv.alpha)
+        theta_offset_rad = math.radians(jv.theta_offset)
 
-        # Standard DH chain matching the +X-link convention used by ArmCanvas:
-        #   Rz(θ) · Tz(d) · Tx(a) · Rx(α)
-        T = _mat_mul(T, _rz(theta_total))
-        T = _mat_mul(T, _tz(jv.d))
-        T = _mat_mul(T, _tx(jv.a))
-        T = _mat_mul(T, _rx(alpha_rad))
+        joint_type = getattr(jv, "type", "revolute")
+
+        if joint_type == "prismatic":
+            # Prismatic: θ is fixed; q_i translates along the joint's declared
+            # axis (x, y, or z of the incoming frame).  This lets a Cartesian
+            # gantry be expressed with simple zero-angle DH parameters.
+            #   Rz(θ_offset) · T_{axis}(q_i + offset) · Tx(a) · Rx(α)
+            axis_label = getattr(jv, "axis", "z")
+            T = _mat_mul(T, _rz(theta_offset_rad))
+            if axis_label == "x":
+                T = _mat_mul(T, _tx(jv.a + q_i))  # joint var adds to a (X slot)
+                T = _mat_mul(T, _tz(jv.d))
+            elif axis_label == "y":
+                T = _mat_mul(T, _ty(q_i))          # joint var translates along Y
+                T = _mat_mul(T, _tx(jv.a))
+                T = _mat_mul(T, _tz(jv.d))
+            else:  # "z" (default)
+                T = _mat_mul(T, _tz(jv.d + q_i))  # joint var adds to d (Z slot)
+                T = _mat_mul(T, _tx(jv.a))
+            T = _mat_mul(T, _rx(alpha_rad))
+        else:
+            # Revolute: θ_total = θ_offset + q_i; d is a fixed offset.
+            #   Rz(θ_offset + q_i) · Tz(d) · Tx(a) · Rx(α)
+            theta_total = theta_offset_rad + q_i
+            T = _mat_mul(T, _rz(theta_total))
+            T = _mat_mul(T, _tz(jv.d))
+            T = _mat_mul(T, _tx(jv.a))
+            T = _mat_mul(T, _rx(alpha_rad))
+
         transforms.append(list(T))
     return transforms
 

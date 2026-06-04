@@ -135,6 +135,13 @@ def _verify_block(
             return "error", f"'{kind}' block must have exactly 1 joint; got {len(joints)}."
         return "ok", ""
 
+    if kind == "cartesian_xyz":
+        if len(joints) != 3:
+            return "error", f"cartesian_xyz requires exactly 3 joints; got {len(joints)}."
+        ok, msg = _check_prismatic_orthogonal(dh, joints)
+        status = "ok" if ok else "warning"
+        return status, msg
+
     if kind == "planar_2r":
         if len(joints) != 2:
             return "error", f"planar_2r requires exactly 2 joints; got {len(joints)}."
@@ -228,6 +235,71 @@ def _check_partition(
             return False, f"Joint index {j} is out of range [0, {n_total - 1}]."
         if j in already_used:
             return False, f"Joint {j} appears in more than one block."
+    return True, ""
+
+
+def _check_prismatic_orthogonal(
+    dh: "DHChainValues",
+    joints: list[int],
+) -> tuple[bool, str]:
+    """
+    Check that three prismatic joints have mutually orthogonal translation axes.
+
+    Each prismatic joint translates along the Z-axis of its incoming DH frame.
+    At the zero configuration the incoming frame for joint i is the product of
+    all preceding DH transforms.  We compute the Z columns of those frames and
+    verify that each pair is orthogonal (|dot| < threshold).
+    """
+    from brain.service.dh_fk import joint_transforms  # local import avoids cycle
+
+    _ORTHO_TOL = 0.05  # ~3° in sin-space
+
+    # Check all joints are prismatic.
+    for j in joints:
+        jv = dh.joints[j]
+        jt = getattr(jv, "type", "revolute")
+        if jt != "prismatic":
+            return False, (
+                f"Joint {j} ({jv.name!r}) is type {jt!r}; "
+                "cartesian_xyz requires all three joints to be prismatic."
+            )
+
+    zero_q = [0.0] * len(dh.joints)
+    transforms = joint_transforms(dh, zero_q)
+
+    # Extract translation axis (X, Y, or Z column of incoming frame) per joint.
+    axes: list[tuple[float, float, float]] = []
+    for slot in joints:
+        jv = dh.joints[slot]
+        axis_label = getattr(jv, "axis", "z")
+        if slot == 0:
+            if axis_label == "x":
+                axes.append((1.0, 0.0, 0.0))
+            elif axis_label == "y":
+                axes.append((0.0, 1.0, 0.0))
+            else:
+                axes.append((0.0, 0.0, 1.0))
+        else:
+            prev_T = transforms[slot - 1]
+            if axis_label == "x":
+                axes.append((prev_T[0], prev_T[4], prev_T[8]))
+            elif axis_label == "y":
+                axes.append((prev_T[1], prev_T[5], prev_T[9]))
+            else:
+                axes.append((prev_T[2], prev_T[6], prev_T[10]))
+
+    # Check mutual orthogonality.
+    for ia in range(3):
+        for ib in range(ia + 1, 3):
+            dot = sum(axes[ia][k] * axes[ib][k] for k in range(3))
+            if abs(dot) > _ORTHO_TOL:
+                angle_deg = math.degrees(math.asin(min(1.0, abs(dot))))
+                return False, (
+                    f"Joints {joints[ia]} and {joints[ib]} translation axes deviate "
+                    f"from orthogonal by ~{angle_deg:.1f}° — "
+                    "cartesian_xyz block requires mutually orthogonal axes."
+                )
+
     return True, ""
 
 

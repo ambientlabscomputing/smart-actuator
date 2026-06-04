@@ -38,7 +38,7 @@ def new_brain_service(config: Config) -> BrainService:
     hardware_lifecycle = HardwareLifecycleService(
         repository, config, sidecar_bridge=sidecar, observability=observability
     )
-    kinematics = KinematicsService(repository, config)
+    kinematics = KinematicsService(repository, config, templates=templates)
     workspace = WorkspaceService(repository, kinematics, templates, config)
     machine = MachineService(
         repository,
@@ -47,6 +47,7 @@ def new_brain_service(config: Config) -> BrainService:
         sim_lifecycle=sim_lifecycle,
         hardware_lifecycle=hardware_lifecycle,
         workspace=workspace,
+        sidecar=sidecar,
     )
     actuators = ActuatorService(repository, sidecar, config)
     lifecycle = LifecycleService(repository, config)

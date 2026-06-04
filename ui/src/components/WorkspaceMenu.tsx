@@ -26,6 +26,7 @@ import BlurOnIcon from '@mui/icons-material/BlurOn'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
 
 import { CartesianJogPanel } from './CartesianJogPanel'
+import type { DHJointValues } from '../lib/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ function modeColor(mode: string): string {
 }
 
 const JOG_STEP_DEG = 5
+const JOG_STEP_MM = 5
 
 // ── Shared icon button style ──────────────────────────────────────────────────
 
@@ -83,6 +85,8 @@ interface WorkspaceMenuProps {
   currentEE?: [number, number, number] | null
   /** Current EE orientation from FK as quaternion [x, y, z, w]. */
   currentEEQuat?: [number, number, number, number] | null
+  /** DH joint specs — used to detect prismatic joints for unit display. */
+  dhJoints?: DHJointValues[]
 }
 
 export function WorkspaceMenu({
@@ -103,6 +107,7 @@ export function WorkspaceMenu({
   currentQRad,
   currentEE,
   currentEEQuat,
+  dhJoints,
 }: WorkspaceMenuProps) {
   const [busy, setBusy] = useState(false)
   const [jogAnchor, setJogAnchor] = useState<null | HTMLElement>(null)
@@ -315,7 +320,7 @@ export function WorkspaceMenu({
         }}
       >
         <div style={{ color: '#6b7280', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Jog  ·  {JOG_STEP_DEG}° / step
+          Jog  ·  joints
         </div>
 
         {joints.length === 0 && (
@@ -323,7 +328,14 @@ export function WorkspaceMenu({
         )}
 
         {joints.map((joint) => {
-          const deg = normalizeDeg(jointDegrees[joint] ?? 0).toFixed(1)
+          const isPrismatic = dhJoints?.find((j) => j.name === joint)?.type === 'prismatic'
+          const displayVal = isPrismatic
+            ? (jointDegrees[joint] ?? 0).toFixed(1)   // already stored as mm
+            : normalizeDeg(jointDegrees[joint] ?? 0).toFixed(1)
+          const unit = isPrismatic ? 'mm' : '°'
+          const stepLabel = isPrismatic ? `${JOG_STEP_MM} mm` : `${JOG_STEP_DEG}°`
+          // Deltas in SI units (metres for prismatic, radians for revolute)
+          const deltaPos = isPrismatic ? JOG_STEP_MM / 1000 : (JOG_STEP_DEG * Math.PI) / 180
           return (
             <div
               key={joint}
@@ -350,10 +362,10 @@ export function WorkspaceMenu({
               </span>
 
               {/* − button */}
-              <Tooltip title={`−${JOG_STEP_DEG}°`} placement="top">
+              <Tooltip title={`−${stepLabel}`} placement="top">
                 <span>
                   <IconButton
-                    onClick={() => void handleJog(joint, -JOG_STEP_DEG)}
+                    onClick={() => void handleJog(joint, -deltaPos)}
                     disabled={isDisabled}
                     size="small"
                     style={{ padding: 3, color: isDisabled ? '#374151' : '#9ca3af' }}
@@ -363,7 +375,7 @@ export function WorkspaceMenu({
                 </span>
               </Tooltip>
 
-              {/* Current angle */}
+              {/* Current value */}
               <span
                 style={{
                   color: '#e5e7eb',
@@ -373,14 +385,14 @@ export function WorkspaceMenu({
                   textAlign: 'center',
                 }}
               >
-                {deg}°
+                {displayVal}{unit}
               </span>
 
               {/* + button */}
-              <Tooltip title={`+${JOG_STEP_DEG}°`} placement="top">
+              <Tooltip title={`+${stepLabel}`} placement="top">
                 <span>
                   <IconButton
-                    onClick={() => void handleJog(joint, JOG_STEP_DEG)}
+                    onClick={() => void handleJog(joint, deltaPos)}
                     disabled={isDisabled}
                     size="small"
                     style={{ padding: 3, color: isDisabled ? '#374151' : '#9ca3af' }}

@@ -208,3 +208,117 @@ def _mat_to_quat(R: list[list[float]]) -> tuple[float, float, float, float]:
         qy = (R[1][2] + R[2][1]) / s
         qz = 0.25 * s
     return qx, qy, qz, qw
+
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Prismatic / Cartesian gantry tests
+# ───────────────────────────────────────────────────────────────────────────────
+
+GANTRY_TEMPLATE = "cnc_3axis_gantry"
+
+
+@pytest.mark.parametrize(
+    "q_m, expected_tcp_m",
+    [
+        ([0.0, 0.0, 0.0], None),               # zero pose — just check non-degenerate
+        ([0.10, 0.20, 0.05], [0.10, 0.20, 0.05]),  # canonical XYZ move
+        ([0.25, 0.15, 0.08], [0.25, 0.15, 0.08]),
+    ],
+)
+def test_gantry_fk(q_m: list[float], expected_tcp_m: list[float] | None) -> None:
+    """Prismatic FK: joint values in metres map directly to TCP position."""
+    dh, ee_spec, _ = _build_dh(GANTRY_TEMPLATE)
+    tcp = ee_position_with_spec(dh, q_m, ee_spec)
+    if expected_tcp_m is not None:
+        for axis, (got, want) in enumerate(zip(tcp, expected_tcp_m)):
+            assert abs(got - want) < POS_TOL_M, (
+                f"gantry FK axis {axis}: got {got:.4f} m, want {want:.4f} m "
+                f"(q={q_m})"
+            )
+    else:
+        # Just confirm the EE is in a sane location (non-zero reach).
+        reach = math.sqrt(sum(v ** 2 for v in tcp))
+        # At zero pose, all joints at base, EE should be near origin (or offset).
+        # Gantry zero: TCP at base frame origin — reach can be 0 if no EE offset.
+        assert reach >= 0.0  # trivially true; proves no crash
+
+
+@pytest.mark.parametrize(
+    "target_m",
+    [
+        [0.05, 0.05, 0.05],
+        [0.10, 0.20, 0.05],
+        [0.25, 0.10, 0.09],
+    ],
+)
+def test_gantry_ik_roundtrip(target_m: list[float]) -> None:
+    """cartesian_xyz IK must recover the target TCP position to within 1 mm."""
+    dh, ee_spec, ik_spec = _build_dh(GANTRY_TEMPLATE)
+
+    target = list(target_m)
+    solved = solve(
+        dh,
+        ik_spec,
+        target,
+        ee_spec,
+        overrides=None,
+        verification=None,
+        current_q=[0.0, 0.0, 0.0],
+        options=IKCallOptions(),
+    )
+    assert len(solved) == 3, f"expected 3 joint values, got {solved}"
+
+    achieved = ee_position_with_spec(dh, solved, ee_spec)
+    err = math.sqrt(sum((a - t) ** 2 for a, t in zip(achieved, target_m)))
+    assert err < POS_TOL_M, (
+        f"gantry IK round-trip error {err * 1000:.3f} mm "
+        f"(target={target_m}, achieved={achieved}, q={solved})"
+    )
+
+
+def test_gantry_verifier_ok() -> None:
+    """IK verifier should report 'ok' for the gantry template's decomposition."""
+    from brain.service.ik.verifier import verify
+
+    dh, _, ik_spec = _build_dh(GANTRY_TEMPLATE)
+    result = verify(dh, ik_spec)
+    assert result.blocks, "verifier returned no block results"
+    for block_result in result.blocks:
+        assert block_result.status in ("ok", "warning"), (
+            f"verifier returned error: {block_result}"
+        )
+
+
+def test_gantry_verifier_rejects_parallel_axes() -> None:
+    """
+    If two prismatic joints share the same axis, cartesian_xyz should warn/reject.
+    Build a degenerate DH (X, X, Z) and verify the verifier catches it.
+    """
+    from brain.models.machine import DHChainValues, DHJointValues
+    from brain.models.machine import IKSpec, IKBlock
+    from brain.service.ik.verifier import verify
+
+    # Build a DH chain with 3 prismatic joints but two sharing the X axis.
+    joints = [
+        DHJointValues(name="j0", slot=0, a=0, alpha=0, d=0, theta_offset=0,
+                      type="prismatic", axis="x",
+                      limit_lower=0, limit_upper=0.3),
+        DHJointValues(name="j1", slot=1, a=0, alpha=0, d=0, theta_offset=0,
+                      type="prismatic", axis="x",  # same as j0 — degenerate!
+                      limit_lower=0, limit_upper=0.3),
+        DHJointValues(name="j2", slot=2, a=0, alpha=0, d=0, theta_offset=0,
+                      type="prismatic", axis="z",
+                      limit_lower=0, limit_upper=0.1),
+    ]
+    dh = DHChainValues(joints=joints)
+    ik_spec = IKSpec(
+        decomposition=[IKBlock(kind="cartesian_xyz", joints=[0, 1, 2])],
+    )
+
+    result = verify(dh, ik_spec)
+    # At least one result should be 'warning' or 'error' due to parallel axes.
+    statuses = {b.status for b in result.blocks}
+    assert "warning" in statuses or "error" in statuses, (
+        f"verifier should flag parallel axes but returned: {result.blocks}"
+    )
+

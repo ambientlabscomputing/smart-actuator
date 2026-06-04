@@ -83,12 +83,18 @@ export interface EasyAlias {
 export interface DHJointValues {
   name: string
   slot: number
+  /** 'revolute' | 'prismatic' — defaults to 'revolute' if absent. */
+  type?: string
+  /** 'x' | 'y' | 'z' — translation axis for prismatic joints; default 'z'. */
+  axis?: string
   a: number
   d: number
   alpha: number        // degrees
   theta_offset: number // degrees
-  limit_lower: number  // degrees
-  limit_upper: number  // degrees
+  /** Revolute: degrees. Prismatic: metres. */
+  limit_lower: number
+  /** Revolute: degrees. Prismatic: metres. */
+  limit_upper: number
   mass: number
 }
 

@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from brain.models.motion import JointTrajectory, Pose
 from brain.models.state import JointState, LinkPose
 from brain.repository.repository import Repository
@@ -11,6 +13,9 @@ from brain.service.ik import IKCallOptions, IKNoSolution, IKUnreachable, solve
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
+if TYPE_CHECKING:
+    from brain.service.template_service import TemplateService
+
 
 class KinematicsService:
     """
@@ -22,20 +27,62 @@ class KinematicsService:
     stream both use plain forward kinematics, not MuJoCo renders.
     """
 
-    def __init__(self, repository: Repository, config: Config) -> None:
+    def __init__(
+        self,
+        repository: Repository,
+        config: Config,
+        templates: "TemplateService | None" = None,
+    ) -> None:
         self._repository = repository
         self._config = config
+        self._templates = templates
 
     async def _load_kinematics(self, machine_id: str):
         """
         Load the machine, DH chain, EE spec, IK spec, overrides, and
         verification report.  Returns None if the machine doesn't exist or
         has no DH chain.
+
+        Back-fills end_effector from the template if the persisted machine
+        description is missing it (e.g. legacy rows saved before the EE was
+        carried over from the template).  Without this, the IK solver
+        defaults task_space to 'se3' and tries to satisfy orientation
+        constraints that R3 machines cannot achieve.
         """
         machine = await self._repository.machine.load_machine(machine_id)
         if machine is None or machine.description.dh_chain is None:
             return None
+        if machine.description.end_effector is None and self._templates is not None:
+            try:
+                tmpl = await self._templates.get_template(
+                    machine.description.template_ref.template_id
+                )
+                if tmpl and tmpl.end_effector is not None:
+                    machine.description.end_effector = tmpl.end_effector
+            except Exception:
+                logger.exception(
+                    "KinematicsService: could not back-fill end_effector for machine {}",
+                    machine_id,
+                )
         return machine
+
+    async def _load_ik_spec(self, machine_id: str):
+        """Load the template's IK spec (decomposition + numeric tuning)."""
+        if self._templates is None:
+            return None
+        try:
+            machine = await self._repository.machine.load_machine(machine_id)
+            if machine is None:
+                return None
+            tmpl = await self._templates.get_template(
+                machine.description.template_ref.template_id
+            )
+            return tmpl.ik if tmpl else None
+        except Exception:
+            logger.exception(
+                "KinematicsService: could not load IK spec for machine {}", machine_id
+            )
+            return None
 
     def forward_kinematics(self, machine_id: str, joint_state: list[JointState]) -> list[LinkPose]:
         """Compute link poses from joint angles using the machine's DH chain."""
@@ -88,20 +135,18 @@ class KinematicsService:
         overrides = machine.description.ik_overrides
         verification = machine.ik_verification
 
-        # Load the IK spec from the template (for decomposition + numeric defaults)
-        ik_spec = None
-        try:
-            tmpl = await self._repository.machine.load_machine(machine_id)
-            # ik_spec comes from the template; we store it via machine_service
-            # For now, fall back to numeric-only if not available
-        except Exception:
-            pass
+        # Load the IK spec from the template (for analytic decomposition).
+        ik_spec = await self._load_ik_spec(machine_id)
 
         # Build target vector: [x, y, z] or [x, y, z, qx, qy, qz, qw]
+        # Only include orientation when the machine's task_space can control it;
+        # appending orientation to an R3/planar machine forces the numeric solver
+        # into SE3 mode and it will fail to converge (no rotary DOF).
         pos = target_pose.position
         target: list[float] = [float(pos[i]) if i < len(pos) else 0.0 for i in range(3)]
         ori = target_pose.orientation_quat
-        if ori and len(ori) == 4:
+        task_space_str = ee.task_space if ee else "se3"
+        if ori and len(ori) == 4 and task_space_str == "se3":
             target.extend(float(ori[i]) for i in range(4))
 
         return solve(

@@ -564,8 +564,13 @@ pub mod async_wire {
                 };
                 match result {
                     Ok(body) => return Ok(body),
-                    Err(WireError::Io(_)) => {
-                        // Connection broken — drop and reconnect below.
+                    // I/O errors and decode errors both indicate the stream is
+                    // in an unknown state (e.g. a timed-out future was cancelled
+                    // mid-receive, leaving a dangling frame in the buffer).
+                    // Drop the connection so the next call gets a clean start.
+                    Err(WireError::Io(_))
+                    | Err(WireError::DecodeError(_))
+                    | Err(WireError::FrameTooLarge(_)) => {
                         *guard = None;
                     }
                     Err(e) => return Err(e),

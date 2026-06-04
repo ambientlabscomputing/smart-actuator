@@ -61,6 +61,11 @@ class SimLifecycleService:
           1. Kill any stale process still running with the old PID.
           2. Re-spawn a fresh sim on the same port.
           3. Re-register the new sim with the Sidecar.
+
+        After recovering registered sims, auto-spawn sims for any DH chain
+        joints that have no sim AND no hardware binding — these are joints that
+        were somehow missed during initial setup (e.g. onboarding was partially
+        completed or a previous spawn failed).
         """
         rows = await self._repo.sim.list_all_sims()
         if not rows:
@@ -68,6 +73,10 @@ class SimLifecycleService:
             return
 
         logger.info("SimLifecycle: recovering {} sim(s) from registry", len(rows))
+
+        # Track which (machine_id, slot) pairs are successfully recovered.
+        recovered: dict[str, set[int]] = {}
+
         for row in rows:
             machine_id = row.machine_id
             slot = row.slot
@@ -117,19 +126,72 @@ class SimLifecycleService:
                     actuator_id, min_rad=-limit_rad, max_rad=limit_rad
                 )
                 logger.info(
-                    "SimLifecycle: recovered machine={} slot={} port={} pid={} limit={:.4f}rad",
+                    "SimLifecycle: recovered machine={} slot={} port={} pid={} limit={:.4f}",
                     machine_id,
                     slot,
                     port,
                     pid,
                     limit_rad,
                 )
+                recovered.setdefault(machine_id, set()).add(slot)
             except Exception:
                 logger.exception(
                     "SimLifecycle: failed to recover machine={} slot={}", machine_id, slot
                 )
                 # Remove the stale row so the Brain doesn't retry forever
                 await self._repo.sim.delete_sim(machine_id, slot)
+
+        # ── Auto-spawn missing sim slots ───────────────────────────────────────
+        # For each machine that has at least one sim, check whether any joints
+        # in its DH chain lack both a sim AND a hardware binding.  If so,
+        # auto-spawn a sim for them so all joints are functional on startup.
+        for machine_id, registered_slots in recovered.items():
+            try:
+                machine_row = await self._repo.machine.load_machine(machine_id)
+                if machine_row is None:
+                    continue
+                dh = machine_row.description.dh_chain
+                if dh is None:
+                    continue
+                hw_rows = await self._repo.hardware.list_hardware(machine_id)
+                hw_slots: set[int] = {r.slot for r in hw_rows}
+
+                for joint in dh.joints:
+                    slot = joint.slot
+                    if slot in registered_slots or slot in hw_slots:
+                        continue  # already bound
+
+                    logger.info(
+                        "SimLifecycle: auto-spawning sim for unbound machine={} slot={} joint={}",
+                        machine_id,
+                        slot,
+                        joint.name,
+                    )
+                    try:
+                        limit_rad = await self._get_joint_limit_rad(machine_id, slot)
+                        address, pid, actuator_id = await self.spawn_sim(
+                            machine_id,
+                            slot,
+                            joint_name=joint.name,
+                            limit_rad=limit_rad,
+                            created_by="system",
+                        )
+                        registered_slots.add(slot)
+                        logger.info(
+                            "SimLifecycle: auto-spawned machine={} slot={} pid={} limit={:.4f}",
+                            machine_id,
+                            slot,
+                            pid,
+                            limit_rad,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "SimLifecycle: failed to auto-spawn machine={} slot={}", machine_id, slot
+                        )
+            except Exception:
+                logger.exception(
+                    "SimLifecycle: error during auto-spawn check for machine={}", machine_id
+                )
 
     # ------------------------------------------------------------------
     # Public API
@@ -246,11 +308,30 @@ class SimLifecycleService:
     # ------------------------------------------------------------------
 
     async def _get_joint_limit_rad(self, machine_id: str, slot: int) -> float:
-        """Look up joint{slot}_limit_deg from stored machine parameters."""
+        """
+        Return the symmetric soft-limit radius to apply to the actuator for the
+        given joint slot (in radians for revolute, metres for prismatic).
+
+        For prismatic joints the limit is taken from dh_chain.joints[slot].limit_upper
+        (stored in metres). For revolute joints it falls back to the legacy
+        joint{slot}_limit_deg parameter, defaulting to π.
+        """
         row = await self._repo.machine.load_machine(machine_id)
         if row is None:
             return math.pi
         try:
+            dh = row.description.dh_chain
+            if dh is not None:
+                joint = next((j for j in dh.joints if j.slot == slot), None)
+                if joint is not None:
+                    if joint.type == "prismatic":
+                        # Prismatic limits are stored in metres.
+                        # Return the upper limit as the symmetric bound.
+                        return float(joint.limit_upper)
+                    else:
+                        # Revolute limits stored in degrees.
+                        return math.radians(float(joint.limit_upper))
+            # Legacy fallback: parameters dict.
             params = row.description.parameters
             limit_deg = float(params.get(f"joint{slot}_limit_deg", 180.0))
             return math.radians(limit_deg)
