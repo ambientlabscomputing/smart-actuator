@@ -68,8 +68,8 @@ function MetricRow({ label, value, history, color }: MetricRowProps) {
 // ── JointDataPanel ────────────────────────────────────────────────────────────
 
 export interface JointHistory {
-  angle_rad: number[]
-  velocity_rad_s: number[]
+  position: number[]
+  velocity: number[]
   current_a: number[]
   temperature_c: number[]
 }
@@ -110,9 +110,14 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
 
   if (!joint) return null
 
-  const angleDeg = ((joint.angle_rad * 180) / Math.PI).toFixed(1)
-  const angleRad = joint.angle_rad.toFixed(3)
-  const velocity = joint.velocity_rad_s.toFixed(3)
+  const isPrismatic = joint.type === 'prismatic'
+  const positionLabel = isPrismatic ? 'Position' : 'Angle'
+  const positionValue = isPrismatic
+    ? `${(joint.position * 1000).toFixed(1)} mm`
+    : `${((joint.position * 180) / Math.PI).toFixed(1)}°  (${joint.position.toFixed(3)} rad)`
+  const velocityValue = isPrismatic
+    ? `${(joint.velocity * 1000).toFixed(2)} mm/s`
+    : `${joint.velocity.toFixed(3)} rad/s`
   const current = joint.current_a.toFixed(3)
   const temp = joint.temperature_c.toFixed(1)
 
@@ -181,19 +186,19 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         </div>
       )}
 
-      {/* Angle */}
+      {/* Position / Angle */}
       <MetricRow
-        label="Angle"
-        value={`${angleDeg}°  (${angleRad} rad)`}
-        history={history?.angle_rad ?? []}
+        label={positionLabel}
+        value={positionValue}
+        history={history?.position ?? []}
         color="#4fc3f7"
       />
 
       {/* Velocity */}
       <MetricRow
         label="Velocity"
-        value={`${velocity} rad/s`}
-        history={history?.velocity_rad_s ?? []}
+        value={velocityValue}
+        history={history?.velocity ?? []}
         color="#a78bfa"
       />
 

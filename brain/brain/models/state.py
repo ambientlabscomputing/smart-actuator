@@ -19,11 +19,32 @@ class MachineMode(StrEnum):
 
 class JointState(BaseModel):
     joint_name: str
-    angle_rad: float = 0.0
-    velocity_rad_s: float = 0.0
+    # Joint type — "revolute" | "prismatic".
+    # Drives interpretation of position and velocity at render time.
+    type: str = "revolute"
+    # SI value: radians for revolute, metres for prismatic.
+    position: float = 0.0
+    # SI value: rad/s for revolute, m/s for prismatic.
+    velocity: float = 0.0
     current_a: float = 0.0
     temperature_c: float = 0.0
     fault: str | None = None
+
+    @classmethod
+    def from_legacy(cls, data: dict) -> "JointState":
+        """
+        Upgrade a stored dict that uses the pre-Phase-5 field names
+        (angle_rad / velocity_rad_s) to the current schema.
+        """
+        return cls(
+            joint_name=data.get("joint_name", ""),
+            type=data.get("type", "revolute"),
+            position=data.get("position", data.get("angle_rad", 0.0)),
+            velocity=data.get("velocity", data.get("velocity_rad_s", 0.0)),
+            current_a=data.get("current_a", 0.0),
+            temperature_c=data.get("temperature_c", 0.0),
+            fault=data.get("fault"),
+        )
 
 
 class LinkPose(BaseModel):

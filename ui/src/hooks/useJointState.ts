@@ -7,8 +7,12 @@ import { clearToken, getToken } from '@/lib/authClient'
 
 export interface JointState {
   joint_name: string
-  angle_rad: number
-  velocity_rad_s: number
+  /** 'revolute' | 'prismatic' */
+  type: string
+  /** radians (revolute) or metres (prismatic) */
+  position: number
+  /** rad/s (revolute) or m/s (prismatic) */
+  velocity: number
   current_a: number
   temperature_c: number
   fault: string | null
@@ -68,7 +72,12 @@ export function useJointState(machineId: string): UseJointStateResult {
           // server-side.
           if (import.meta.env.DEV) {
             const angles = parsed.measured
-              .map((j) => `${j.joint_name}=${((j.angle_rad * 180) / Math.PI).toFixed(2)}°`)
+              .map((j) => {
+                if (j.type === 'prismatic') {
+                  return `${j.joint_name}=${(j.position * 1000).toFixed(1)}mm`
+                }
+                return `${j.joint_name}=${((j.position * 180) / Math.PI).toFixed(2)}°`
+              })
               .join('  ')
              
             console.debug(`[ws ${parsed.mode}]`, angles)
@@ -171,7 +180,7 @@ export async function brainGet(path: string): Promise<unknown> {
 
 export interface MachineControl {
   /** Jog a single joint by deltaDeg degrees (positive = extend). */
-  jog: (machineId: string, jointName: string, deltaDeg: number, currentDeg: number) => Promise<void>
+  jog: (machineId: string, jointName: string, targetSI: number) => Promise<void>
   estop: (machineId: string) => Promise<void>
   resume: (machineId: string) => Promise<void>
 }
@@ -180,13 +189,11 @@ export function useMachineControl(): MachineControl {
   const jog = async (
     machineId: string,
     jointName: string,
-    deltaDeg: number,
-    currentDeg: number,
+    targetSI: number,
   ) => {
-    const targetRad = ((currentDeg + deltaDeg) * Math.PI) / 180
     await brainPost('/move/joint', {
       machine_id: machineId,
-      joint_targets: { [jointName]: targetRad },
+      joint_targets: { [jointName]: targetSI },
     })
   }
 

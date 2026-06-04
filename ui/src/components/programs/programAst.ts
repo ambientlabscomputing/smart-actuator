@@ -13,7 +13,8 @@ export type StepKind = 'move' | 'move_se3' | 'wait'
 export interface MoveStep {
   kind: 'move'
   joint_name?: string
-  target_rad?: number
+  /** SI target: radians for revolute, metres for prismatic */
+  target?: number
 }
 
 export interface MoveSe3Step {
@@ -52,7 +53,7 @@ export interface SavedProgram {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function emptyStep(kind: StepKind, firstJoint = ''): ProgramStep {
-  if (kind === 'move') return { kind: 'move', joint_name: firstJoint, target_rad: 0 }
+  if (kind === 'move') return { kind: 'move', joint_name: firstJoint, target: 0 }
   if (kind === 'move_se3') return { kind: 'move_se3', position: [0, 0, 0], orientation_quat: [0, 0, 0, 1] }
   return { kind: 'wait', duration_s: 1 }
 }
@@ -64,7 +65,7 @@ export function stepToNode(step: ProgramStep): ProgramNode {
       children: [],
       attributes: {
         joint_name: step.joint_name ?? '',
-        target_rad: step.target_rad ?? 0,
+        target: step.target ?? 0,
       },
     }
   }
@@ -87,10 +88,12 @@ export function stepToNode(step: ProgramStep): ProgramNode {
 
 export function nodeToStep(node: ProgramNode): ProgramStep | null {
   if (node.kind === 'move') {
+    // Support both 'target' (current) and 'target_rad' (legacy) attribute names.
+    const rawTarget = node.attributes.target ?? node.attributes.target_rad ?? 0
     return {
       kind: 'move',
       joint_name: String(node.attributes.joint_name ?? ''),
-      target_rad: Number(node.attributes.target_rad ?? 0),
+      target: Number(rawTarget),
     }
   }
   if (node.kind === 'move_se3') {
@@ -133,7 +136,7 @@ export function brainFetch(path: string, options?: RequestInit): Promise<Respons
 
 export function stepLabel(step: ProgramStep, index: number): string {
   if (step.kind === 'move') {
-    const deg = ((step.target_rad ?? 0) * 180) / Math.PI
+    const deg = ((step.target ?? 0) * 180) / Math.PI
     return `Move ${step.joint_name ?? '?'} → ${deg.toFixed(1)}°`
   }
   if (step.kind === 'move_se3') {

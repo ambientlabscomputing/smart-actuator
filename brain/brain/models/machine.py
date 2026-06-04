@@ -114,6 +114,7 @@ class IKBlockKind(str):
     """Closed registry of recognised decomposition block kinds."""
     REVOLUTE = "revolute"
     PRISMATIC = "prismatic"
+    CARTESIAN_XYZ = "cartesian_xyz"
     PLANAR_2R = "planar_2r"
     PLANAR_3R = "planar_3r"
     RRR_ANTHROPOMORPHIC = "rrr_anthropomorphic"
@@ -124,6 +125,7 @@ class IKBlockKind(str):
 KNOWN_IK_BLOCK_KINDS: frozenset[str] = frozenset({
     "revolute",
     "prismatic",
+    "cartesian_xyz",
     "planar_2r",
     "planar_3r",
     "rrr_anthropomorphic",
@@ -236,13 +238,33 @@ class DHJointValues(BaseModel):
 
     name: str
     slot: int
+    type: str = "revolute"  # "revolute" | "prismatic"
+    axis: str = "z"         # dominant motion axis: "x" | "y" | "z"
     a: float = 0.0
     d: float = 0.0
     alpha: float = 0.0      # stored in degrees; converted to rad by dh_urdf
     theta_offset: float = 0.0  # degrees
-    limit_lower: float = -180.0  # degrees
-    limit_upper: float = 180.0   # degrees
+    # For revolute joints: stored in degrees.
+    # For prismatic joints: stored in metres.
+    limit_lower: float = -180.0
+    limit_upper: float = 180.0
     mass: float = 0.5
+
+
+def joint_position_unit(jv: DHJointValues) -> str:
+    """Return the SI unit string for joint position (and limits)."""
+    return "m" if jv.type == "prismatic" else "rad"
+
+
+def joint_limit_to_si(jv: DHJointValues, value: float) -> float:
+    """
+    Convert a stored limit value to SI units.
+    Revolute: stored in degrees → returns radians.
+    Prismatic: stored in metres → returns metres unchanged.
+    """
+    if jv.type == "prismatic":
+        return value
+    return math.radians(value)
 
 
 class DHChainValues(BaseModel):
@@ -263,6 +285,8 @@ class DHChainValues(BaseModel):
                 DHJointValues(
                     name=j.name,
                     slot=j.slot,
+                    type=j.type,
+                    axis=j.axis,
                     a=j.a.default,
                     d=j.d.default,
                     alpha=j.alpha.default,

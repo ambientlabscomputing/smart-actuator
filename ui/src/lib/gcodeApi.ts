@@ -112,3 +112,49 @@ export async function uploadGcodeFile(file: File): Promise<{ id: number; locatio
   }
   return res.json() as Promise<{ id: number; location: string }>
 }
+
+// ── Sample generation ─────────────────────────────────────────────────────────
+
+export interface GantrySampleRequest {
+  name: string
+  machine_id: string
+  program_name?: string
+  description?: string
+  /** [cx, cy, work_z] in mm — pattern centre and working Z. */
+  origin_mm?: [number, number, number]
+  width_mm?: number
+  height_mm?: number
+  orientation_quat?: [number, number, number, number]
+  chord_tolerance_mm?: number
+  arc_plane?: 'xy' | 'xz' | 'yz'
+}
+
+/** Return the sorted list of built-in sample names. */
+export async function listGcodeSamples(): Promise<string[]> {
+  const token = getToken()
+  const res = await fetch('/api/v1/gcode/samples', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error('Failed to fetch sample names')
+  return res.json() as Promise<string[]>
+}
+
+/**
+ * Generate a built-in G-code sample with gantry-friendly coordinates,
+ * save it as a Program, and return the translation result.
+ */
+export async function generateGcodeSample(
+  body: GantrySampleRequest,
+): Promise<GCodeTranslationResult> {
+  const res = await brainFetch('/api/v1/gcode/samples', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ detail: 'Sample generation failed' }))) as {
+      detail: string
+    }
+    throw new Error(err.detail ?? 'Sample generation failed')
+  }
+  return res.json() as Promise<GCodeTranslationResult>
+}

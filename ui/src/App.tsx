@@ -52,17 +52,17 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
       const j = state.measured[i]
       // eslint-disable-next-line react-hooks/refs
       const buf = historyRef.current.get(i) ?? {
-        angle_rad: [],
-        velocity_rad_s: [],
+        position: [],
+        velocity: [],
         current_a: [],
         temperature_c: [],
       }
-      buf.angle_rad.push(j.angle_rad)
-      buf.velocity_rad_s.push(j.velocity_rad_s)
+      buf.position.push(j.position)
+      buf.velocity.push(j.velocity)
       buf.current_a.push(j.current_a)
       buf.temperature_c.push(j.temperature_c)
       const MAX = 300
-      if (buf.angle_rad.length > MAX) { buf.angle_rad.shift(); buf.velocity_rad_s.shift(); buf.current_a.shift(); buf.temperature_c.shift() }
+      if (buf.position.length > MAX) { buf.position.shift(); buf.velocity.shift(); buf.current_a.shift(); buf.temperature_c.shift() }
       // eslint-disable-next-line react-hooks/refs
       historyRef.current.set(i, buf)
     }
@@ -77,11 +77,13 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
   const jointDegrees: Record<string, number> = {}
   for (const name of joints) jointDegrees[name] = 0
   for (const j of state?.measured ?? []) {
-    jointDegrees[j.joint_name] = (j.angle_rad * 180) / Math.PI
+    jointDegrees[j.joint_name] = j.type === 'prismatic'
+      ? j.position * 1000  // store mm for display in prismatic joints
+      : (j.position * 180) / Math.PI
   }
   const anglesRad = joints.map((name) => {
     const m = state?.measured.find((j) => j.joint_name === name)
-    return m ? m.angle_rad : 0
+    return m ? m.position : 0
   })
   const eePose = dhJoints ? forwardKinematics(dhJoints, anglesRad) : null
 
@@ -174,6 +176,42 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
     )
   }
 
+  // ── Camera auto-positioning ────────────────────────────────────────────────
+  // For pure-Cartesian (all-prismatic) machines the world origin may be a
+  // corner of the working envelope, so we position the camera to look at the
+  // workspace centre instead.  For revolute arms the arm base at the origin
+  // is already the natural anchor, so we keep the original defaults.
+  const cameraConfig: {
+    position: [number, number, number]
+    target: [number, number, number]
+  } = (() => {
+    const allPrismatic =
+      dhJoints &&
+      dhJoints.length > 0 &&
+      dhJoints.every(j => (j.type ?? 'revolute') === 'prismatic')
+
+    if (!allPrismatic) {
+      return { position: [1.5, 1.5, 1.0], target: [0, 0, 0] }
+    }
+
+    // FK at mid-travel to find the workspace centre
+    const midQ = dhJoints!.map(j => (j.limit_lower + j.limit_upper) / 2)
+    const { ee: target } = forwardKinematics(dhJoints!, midQ)
+
+    // Total travel extent = rough radius of the workspace
+    const reach = dhJoints!.reduce(
+      (s, j) => s + (j.limit_upper - j.limit_lower), 0)
+    const dist = Math.max(0.4, Math.min(5, reach * 1.4))
+    return {
+      position: [
+        target[0] + dist * 0.65,
+        target[1] + dist * 0.65,
+        target[2] + dist * 0.35,
+      ] as [number, number, number],
+      target: target as [number, number, number],
+    }
+  })()
+
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppToolbar />
@@ -183,7 +221,10 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
         </div>
       )}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <AppCanvas>
+        <AppCanvas
+          initialCameraPosition={cameraConfig.position}
+          initialCameraTarget={cameraConfig.target}
+        >
           <ArmCanvas
             anglesRad={anglesRad}
             linkLengths={linkLengths}
@@ -199,9 +240,11 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
           connected={connected}
           joints={joints}
           jointDegrees={jointDegrees}
-          onJog={(jointName, deltaDeg) =>
-            jog(machineId, jointName, deltaDeg, jointDegrees[jointName] ?? 0)
-          }
+          onJog={(jointName, deltaSI) => {
+            const idx = joints.indexOf(jointName)
+            const currentSI = idx >= 0 ? (anglesRad[idx] ?? 0) : 0
+            return jog(machineId, jointName, currentSI + deltaSI)
+          }}
           onEstop={() => estop(machineId)}
           onResume={() => resume(machineId)}
           onEdit={() => void handleOpenEdit()}
@@ -214,6 +257,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
           currentQRad={anglesRad}
           currentEE={eePose?.ee ?? null}
           currentEEQuat={eePose?.eeQuat ?? null}
+          dhJoints={dhJoints ?? undefined}
         />
         <JointDataPanel
           joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}

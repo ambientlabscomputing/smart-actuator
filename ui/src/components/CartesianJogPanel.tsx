@@ -182,69 +182,64 @@ export function CartesianJogPanel({
         </div>
       ))}
 
-      {/* ── Rotation ─────────────────────────────────────────────────────── */}
-      <div style={{ ...sectionLabelStyle, marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-        Rotation
-        {isSE3 && (
-          <Tooltip title={frame === 'tool' ? 'Rotating in tool frame — click for world frame' : 'Rotating in world frame — click for tool frame'}>
-            <button
-              onClick={() => setFrame((f) => f === 'tool' ? 'world' : 'tool')}
-              style={frameToggleStyle(frame === 'tool')}
-            >
-              {frame === 'tool' ? 'Tool' : 'World'}
-            </button>
-          </Tooltip>
-        )}
-      </div>
-
-      <div style={rowStyle}>
-        <span style={labelStyle}>Step</span>
-        <select
-          value={rotStep}
-          onChange={(e) => setRotStep(parseFloat(e.target.value))}
-          style={selectStyle}
-          disabled={!isSE3}
-        >
-          {STEP_OPTIONS_DEG.map((s) => (
-            <option key={s} value={s}>{s}°</option>
-          ))}
-        </select>
-      </div>
-
-      {(['Rx', 'Ry', 'Rz'] as const).map((axisName, i) => (
-        <Tooltip
-          key={axisName}
-          title={!isSE3 ? `Rotation jog requires task_space: se3 (current: ${taskSpace ?? 'unknown'})` : ''}
-          placement="right"
-        >
-          <div style={rowStyle}>
-            <span style={{ ...axisLabelStyle, color: !isSE3 ? '#4b5563' : '#d1d5db' }}>{axisName}</span>
-            <span style={{ ...valStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}>
-              {euler[i].toFixed(1)}°
-            </span>
-            <span>
-              <IconButton
-                onClick={() => rotJog(i as 0 | 1 | 2, -1)}
-                disabled={disabled || busy || !isSE3}
-                size="small"
-                style={{ ...btnStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}
+      {/* ── Rotation (only when task_space supports orientation control) ── */}
+      {isSE3 && (
+        <>
+          <div style={{ ...sectionLabelStyle, marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Rotation
+            <Tooltip title={frame === 'tool' ? 'Rotating in tool frame — click for world frame' : 'Rotating in world frame — click for tool frame'}>
+              <button
+                onClick={() => setFrame((f) => f === 'tool' ? 'world' : 'tool')}
+                style={frameToggleStyle(frame === 'tool')}
               >
-                −
-              </IconButton>
-            </span>
-            <span>
-              <IconButton
-                onClick={() => rotJog(i as 0 | 1 | 2, 1)}
-                disabled={disabled || busy || !isSE3}
-                size="small"
-                style={{ ...btnStyle, color: !isSE3 ? '#374151' : '#9ca3af' }}
-              >
-                +
-              </IconButton>
-            </span>
+                {frame === 'tool' ? 'Tool' : 'World'}
+              </button>
+            </Tooltip>
           </div>
-        </Tooltip>
-      ))}
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>Step</span>
+            <select
+              value={rotStep}
+              onChange={(e) => setRotStep(parseFloat(e.target.value))}
+              style={selectStyle}
+            >
+              {STEP_OPTIONS_DEG.map((s) => (
+                <option key={s} value={s}>{s}°</option>
+              ))}
+            </select>
+          </div>
+
+          {(['Rx', 'Ry', 'Rz'] as const).map((axisName, i) => (
+            <div key={axisName} style={rowStyle}>
+              <span style={{ ...axisLabelStyle, color: '#d1d5db' }}>{axisName}</span>
+              <span style={{ ...valStyle, color: '#9ca3af' }}>
+                {euler[i].toFixed(1)}°
+              </span>
+              <span>
+                <IconButton
+                  onClick={() => rotJog(i as 0 | 1 | 2, -1)}
+                  disabled={disabled || busy}
+                  size="small"
+                  style={{ ...btnStyle, color: '#9ca3af' }}
+                >
+                  −
+                </IconButton>
+              </span>
+              <span>
+                <IconButton
+                  onClick={() => rotJog(i as 0 | 1 | 2, 1)}
+                  disabled={disabled || busy}
+                  size="small"
+                  style={{ ...btnStyle, color: '#9ca3af' }}
+                >
+                  +
+                </IconButton>
+              </span>
+            </div>
+          ))}
+        </>
+      )}
 
       {/* ── Re-anchor ────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>

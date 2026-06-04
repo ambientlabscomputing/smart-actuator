@@ -85,6 +85,11 @@ export function ArmCanvas({
       limitLowerRad: number
       limitUpperRad: number
       thetaOffsetRad: number
+      isPrismatic: boolean
+      axis: 'x' | 'y' | 'z'
+      travelLowerM: number
+      travelUpperM: number
+      travelM: number
     }> = []
 
     let T = new THREE.Matrix4()  // identity = world base frame
@@ -92,18 +97,45 @@ export function ArmCanvas({
     for (let i = 0; i < nJoints; i++) {
       const j = joints[i]
       const preJointMatrix = T.clone()
+      const isPrismatic = (j.type ?? 'revolute') === 'prismatic'
+      const axis = (j.axis ?? 'z') as 'x' | 'y' | 'z'
+      const q = anglesRad[i] ?? 0
 
-      const theta = j.theta_offset * DEG + (anglesRad[i] ?? 0)
+      let linkFrameMatrix: THREE.Matrix4
+      let travelM = 0
+      let travelLowerM = 0
+      let travelUpperM = 0
 
-      // T_joint = T · Rz(theta) · Tz(d)
-      const Rz = new THREE.Matrix4().makeRotationZ(theta)
-      const Tz = new THREE.Matrix4().makeTranslation(0, 0, j.d)
-      const linkFrameMatrix = preJointMatrix.clone().multiply(Rz).multiply(Tz)
+      if (isPrismatic) {
+        // Match brain/service/dh_fk.py prismatic dispatch:
+        //   Rz(θ_offset) · T_{axis}(d + q on Z, a + q on X, q on Y) · ...
+        const Rz = new THREE.Matrix4().makeRotationZ(j.theta_offset * DEG)
+        let Taxis: THREE.Matrix4
+        if (axis === 'x') {
+          Taxis = new THREE.Matrix4().makeTranslation(j.a + q, 0, 0)
+        } else if (axis === 'y') {
+          Taxis = new THREE.Matrix4().makeTranslation(0, q, 0)
+        } else {
+          Taxis = new THREE.Matrix4().makeTranslation(0, 0, j.d + q)
+        }
+        linkFrameMatrix = preJointMatrix.clone().multiply(Rz).multiply(Taxis)
+        travelLowerM = j.limit_lower
+        travelUpperM = j.limit_upper
+        travelM = travelUpperM - travelLowerM
+      } else {
+        const theta = j.theta_offset * DEG + q
+        const Rz = new THREE.Matrix4().makeRotationZ(theta)
+        const Tz = new THREE.Matrix4().makeTranslation(0, 0, j.d)
+        linkFrameMatrix = preJointMatrix.clone().multiply(Rz).multiply(Tz)
+      }
 
       const jointOrigin = new THREE.Vector3().setFromMatrixPosition(linkFrameMatrix)
 
       // Next base: link tip · Rx(alpha)
-      const Tx = new THREE.Matrix4().makeTranslation(j.a, 0, 0)
+      // For prismatic with axis='x' the joint already translated by (a + q),
+      // so skip the extra Tx(a) to avoid double-counting.
+      const extraTx = isPrismatic && axis === 'x' ? 0 : j.a
+      const Tx = new THREE.Matrix4().makeTranslation(extraTx, 0, 0)
       const Rx = new THREE.Matrix4().makeRotationX(j.alpha * DEG)
       T = linkFrameMatrix.clone().multiply(Tx).multiply(Rx)
 
@@ -112,9 +144,14 @@ export function ArmCanvas({
         linkFrameMatrix,
         jointOrigin,
         a: j.a,
-        limitLowerRad: j.limit_lower * DEG,
-        limitUpperRad: j.limit_upper * DEG,
+        limitLowerRad: isPrismatic ? 0 : j.limit_lower * DEG,
+        limitUpperRad: isPrismatic ? 0 : j.limit_upper * DEG,
         thetaOffsetRad: j.theta_offset * DEG,
+        isPrismatic,
+        axis,
+        travelLowerM,
+        travelUpperM,
+        travelM,
       })
     }
 
@@ -123,8 +160,11 @@ export function ArmCanvas({
     let eeMatrix: THREE.Matrix4 | null = null
     if (result.length > 0) {
       const last = result[result.length - 1]
+      // For prismatic with axis='x' the joint frame already includes the link;
+      // for revolute (and other prismatic axes) the link extends along +X by a.
+      const tipExtra = last.isPrismatic && last.axis === 'x' ? 0 : last.a
       eeMatrix = last.linkFrameMatrix.clone().multiply(
-        new THREE.Matrix4().makeTranslation(last.a, 0, 0),
+        new THREE.Matrix4().makeTranslation(tipExtra, 0, 0),
       )
       eePos = new THREE.Vector3().setFromMatrixPosition(eeMatrix)
     }
@@ -142,8 +182,9 @@ export function ArmCanvas({
 
   return (
     <group>
-      {/* Joint-limit arc sectors */}
+      {/* Joint-limit arc sectors (revolute only) */}
       {frames.perJoint.map((f, i) => {
+        if (f.isPrismatic) return null
         const lower = f.thetaOffsetRad + f.limitLowerRad
         const upper = f.thetaOffsetRad + f.limitUpperRad
         const span = upper - lower
@@ -157,6 +198,44 @@ export function ArmCanvas({
             <mesh position={[0, 0, -0.002]}>
               <ringGeometry args={[arcInnerR, arcOuterR, ARC_SEGS, 1, lower, span]} />
               <meshStandardMaterial color="#ffca28" transparent opacity={0.18} side={THREE.DoubleSide} />
+            </mesh>
+          </group>
+        )
+      })}
+
+      {/* Prismatic travel rails — thin rod along the joint's axis spanning
+          [limit_lower, limit_upper] in the incoming frame, with a sliding
+          carriage marker at the current position. */}
+      {frames.perJoint.map((f, i) => {
+        if (!f.isPrismatic || f.travelM <= 0) return null
+        const q = anglesRad[i] ?? 0
+        const railThickness = radius * 0.35
+        const mid = (f.travelLowerM + f.travelUpperM) / 2
+        // cylinderGeometry is along local +Y; rotate to align with declared axis.
+        const rotation: [number, number, number] =
+          f.axis === 'x' ? [0, 0, -Math.PI / 2] :
+          f.axis === 'z' ? [Math.PI / 2, 0, 0] :
+          [0, 0, 0]
+        const railPos: [number, number, number] =
+          f.axis === 'x' ? [mid, 0, 0] :
+          f.axis === 'y' ? [0, mid, 0] :
+          [0, 0, mid]
+        const carriagePos: [number, number, number] =
+          f.axis === 'x' ? [q, 0, 0] :
+          f.axis === 'y' ? [0, q, 0] :
+          [0, 0, q]
+        const carriageColor = LINK_COLORS[i % LINK_COLORS.length]
+        return (
+          <group key={`rail${i}`} matrix={f.preJointMatrix} matrixAutoUpdate={false}>
+            {/* Static rail */}
+            <mesh position={railPos} rotation={rotation}>
+              <cylinderGeometry args={[railThickness, railThickness, f.travelM, 12]} />
+              <meshStandardMaterial color="#455a64" />
+            </mesh>
+            {/* Sliding carriage at current q */}
+            <mesh position={carriagePos}>
+              <boxGeometry args={[radius * 2.4, radius * 2.4, radius * 2.4]} />
+              <meshStandardMaterial color={carriageColor} />
             </mesh>
           </group>
         )

@@ -50,11 +50,11 @@ export function MachineEditor({
   machineId = null,
   showKinematicsTab = false,
 }: MachineEditorProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('easy')
-  const ik = useMachineIK(showKinematicsTab ? machineId : null)
-
   const schema = template.dh
   const easy = template.easy ?? []
+  const hasEasyAliases = easy.length > 0
+  const [activeTab, setActiveTab] = useState<Tab>(hasEasyAliases ? 'easy' : 'advanced')
+  const ik = useMachineIK(showKinematicsTab ? machineId : null)
   const nJoints = schema?.joints.length ?? dhValues.joints.length
 
   // Derive ArmCanvas props from DH values
@@ -80,16 +80,18 @@ export function MachineEditor({
       <div style={sliderPaneStyle}>
         {/* Tab header */}
         <div style={tabBarStyle}>
+          {hasEasyAliases && (
+            <button
+              style={tabBtnStyle(activeTab === 'easy')}
+              onClick={() => setActiveTab('easy')}
+            >
+              Easy
+            </button>
+          )}
           <button
-            style={tabBtnStyle(activeTab === 'easy')}
-            onClick={() => setActiveTab('easy')}
-          >
-            Easy
-          </button>
-          <button
-            style={tabBtnStyle(activeTab === 'advanced')}
-            onClick={() => setActiveTab('advanced')}
-          >
+              style={tabBtnStyle(activeTab === 'advanced')}
+              onClick={() => setActiveTab('advanced')}
+            >
             Advanced
           </button>
           {showKinematicsTab && (
@@ -254,11 +256,15 @@ function AdvancedPanel({
             {DH_JOINT_FIELDS.map(({ key, label, unit }) => {
               const fieldSpec = js?.[key as keyof DHJointSpec] as import('../lib/types').DHFieldSpec | undefined
               const editable = fieldSpec?.editable ?? true
+              // Prefer the unit declared in the template schema; fall back to
+              // the hardcoded default. This lets prismatic joints show "m" for
+              // their travel limits while revolute joints show "deg".
+              const displayUnit = fieldSpec?.unit ?? unit
               return (
                 <AdvancedRow
                   key={key}
                   label={label}
-                  unit={unit}
+                  unit={displayUnit}
                   value={jv[key] as number}
                   spec={fieldSpec}
                   readOnly={!editable}

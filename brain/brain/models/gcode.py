@@ -216,6 +216,28 @@ def get_command_model(cmd: str | GCodeCommand) -> type[BaseGCodeCommand] | None:
 # ── Translation models ────────────────────────────────────────────────────────
 
 
+class GantrySampleRequest(BaseModel):
+    """Request body for ``POST /gcode/samples``."""
+
+    name: str = Field(description="Sample name — one of the SAMPLE_NAMES values.")
+    machine_id: str = Field(description="Machine the program will execute on.")
+    program_name: str = Field(default="Gantry sample", description="Human-readable name for the saved Program.")
+    description: str = Field(default="", description="Optional program description.")
+    origin_mm: list[float] = Field(
+        default_factory=lambda: [150.0, 150.0, 150.0],
+        description="[cx, cy, work_z] — pattern centre (XY) and working Z in mm. "
+                    "Set cx = width_mm/2, cy = height_mm/2 to keep the pattern in the positive quadrant.",
+    )
+    width_mm: float = Field(default=200.0, gt=1.0, description="Bounding-box width along X (mm).")
+    height_mm: float = Field(default=200.0, gt=1.0, description="Bounding-box height along Y (mm).")
+    orientation_quat: list[float] = Field(
+        default_factory=lambda: [0.0, 0.0, 0.0, 1.0],
+        description="Tool orientation applied to every pose (x, y, z, w). Default is identity.",
+    )
+    chord_tolerance_mm: float = Field(default=0.1, gt=0, description="Arc chord tolerance (mm).")
+    arc_plane: Literal["xy", "xz", "yz"] = Field(default="xy", description="Arc interpolation plane.")
+
+
 class GCodeTranslationRequest(BaseModel):
     file_id: int = Field(description="ID of the uploaded G-code StoredFile to translate.")
     program_id: str = Field(

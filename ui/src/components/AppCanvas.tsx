@@ -26,16 +26,24 @@ THREE.Object3D.DEFAULT_UP.set(0, 0, 1)
 
 interface AppCanvasProps {
   children: ReactNode
+  /** Initial camera world position (metres). Defaults to [1.5, 1.5, 1.0]. */
+  initialCameraPosition?: [number, number, number]
+  /** Point the camera looks at / OrbitControls pivot (metres). Defaults to [0, 0, 0]. */
+  initialCameraTarget?: [number, number, number]
 }
 
-export function AppCanvas({ children }: AppCanvasProps) {
+export function AppCanvas({
+  children,
+  initialCameraPosition = [1.5, 1.5, 1.0],
+  initialCameraTarget = [0, 0, 0],
+}: AppCanvasProps) {
   return (
     <Canvas
       style={{ width: '100%', height: '100%' }}
-      camera={{ position: [1.5, 1.5, 1.0], fov: 45, near: 0.01, far: 100 }}
+      camera={{ position: initialCameraPosition, fov: 45, near: 0.01, far: 100 }}
       onCreated={({ camera, controls }) => {
         camera.up.set(0, 0, 1)
-        camera.lookAt(0, 0, 0)
+        camera.lookAt(...initialCameraTarget)
         // OrbitControls (if already attached) needs to re-read camera.up.
         if (controls && 'update' in controls) {
           (controls as { update: () => void }).update()
@@ -80,7 +88,7 @@ export function AppCanvas({ children }: AppCanvasProps) {
           angle is measured from camera.up (+Z), so π/2 == horizon. */}
       <OrbitControls
         makeDefault
-        target={[0, 0, 0]}
+        target={initialCameraTarget}
         enableDamping
         dampingFactor={0.08}
         minDistance={0.15}

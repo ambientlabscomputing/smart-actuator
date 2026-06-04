@@ -43,3 +43,5 @@ async def stream_state(websocket: WebSocket, machine_id: str) -> None:
             await websocket.send_text(state.model_dump_json())
     except WebSocketDisconnect:
         pass
+    finally:
+        svc.state.unsubscribe(on_state)

@@ -85,6 +85,13 @@ class StateService:
         """Register a callback to be called on every state update."""
         self._subscribers.append(callback)
 
+    def unsubscribe(self, callback: Callable[[MachineState], None]) -> None:
+        """Remove a previously registered callback. Safe to call if absent."""
+        try:
+            self._subscribers.remove(callback)
+        except ValueError:
+            pass
+
     def get_state_buffer(self, machine_id: str, max_count: int = 100) -> list[MachineState]:
         """Return the most recent *max_count* state snapshots for replay / debugging."""
         buf = self._buffer.get(machine_id, deque())

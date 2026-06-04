@@ -68,7 +68,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
     if (!dhJoints || !machineState) return []
     return dhJoints.map((j) => {
       const m = machineState.measured.find((ms) => ms.joint_name === j.name)
-      return m ? m.angle_rad : 0
+      return m ? m.position : 0
     })
   }, [dhJoints, machineState])
   const eePose = useMemo(
@@ -98,7 +98,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
   const [programId, setProgramId] = useState<string>(() => crypto.randomUUID())
   const [name, setName] = useState('My program')
   const [steps, setSteps] = useState<ProgramStep[]>([
-    { kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 },
+    { kind: 'move', joint_name: joints[0] ?? '', target: 0 },
   ])
 
   const [saving, setSaving] = useState(false)
@@ -114,7 +114,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
   function newProgram() {
     setProgramId(crypto.randomUUID())
     setName('My program')
-    setSteps([{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }])
+    setSteps([{ kind: 'move', joint_name: joints[0] ?? '', target: 0 }])
     setRunId(null)
     setSaveError(null)
     setDeleteError(null)
@@ -133,7 +133,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
     setSteps(
       parsed.length > 0
         ? parsed
-        : [{ kind: 'move', joint_name: joints[0] ?? '', target_rad: 0 }],
+        : [{ kind: 'move', joint_name: joints[0] ?? '', target: 0 }],
     )
     setRunId(null)
     setSaveError(null)
@@ -324,6 +324,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
                 index={i}
                 total={steps.length}
                 joints={joints}
+                dhJoints={dhJoints ?? undefined}
                 currentEE={currentEE}
                 currentEEQuat={currentEEQuat}
                 onChange={(s) => updateStep(i, s)}

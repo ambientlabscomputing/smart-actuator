@@ -1,0 +1,237 @@
+id: cnc_3axis_gantry
+name: "3-Axis CNC Gantry"
+version: "1.0.0"
+publisher: ambient-labs
+summary: >
+  A three-axis Cartesian gantry with orthogonal prismatic joints: X (base
+  carriage), Y (cross-carriage), Z (spindle/tool).  Matches the kinematics
+  of common 3D printers, laser cutters, pen plotters, and CNC routers
+  running Klipper, GRBL, Marlin, or LinuxCNC.  Default working envelope:
+  300 × 300 × 100 mm.
+
+brain_compatibility: ">=0.1.0"
+firmware_compatibility: ">=0.1.0"
+
+# ── End-effector ──────────────────────────────────────────────────────────────
+# task_space: r3 — three prismatic joints provide full 3-D position control.
+# Orientation is fixed (no rotary axes in this template).
+# offset_m can be set to model a tool tip that extends below the Z-carriage
+# (e.g. [0.0, 0.0, -0.02] for a 20 mm tool below the Z-axis origin).
+end_effector:
+  parent: z_spindle
+  offset_m: [0.0, 0.0, 0.0]
+  orientation_offset_deg: [0.0, 0.0, 0.0]
+  task_space: r3
+
+# ── IK solver hints ───────────────────────────────────────────────────────────
+# The cartesian_xyz block solves trivially: q_i = target_component_i.
+# The verifier checks that all three joints are prismatic and have mutually
+# orthogonal translation axes.  If verification fails the Brain falls back to
+# the numeric Jacobian solver automatically.
+ik:
+  decomposition:
+    - kind: cartesian_xyz
+      joints: [0, 1, 2]
+
+  numeric:
+    max_iters: 150
+    pos_tol_m: 1.0e-4
+    rot_tol_rad: 1.0e-3
+    damping: 0.01
+    seed: current_q
+
+  redundancy:
+    nullspace_objective: keep_near_seed
+
+# ── Joint slots ───────────────────────────────────────────────────────────────
+joints:
+  - slot: 0
+    name: x_base
+    axis: x
+    parent: base
+  - slot: 1
+    name: y_carriage
+    axis: y
+    parent: x_base
+  - slot: 2
+    name: z_spindle
+    axis: z
+    parent: y_carriage
+
+# ── DH kinematics (source of truth) ──────────────────────────────────────────
+# Prismatic DH convention used here (matches dh_fk.joint_transforms):
+#   The joint variable q_i varies 'd' (translation along joint-frame Z).
+#   'alpha' and 'theta_offset' orient the incoming frame so that the joint's
+#   Z axis aligns with the desired world axis (X, Y, or Z).
+#
+# X joint (slot 0): translates along world +X.
+#   Incoming frame is world frame; need Z → +X.
+#   Achieved with alpha = 0°, theta_offset = 0°, and relying on the fact
+#   that a 90° rotation about Y maps Z → X.  For a direct DH encoding:
+#     theta_offset = -90° about world Z (rotate frame so its Z points along X).
+#   Actually the cleanest approach: leave all angles at 0 for X (Z→Z),
+#   then use Y for the next joint (rotate 90° about X so Z→Y), etc.
+#
+# For an orthogonal PPP chain the simplest canonical parameterisation is:
+#   Joint 0 (X): d varies along world Z; theta_offset = 0, alpha = 0.
+#     THEN we rotate the frame 90° about Y (alpha of joint 1) so Z→X.
+#   This is the same approach Klipper/GRBL use internally.
+#
+# Simpler canonical: orient each joint so its DH Z axis IS the desired axis.
+#   X joint: alpha = 0°,    theta_offset = 0°   → Z stays Z (translates up)
+#             ... but we want translation along X.
+#
+# The cleanest approach for a standard Cartesian gantry with these DH
+# conventions (Z-up, links along X) is to use the DH 'a' parameters to
+# represent fixed structural offsets and let d vary per joint:
+#
+#   Joint 0 (X): translates along X.
+#     Use theta_offset = 90°, alpha = 90° to bring the joint Z-axis
+#     into alignment with world +X.
+#     Then d = x_position, a = 0 (no fixed link extension in X direction).
+#
+# For this template we use the straightforward world-aligned encoding:
+#   Joint 0 (X): alpha=0,  theta_offset=0 → Z translates along world Z;
+#                but we relabel in software.  The cartesian_xyz IK block
+#                handles any axis order correctly via the FK-derived axis
+#                vectors, so DH angles can be 0 if the solver reads axes from FK.
+#
+# Practical encoding (what works with the current FK + solver):
+#   Each joint's translation axis IS the Z-axis of its incoming DH frame.
+#   Joint 0 (X-axis motion):
+#     Rotate the world frame 90° about Y so Z→X: alpha=-90° on joint 0,
+#     then joint 0 translates along (what is now its Z =) world X.
+#   Joint 1 (Y-axis motion):
+#     After joint 0's transform, rotate back and then rotate 90° about X
+#     so Z→Y: alpha=-90° on joint 1.
+#   Joint 2 (Z-axis motion):
+#     alpha=0, no twist: Z stays Z.
+#
+# Note: limit_lower / limit_upper for prismatic joints are in METRES.
+dh:
+  link_radius:
+    default: 0.015
+    min: 0.005
+    max: 0.05
+    unit: m
+    editable: true
+
+  joints:
+    - name: x_base
+      slot: 0
+      type: prismatic
+      axis: x
+      # axis="x" tells the FK to translate along the X-column of the incoming
+      # frame.  No alpha/theta tricks are needed — just keep the frame aligned.
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: false
+      limit_lower:
+        default: 0.0
+        min: 0.0
+        max: 0.0
+        unit: m
+        editable: false
+      limit_upper:
+        default: 0.3
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      mass:
+        default: 1.5
+        unit: kg
+        editable: false
+
+    - name: y_carriage
+      slot: 1
+      type: prismatic
+      axis: y
+      # After joint 0 the frame has Z→X; alpha=90° rotates so Z→Y.
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: false
+      limit_lower:
+        default: 0.0
+        min: 0.0
+        max: 0.0
+        unit: m
+        editable: false
+      limit_upper:
+        default: 0.3
+        min: 0.05
+        max: 2.0
+        unit: m
+        editable: true
+      mass:
+        default: 0.8
+        unit: kg
+        editable: false
+
+    - name: z_spindle
+      slot: 2
+      type: prismatic
+      axis: z
+      # axis="z" is the default; joint translates along the Z-column.
+      a:
+        default: 0.0
+        unit: m
+        editable: false
+      d:
+        default: 0.0
+        unit: m
+        editable: false
+      alpha:
+        default: 0.0
+        unit: deg
+        editable: false
+      theta_offset:
+        default: 0.0
+        unit: deg
+        editable: false
+      limit_lower:
+        default: 0.0
+        min: 0.0
+        max: 0.0
+        unit: m
+        editable: false
+      limit_upper:
+        default: 0.1
+        min: 0.01
+        max: 1.0
+        unit: m
+        editable: true
+      mass:
+        default: 0.4
+        unit: kg
+        editable: false
+
+# ── Easy aliases ──────────────────────────────────────────────────────────────
+# No easy aliases for v1; users configure via the Advanced tab.
+easy: []

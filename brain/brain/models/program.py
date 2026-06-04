@@ -29,11 +29,26 @@ class ProgramNode(BaseModel):
         default_factory=dict,
         description=(
             "Node-kind-specific parameters.\n"
-            "  MOVE: {joint_name: str, target_rad: float}\n"
+            "  MOVE: {joint_name: str, target: float}  (radians for revolute, metres for prismatic)\n"
             "  MOVE_SE3: {position: [x, y, z], orientation_quat: [x, y, z, w]}\n"
             "  WAIT: {duration_s: float}"
         ),
     )
+
+    @property
+    def move_target(self) -> float | None:
+        """
+        Return the MOVE node target value.
+
+        Reads 'target' and falls back to the legacy 'target_rad' field so that
+        programs stored before the Phase-5 migration continue to execute.
+        """
+        if self.kind != NodeKind.MOVE:
+            return None
+        val = self.attributes.get("target")
+        if val is None:
+            val = self.attributes.get("target_rad")  # legacy compat
+        return float(val) if val is not None else None
 
 
 class ProgramMeta(BaseModel):

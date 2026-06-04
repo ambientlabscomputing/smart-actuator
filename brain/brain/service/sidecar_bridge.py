@@ -31,6 +31,26 @@ class SidecarBridge:
         # actuator_id → machine_id: updated when sims spawn/teardown so the
         # state stream can be routed to the correct machine.
         self._actuator_to_machine: dict[str, str] = {}
+        # (machine_id, joint_name) → joint_type ("revolute" | "prismatic"):
+        # populated when a machine is built/bound so that JointState frames
+        # carry the correct type without a database round-trip per frame.
+        self._joint_type_map: dict[tuple[str, str], str] = {}
+
+    def register_joint_types(self, machine_id: str, joint_types: dict[str, str]) -> None:
+        """
+        Register the joint type for each joint in a machine.
+
+        Called by MachineService / lifecycle services at machine-build or
+        slot-bind time.  *joint_types* maps joint_name → "revolute"|"prismatic".
+        """
+        for joint_name, jtype in joint_types.items():
+            self._joint_type_map[(machine_id, joint_name)] = jtype
+
+    def unregister_joint_types(self, machine_id: str) -> None:
+        """Remove joint type entries for a machine on teardown."""
+        keys = [k for k in self._joint_type_map if k[0] == machine_id]
+        for k in keys:
+            del self._joint_type_map[k]
 
     def track_machine_actuator(self, actuator_id: str, machine_id: str) -> None:
         """Register that *actuator_id* belongs to *machine_id*."""
@@ -176,11 +196,19 @@ class SidecarBridge:
                             m_id = self._actuator_to_machine.get(js.actuator_id)
                             if m_id is None:
                                 continue  # unknown actuator — skip
+                            joint_name = js.joint_name or js.actuator_id
+                            jtype = self._joint_type_map.get(
+                                (m_id, joint_name), "revolute"
+                            )
+                            # The sidecar always sends position in SI units for
+                            # the joint type: radians for revolute, metres for
+                            # prismatic.  Pass through without conversion.
                             joints_by_machine.setdefault(m_id, []).append(
                                 JointState(
-                                    joint_name=js.joint_name or js.actuator_id,
-                                    angle_rad=js.angle_rad,
-                                    velocity_rad_s=js.velocity_rad_s,
+                                    joint_name=joint_name,
+                                    type=jtype,
+                                    position=js.angle_rad,
+                                    velocity=js.velocity_rad_s,
                                     current_a=js.current_a,
                                     temperature_c=js.temperature_c,
                                     fault=js.fault or None,

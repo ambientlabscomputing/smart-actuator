@@ -107,6 +107,33 @@ class BrainService(Service):
             except Exception:
                 logger.exception("Lifecycle recovery failed — continuing")
 
+        # Re-register joint types with the sidecar bridge for every persisted
+        # machine.  The map lives only in memory and is otherwise repopulated
+        # via build_machine / bind_slot, so without this restoration the
+        # joint-state stream tags everything as "revolute" by default and the
+        # UI shows prismatic positions with the wrong units.
+        try:
+            machine_ids = await self.repository.machine.list_machines()
+            for mid in machine_ids:
+                m = await self.machine.get_machine(mid)
+                if m is None or m.description.dh_chain is None:
+                    continue
+                self.machine._register_joint_types(m.description)
+                # Recompute and persist the reachable workspace from the
+                # current DH chain.  Older rows may have been computed before
+                # prismatic joint limits were honoured in metres rather than
+                # radians, producing a degenerate hull that breaks Cartesian
+                # moves.
+                if self.workspace is not None:
+                    try:
+                        await self.workspace.recompute(mid)
+                    except Exception:
+                        logger.exception(
+                            "Workspace recompute failed for {} — continuing", mid
+                        )
+        except Exception:
+            logger.exception("Joint-type re-registration on startup failed — continuing")
+
     async def stop(self) -> None:
         logger.info("Stopping BrainService")
         await self.sidecar.disconnect()

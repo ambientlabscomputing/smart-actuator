@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 _TOLERANCE_RAD = 0.035  # ≈ 2° — matches J2 exit criterion
+_TOLERANCE_M   = 0.001  # 1 mm — convergence tolerance for prismatic joints
 _STEP_TIMEOUT_S = 10.0  # per-MOVE step convergence timeout
 _WAIT_POLL_S = 0.1  # sleep chunk for cooperative stop during WAIT
 
@@ -89,9 +90,12 @@ def _validate_steps(steps: list[ProgramNode]) -> None:
                 f"Step {i}: unsupported node kind {node.kind!r} — accepts MOVE, MOVE_SE3, and WAIT"
             )
         if node.kind == NodeKind.MOVE:
-            if "joint_name" not in node.attributes or "target_rad" not in node.attributes:
+            has_target = (
+                "target" in node.attributes or "target_rad" in node.attributes
+            )
+            if "joint_name" not in node.attributes or not has_target:
                 raise ValueError(
-                    f"Step {i} (MOVE): missing required attributes 'joint_name' and/or 'target_rad'"
+                    f"Step {i} (MOVE): missing required attributes 'joint_name' and/or 'target'"
                 )
         if node.kind == NodeKind.MOVE_SE3:
             pos = node.attributes.get("position")
@@ -328,9 +332,24 @@ class ProgramService:
         self, run_id: str, machine_id: str, node: ProgramNode, step_index: int
     ) -> None:
         joint_name: str = node.attributes["joint_name"]
-        target_rad: float = float(node.attributes["target_rad"])
+        # Support both 'target' (current) and 'target_rad' (legacy) attribute names.
+        raw = node.attributes.get("target") if "target" in node.attributes else node.attributes.get("target_rad")
+        target_si: float = float(raw)
 
-        await self._motion.move_joint(machine_id, {joint_name: target_rad})
+        # Determine the joint type so we use the right convergence tolerance.
+        joint_type = "revolute"
+        try:
+            machine = await self._repository.machine.load_machine(machine_id)
+            if machine and machine.description.dh_chain:
+                for jv in machine.description.dh_chain.joints:
+                    if jv.name == joint_name:
+                        joint_type = getattr(jv, "type", "revolute") or "revolute"
+                        break
+        except Exception:
+            pass
+        tolerance = _TOLERANCE_M if joint_type == "prismatic" else _TOLERANCE_RAD
+
+        await self._motion.move_joint(machine_id, {joint_name: target_si})
 
         # Wait for convergence via state subscription
         loop = asyncio.get_running_loop()
@@ -350,7 +369,7 @@ class ProgramService:
             measured = machine_state.measured if machine_state else []
             for js in measured:
                 if js.joint_name == joint_name:
-                    if abs(js.angle_rad - target_rad) < _TOLERANCE_RAD:
+                    if abs(js.position - target_si) < tolerance:
                         if not done.done():
                             done.set_result(None)
                     break
@@ -363,9 +382,11 @@ class ProgramService:
             run = self._runs.get(run_id)
             if run is not None and run.status == ProgramRunStatus.running:
                 raise TimeoutError(
-                    f"Step {step_index} (MOVE {joint_name}→{target_rad:.3f} rad) "
+                    f"Step {step_index} (MOVE {joint_name}→{target_si:.6g}) "
                     f"did not converge within {_STEP_TIMEOUT_S}s"
                 )
+        finally:
+            self._state.unsubscribe(_check)
 
     async def _execute_move_se3(
         self, run_id: str, machine_id: str, node: ProgramNode, step_index: int
@@ -410,7 +431,7 @@ class ProgramService:
                 if not done.done():
                     done.set_result(None)
                 return
-            measured = {js.joint_name: js.angle_rad for js in machine_state.measured}
+            measured = {js.joint_name: js.position for js in machine_state.measured}
             for jname, target_rad in target_joints.items():
                 actual = measured.get(jname)
                 if actual is None or abs(actual - target_rad) >= _TOLERANCE_RAD:
@@ -429,6 +450,8 @@ class ProgramService:
                     f"Step {step_index} (MOVE_SE3 pos={position}) "
                     f"did not converge within {_STEP_TIMEOUT_S}s"
                 )
+        finally:
+            self._state.unsubscribe(_check)
 
     async def _execute_wait(self, run_id: str, node: ProgramNode) -> None:
         duration_s: float = float(node.attributes["duration_s"])

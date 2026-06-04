@@ -35,6 +35,7 @@ SolverFn = Callable[
 # Import block solvers (deferred to avoid circular imports)
 def _get_registry() -> dict[str, SolverFn]:
     from brain.service.ik.blocks.single_axis import solve_revolute, solve_prismatic
+    from brain.service.ik.blocks.cartesian import solve_cartesian_xyz
     from brain.service.ik.blocks.planar_2r import solve_planar_2r
     from brain.service.ik.blocks.planar_3r import solve_planar_3r
     from brain.service.ik.blocks.rrr_anthropomorphic import solve_rrr_anthropomorphic
@@ -44,6 +45,7 @@ def _get_registry() -> dict[str, SolverFn]:
     return {
         "revolute":              solve_revolute,
         "prismatic":             solve_prismatic,
+        "cartesian_xyz":         solve_cartesian_xyz,
         "planar_2r":             solve_planar_2r,
         "planar_3r":             solve_planar_3r,
         "rrr_anthropomorphic":   solve_rrr_anthropomorphic,

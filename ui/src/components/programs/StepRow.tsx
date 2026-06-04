@@ -5,12 +5,15 @@ import type React from 'react'
 import { quatToEulerDeg, quatFromEulerDeg } from '../../lib/fk'
 import { emptyStep } from './programAst'
 import type { ProgramStep, StepKind } from './programAst'
+import type { DHJointValues } from '../../lib/types'
 
 export interface StepRowProps {
   step: ProgramStep
   index: number
   total: number
   joints: string[]
+  /** DH joint specs — used to detect prismatic joints for correct unit display. */
+  dhJoints?: DHJointValues[]
   /** Current EE position from FK, for "Snap to EE" in MOVE_SE3 steps. */
   currentEE: [number, number, number] | null
   /** Current EE orientation quaternion from FK, for "Snap to EE". */
@@ -52,6 +55,7 @@ export function StepRow({
   index,
   total,
   joints,
+  dhJoints,
   currentEE,
   currentEEQuat,
   onChange,
@@ -114,15 +118,36 @@ export function StepRow({
               <option key={j} value={j}>{j}</option>
             ))}
           </select>
-          <span style={labelStyle}>Target (°)</span>
-          <input
-            type="number"
-            value={Math.round(((step.target_rad ?? 0) * 180) / Math.PI)}
-            onChange={(e) =>
-              onChange({ ...step, target_rad: (Number(e.target.value) * Math.PI) / 180 })
+          {(() => {
+            const isPrismatic = dhJoints?.find((j) => j.name === (step.joint_name ?? ''))?.type === 'prismatic'
+            if (isPrismatic) {
+              return (
+                <>
+                  <span style={labelStyle}>Target (m)</span>
+                  <input
+                    type="number"
+                    step={0.001}
+                    value={(step.target ?? 0).toFixed(4)}
+                    onChange={(e) => onChange({ ...step, target: Number(e.target.value) })}
+                    style={{ ...inputStyle, width: 80 }}
+                  />
+                </>
+              )
             }
-            style={{ ...inputStyle, width: 64 }}
-          />
+            return (
+              <>
+                <span style={labelStyle}>Target (°)</span>
+                <input
+                  type="number"
+                  value={Math.round(((step.target ?? 0) * 180) / Math.PI)}
+                  onChange={(e) =>
+                    onChange({ ...step, target: (Number(e.target.value) * Math.PI) / 180 })
+                  }
+                  style={{ ...inputStyle, width: 64 }}
+                />
+              </>
+            )
+          })()}
         </div>
       )}
 

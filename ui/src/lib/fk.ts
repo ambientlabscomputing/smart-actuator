@@ -147,9 +147,13 @@ export function quatToEulerDeg(
  * Compute joint-origin world positions and the end-effector position
  * for a DH chain at the given joint angles.
  *
+ * Supports both revolute and prismatic joints.  Prismatic joints translate
+ * along `jv.axis` ('x' | 'y' | 'z') instead of rotating about Z.
+ * Mirrors the axis-based dispatch in brain/service/dh_fk.py and ArmCanvas.tsx.
+ *
  * @param joints  DH joint specs in chain order
- * @param anglesRad  Joint angles (rad), same order as `joints`. Missing values default to 0.
- * @returns        Object with `jointOrigins` (one per joint) and `ee` (end-effector).
+ * @param anglesRad  Joint values in SI (rad for revolute, metres for prismatic).
+ * @returns  Object with `jointOrigins`, `ee` position, and `eeQuat`.
  */
 export function forwardKinematics(
   joints: DHJointValues[],
@@ -164,14 +168,32 @@ export function forwardKinematics(
 
   for (let i = 0; i < joints.length; i++) {
     const j = joints[i]
-    const theta = j.theta_offset * DEG + (anglesRad[i] ?? 0)
+    const q = anglesRad[i] ?? 0
+    const isPrismatic = (j.type ?? 'revolute') === 'prismatic'
+    const axis = j.axis ?? 'z'
 
-    // T_joint = T · Rz(theta) · Tz(d)
-    const linkFrameMatrix = mul(mul(T, rotZ(theta)), trans(0, 0, j.d))
-    jointOrigins.push([linkFrameMatrix[3], linkFrameMatrix[7], linkFrameMatrix[11]])
+    let linkFrameMatrix: number[]
 
-    // Next base: link tip · Rx(alpha)
-    T = mul(mul(linkFrameMatrix, trans(j.a, 0, 0)), rotX(j.alpha * DEG))
+    if (isPrismatic) {
+      // Rz(θ_offset) · T_{axis}(q) — mirrors dh_fk.py prismatic dispatch
+      const Rz = rotZ(j.theta_offset * DEG)
+      if (axis === 'x') {
+        linkFrameMatrix = mul(mul(T, Rz), trans(j.a + q, 0, 0))
+      } else if (axis === 'y') {
+        linkFrameMatrix = mul(mul(T, Rz), trans(0, q, 0))
+      } else {
+        linkFrameMatrix = mul(mul(T, Rz), trans(0, 0, j.d + q))
+      }
+      jointOrigins.push([linkFrameMatrix[3], linkFrameMatrix[7], linkFrameMatrix[11]])
+      // For prismatic with axis='x', joint frame already consumed 'a'; skip extra Tx(a)
+      const extraX = isPrismatic && axis === 'x' ? 0 : j.a
+      T = mul(mul(linkFrameMatrix, trans(extraX, 0, 0)), rotX(j.alpha * DEG))
+    } else {
+      const theta = j.theta_offset * DEG + q
+      linkFrameMatrix = mul(mul(T, rotZ(theta)), trans(0, 0, j.d))
+      jointOrigins.push([linkFrameMatrix[3], linkFrameMatrix[7], linkFrameMatrix[11]])
+      T = mul(mul(linkFrameMatrix, trans(j.a, 0, 0)), rotX(j.alpha * DEG))
+    }
   }
 
   return {

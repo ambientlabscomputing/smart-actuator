@@ -198,11 +198,21 @@ class MotionService:
 
     async def execute(self, machine_id: str, trajectory: JointTrajectory) -> None:
         """
-        Split the whole-machine trajectory into per-actuator segments and
-        send them to the sidecar with a synchronised start_time.
+        Send a generated joint-space trajectory to the actuators.
+
+        The fully-fledged streaming path (SendTrajectory RPC) is not wired up
+        in the sidecar yet, so for now we collapse the trajectory to its
+        final waypoint and dispatch via move_joint().  This is sufficient for
+        Cartesian jogs / programs (target pose → IK → final joint targets)
+        and matches the behaviour the simulator already supports through
+        SendCommand.
         """
-        segments = self._split_trajectory(machine_id, trajectory)
-        await self._sidecar.send_trajectory_segments(segments)
+        if not trajectory.points:
+            return
+        final_positions = dict(trajectory.points[-1].positions)
+        if not final_positions:
+            return
+        await self.move_joint(machine_id, final_positions)
 
     async def pause(self, machine_id: str) -> None:
         """Pause execution on all actuators atomically."""

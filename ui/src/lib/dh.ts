@@ -94,6 +94,8 @@ export function dhValuesFromSchema(schema: DHChainSchema): DHChainValues {
     joints: schema.joints.map((js) => ({
       name: js.name,
       slot: js.slot,
+      type: js.type,
+      axis: js.axis,
       a: js.a.default,
       d: js.d.default,
       alpha: js.alpha.default,
