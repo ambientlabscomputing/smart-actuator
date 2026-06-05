@@ -139,7 +139,8 @@ no geometry. It changes how the existing geometry is *seen*.
 | Floor | Replace the infinite blue grid with a procedural shader floor: a soft radial gradient under the machine (subtle vignette / fake AO) that fades to the background colour at distance; an optional very-faint grid that fades with distance (so close-up users still get scale cues but the grid does not dominate the frame). |
 | Background | One flat colour (charcoal, not pure black); a subtle vertical gradient at the horizon line so the floor reads as a floor, not as a hole. |
 | Tone-mapping | Enable ACESFilmic tone mapping; tweak exposure so the terracotta joints render warm without clipping. |
-| Reachability volumes | Reduce default opacity (currently dominates the frame). Move the Poisson-disc samples behind a toggle that is **off by default**. The volumes are debug tooling; they should not be in the hero shot. |
+| Reachability volumes | Reduce default opacity (currently dominates the frame). |
+| Poisson-disc samples | Move the Poisson-disc samples behind a toggle that is **off by default**. The discs are debug tooling; they should not be in the hero shot. |
 
 **Out of scope for Box 1:** changing the joint/link meshes (Box 2),
 changing any UI chrome (Box 3), changing the icon rail's icons
@@ -150,34 +151,36 @@ shows a single illuminated machine sitting on a soft pad of light
 against a dark stage — readable as a beauty shot of a hardware
 product, not a debug viewport.
 
-### Box 2 — Procedural link and joint meshes (1–2 weeks)
+### Box 2 — Procedural link/joint meshes and machine design tokens 1–2 weeks
 
-**Goal:** replace primitive cylinders and spheres with parametric
-"machined" geometry that looks intentional at any link length and
-any joint type.
+Goal: replace primitive cylinders and spheres with parametric, token-driven “machined” geometry that looks intentional at any link length, any joint type, and any future robot template.
 
-Today `Joint.tsx` renders every joint as a sphere and every link as
-a cylinder. That works for FK correctness; it does not look
-machined. TE's visual language is built on **chamfered primitives
-with inset bands and seam lines**. The same idea applied to a robot
-link gives a part that reads as "milled," not "extruded."
+Today Joint.tsx renders every joint as a sphere and every link as a cylinder. That works for FK correctness; it does not look machined. TE’s visual language is built on chamfered primitives, inset bands, visible seams, restrained materials, and repeated proportional rules. The same discipline applied to Jog Actuator gives every robot part a product-family identity instead of a demo-viewport identity.
 
-| Layer | What changes |
-|---|---|
-| New `mesh/link.ts` | Parametric link mesh function: takes `(length, radius, joint_type_at_each_end)` and returns a `BufferGeometry`. The mesh has chamfered ends, a subtle longitudinal seam, an inset band where each joint axis attaches. One function serves all links across all templates. |
-| New `mesh/revolute.ts` | Parametric revolute joint mesh: a short barrel with a visible rotation axis (a thin disc inset around the equator), instead of a sphere. The TE move is "you can tell which way it rotates by looking at it." |
-| New `mesh/prismatic.ts` (lands with [RFD-12](RFD-12.md)) | Parametric prismatic carriage and rail: a long thin extrusion (rail) and a slotted block (carriage) that slides along it. Carriage position driven by joint state. |
-| `Joint.tsx` | Branch on joint type; dispatch to `revolute.ts` or `prismatic.ts`. The component shape is unchanged. |
-| Materials | One shared `MeshStandardMaterial` per role (link, joint, end-effector). Three materials total. No per-instance material; colour comes from a uniform set by joint state (e.g. active joint gets the accent colour from Box 4). |
-| End-effector | Replace the current TCP sphere with a small machined cap — a flat disc with a chamfer, oriented along the EE axis. Reads as a tool mount, not a marker. |
+Box 2 does two things at once:
 
-**Out of scope for Box 2:** lighting (done in Box 1), colour
-(done in Box 4 — for now, reuse the existing terracotta/cyan
-pairing), any animation of the new meshes.
+1. introduces the first procedural mesh generators for links, revolute joints, prismatic joints, and end-effectors;
+2. introduces the machine design-token layer those generators consume.
 
-**Screenshot test:** the 2-DOF arm from the baseline screenshots,
-re-rendered with Box 1 lighting and Box 2 meshes, is something
-you would put on a homepage hero.
+The token layer is the important part. Geometry should not hardcode arbitrary radii, bevels, seam widths, colors, material roughness, or bolt sizes. Mesh functions should consume semantic tokens like machine.geometry.bevel.sm, machine.geometry.seam.width, machine.proportions.linkThicknessToWidth, and machine.materials.revolute. This keeps every generated part inside the same visual grammar even as new robot templates are added.
+
+Layer	What changes
+New ui/src/design/tokens.ts	Adds the base design-token object used by both 2D chrome and 3D machine rendering. Box 2 lands only the machine/mesh subset; Box 4 later completes the full colour system.
+New ui/src/design/machineTokens.ts	Defines procedural mesh tokens: bevel sizes, seam widths, inset depths, band widths, hub/link proportions, fastener scale, material roles, and geometry-quality levels. These are numbers with names. No procedural mesh function should invent its own arbitrary magic numbers.
+New ui/src/design/machineStyles.ts	Defines named visual presets over the same tokens: baseline, machined, skeletonized, and later teenageEngineeringInspired. A style preset changes token values; it does not fork the mesh architecture.
+New mesh/link.ts	Parametric link mesh function: takes (length, joint_type_at_each_end, styleTokens) and returns a BufferGeometry or mesh recipe. The mesh has chamfered ends, a subtle longitudinal seam, an inset band where each joint axis attaches, and proportions derived from tokens rather than literals. One generator serves all links across all templates.
+New mesh/revolute.ts	Parametric revolute joint mesh: a short barrel with a visible rotation axis, tokenized inset ring, tokenized seam line, and optional active-state accent band. The TE move is “you can tell which way it rotates by looking at it.”
+New mesh/prismatic.ts lands with RFD-12	Parametric prismatic carriage and rail: a long thin extrusion and a slotted block that slides along it. Rail thickness, slot width, carriage bevel, and guide-band treatment all come from machine tokens.
+New mesh/endEffector.ts	Replaces the TCP sphere with a small machined cap: flat disc, chamfered edge, visible tool-face orientation, and optional tokenized center mark. Reads as a tool mount, not a marker.
+New mesh/recipes.ts	Optional but recommended. Introduces a mesh-recipe intermediate representation so generators can output semantic primitives like barrel, band, seam, cap, fastener, and insetPanel before those become Three.js geometry. This keeps the procedural grammar testable outside React.
+Joint.tsx	Branches on joint type and dispatches to revolute.ts or prismatic.ts. The component shape is unchanged; only the rendered geometry changes.
+Materials	One shared material registry per role: link, revolute, prismatic, ee, active, shadowInset. Components request material by role. They do not instantiate ad hoc colors. Box 4 later replaces provisional colors with the final app-wide color tokens.
+Geometry quality	Adds a quality option: low, medium, hero. Low is for thumbnails and onboarding cards; medium is default viewport; hero is for screenshots/export. Segment counts and bevel detail are tokenized instead of scattered through mesh files.
+Dev preview	Adds a small internal “mesh lab” route or Storybook-style preview showing one generated link, revolute, prismatic rail, and end-effector under Box 1 lighting. This is where token tweaks are reviewed visually before they affect the main workspace.
+
+Out of scope for Box 2: final colour identity Box 4, typography/chrome Box 3, motion Box 7, real manufacturable CAD export, physical strength simulation, and arbitrary freeform part generation.
+
+Screenshot test: the 2-DOF arm from the baseline screenshots, re-rendered with Box 1 lighting and Box 2 token-driven meshes, looks like it belongs to a coherent hardware product family. The links, joints, seams, bands, and tool cap share the same proportional language; nothing looks like a default Three.js primitive.
 
 ### Box 3 — Typography and chrome (3–5 days)
 
@@ -381,14 +384,7 @@ its budget, cut scope inside the box (drop one bullet from the
    If the budget is tight, the chamfered ends become the first
    thing cut.
 
-4. **Reachability volumes: keep, demote, or remove?** Box 1
-   demotes them to off-by-default behind a toggle. The deeper
-   question — are they ever the right default for any user
-   persona? — is open. Pros may want them on for IK debugging;
-   makers will never turn them on. Worth a usage telemetry
-   decision once telemetry exists.
-
-5. **Should the canvas have a light mode at all?** Box 4 keeps
+4. **Should the canvas have a light mode at all?** Box 4 keeps
    the option but does not surface it. The argument for: marketing
    screenshots on a light page read better. The argument against:
    it is a second variant of every shader and material in Box 1
