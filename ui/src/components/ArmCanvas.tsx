@@ -11,9 +11,19 @@
  * Backward-compat: callers that pass only `linkLengths` get a synthetic
  * chain with d=α=θ_offset=0, which produces the original planar XY arm.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { DHJointValues, WorkspaceResult } from '../lib/types'
+import { MeshQualityContext, useMeshQuality } from './mesh/MeshQualityContext'
+import { LinkMesh } from './mesh/LinkMesh'
+import { RevoluteJoint } from './mesh/RevoluteJoint'
+import { EndEffectorMesh } from './mesh/EndEffectorMesh'
+import { useMaterials } from './mesh/MaterialRegistry'
+import { RecipeNodes } from './mesh/recipeToThree'
+import { MotionEnvelope } from './mesh/MotionEnvelope'
+import { buildBaseAssembly } from './mesh/assemblies'
+import { getMachineStyle, defaultMachineStyle } from '../design/machineStyles'
+import { machineColors } from '../design/tokens'
 
 interface ArmCanvasProps {
   /** Current joint angles in radians, one per joint in slot order. */
@@ -57,10 +67,14 @@ interface ArmCanvasProps {
   onEEDrag?: (delta: [number, number, number]) => void
   /** Called with true when a joint/EE drag begins and false when it ends. */
   onDragStateChange?: (dragging: boolean) => void
+  /**
+   * When true, draw joint-limit arcs (smoked-glass motion envelopes) in the
+   * workspace. Off by default — they're a diagnostic overlay, not part of
+   * the hero-shot aesthetic.
+   */
+  showLimits?: boolean
 }
 
-const LINK_COLORS = ['#4fc3f7', '#81d4fa', '#b3e5fc']
-const ARC_SEGS = 64
 const DEG = Math.PI / 180
 
 export function ArmCanvas({
@@ -77,6 +91,7 @@ export function ArmCanvas({
   onJointDrag,
   onEEDrag,
   onDragStateChange,
+  showLimits = false,
 }: ArmCanvasProps) {
   // Build a uniform joint list. If dhJoints isn't given, synthesise from
   // linkLengths so old callers keep working.
@@ -307,33 +322,36 @@ export function ArmCanvas({
     return { perJoint: result, eePos, eeMatrix }
   }, [joints, anglesRad, nJoints])
 
-  // Arc radii — scale with shortest link so wedges aren't huge.
-  const minA = joints.slice(0, nJoints).reduce(
-    (m, j) => Math.min(m, j.a || 1),
-    Number.POSITIVE_INFINITY,
-  )
-  const arcInnerR = radius * 2.5
-  const arcOuterR = arcInnerR + (isFinite(minA) ? minA : 0.3) * 0.35
+  // Arc band — keep the ring thin and linked to joint radius, not link length,
+  // so it reads as a UI annotation rather than a physical dimension.
+  const arcInnerR = radius * 2.2
+  const arcOuterR = arcInnerR + radius * 1.4
 
   return (
+    <MeshQualityContext.Provider value="medium">
     <group>
-      {/* Joint-limit arc sectors (revolute only) */}
-      {frames.perJoint.map((f, i) => {
+      {/* Joint-limit motion envelope — off by default, toggled via showLimits.
+          Only renders for joints with a meaningful limit span (< 340°). */}
+      {showLimits && frames.perJoint.map((f, i) => {
         if (f.isPrismatic) return null
         const lower = f.thetaOffsetRad + f.limitLowerRad
         const upper = f.thetaOffsetRad + f.limitUpperRad
         const span = upper - lower
         if (span <= 0) return null
+        const current = f.thetaOffsetRad + (anglesRad[i] ?? 0)
         return (
           <group
             key={`arc${i}`}
             matrix={f.preJointMatrix}
             matrixAutoUpdate={false}
           >
-            <mesh position={[0, 0, -0.002]}>
-              <ringGeometry args={[arcInnerR, arcOuterR, ARC_SEGS, 1, lower, span]} />
-              <meshStandardMaterial color="#ffca28" transparent opacity={0.18} side={THREE.DoubleSide} />
-            </mesh>
+            <MotionEnvelope
+              innerRadius={arcInnerR}
+              outerRadius={arcOuterR}
+              lowerRad={lower}
+              upperRad={upper}
+              currentRad={current}
+            />
           </group>
         )
       })}
@@ -359,7 +377,7 @@ export function ArmCanvas({
           f.axis === 'x' ? [q, 0, 0] :
           f.axis === 'y' ? [0, q, 0] :
           [0, 0, q]
-        const carriageColor = LINK_COLORS[i % LINK_COLORS.length]
+        const carriageColor = machineColors.prismaticCarriage[i % machineColors.prismaticCarriage.length]
         return (
           <group key={`rail${i}`} matrix={f.preJointMatrix} matrixAutoUpdate={false}>
             {/* Static rail */}
@@ -384,117 +402,113 @@ export function ArmCanvas({
       })}
 
       {/* Base disc */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[radius * 2, radius * 2, 0.04, 24]} />
-        <meshStandardMaterial color="#546e7a" />
-      </mesh>
+      <BasDisc radius={radius} />
 
-      {/* Link cylinders — extend along each joint frame's +X by length a */}
+      {/* Link cylinders — procedural token-driven barrels along each +X */}
       {frames.perJoint.map((f, i) => (
-        <group key={`link${i}`} matrix={f.linkFrameMatrix} matrixAutoUpdate={false}>
-          {/* cylinderGeometry is along Y; rotate -π/2 about Z so it aligns with +X */}
-          {Math.abs(f.a) > 1e-6 && (
-            <mesh position={[f.a / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow receiveShadow>
-              <cylinderGeometry args={[radius, radius, Math.abs(f.a), 16]} />
-              <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
-            </mesh>
-          )}
-        </group>
+        Math.abs(f.a) > 1e-6 ? (
+          <LinkMesh
+            key={`link${i}`}
+            length={Math.abs(f.a)}
+            radius={radius}
+            frameMatrix={f.linkFrameMatrix}
+            slotIndex={i}
+          />
+        ) : null
       ))}
 
-      {/* d-offset cylinders — extend along the previous frame's +Z by length d
-          (after Rz(theta) is applied).  This is what gives 6-DOF / 7-DOF arms
-          their visible "forearm" when reach is stored in DH 'd' (not 'a'). */}
+      {/* d-offset links — DH 'd' segments along +Z (6-DOF/7-DOF forearm).  */}
       {frames.perJoint.map((f, i) => {
         const d = joints[i].d
         if (Math.abs(d) <= 1e-6) return null
         const theta = f.thetaOffsetRad + (anglesRad[i] ?? 0)
-        // After Rz(theta) on the previous frame, the d translation is along +Z.
-        // Build a matrix that places a cylinder midway along that segment.
         const Rz = new THREE.Matrix4().makeRotationZ(theta)
-        const placement = f.preJointMatrix.clone().multiply(Rz)
+        // Rotate the link frame so the barrel's +X aligns with DH +Z.
+        // Net rotation: Rz already in place; add Ry(+π/2) so +X maps to +Z.
+        const rotateToZ = new THREE.Matrix4().makeRotationY(-Math.PI / 2)
+        const dLinkFrame = f.preJointMatrix.clone().multiply(Rz).multiply(rotateToZ)
         return (
-          <group key={`dlink${i}`} matrix={placement} matrixAutoUpdate={false}>
-            {/* cylinderGeometry is along Y; rotate π/2 about X so it aligns with +Z */}
-            <mesh position={[0, 0, d / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-              <cylinderGeometry args={[radius, radius, Math.abs(d), 16]} />
-              <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
-            </mesh>
-          </group>
+          <LinkMesh
+            key={`dlink${i}`}
+            length={Math.abs(d)}
+            radius={radius}
+            frameMatrix={dLinkFrame}
+            slotIndex={i}
+          />
         )
       })}
 
-      {/* Joint spheres at each joint origin */}
+      {/* Joint hubs — procedural revolute collars, coaxial with link +X */}
       {frames.perJoint.map((f, i) => (
-        <JointSphere
-          key={`j${i}`}
-          position={[f.jointOrigin.x, f.jointOrigin.y, f.jointOrigin.z]}
-          radius={radius * 1.6}
-          baseColor={i === 0 ? '#546e7a' : '#ff8a65'}
-          clickable={!!onJointClick}
-          onClick={onJointClick ? () => onJointClick(i) : undefined}
-          draggable={interactionMode === 'drag'}
-          onDragStart={interactionMode === 'drag'
-            ? (e) => startDrag(e, f.isPrismatic ? 'prismatic' : 'revolute', i, anglesRad[i] ?? 0)
-            : undefined}
-        />
+        f.isPrismatic ? null : (
+          <RevoluteJoint
+            key={`j${i}`}
+            frameMatrix={f.linkFrameMatrix}
+            linkRadius={radius}
+            slotIndex={i}
+            clickable={!!onJointClick}
+            onClick={onJointClick ? () => onJointClick(i) : undefined}
+            draggable={interactionMode === 'drag'}
+            onDragStart={interactionMode === 'drag'
+              ? (e) => startDrag(e, 'revolute', i, anglesRad[i] ?? 0)
+              : undefined}
+          />
+        )
       ))}
 
-      {/* End-effector indicator: small sphere at the tool point + RGB triad
-          showing the tool frame orientation (X=red, Y=green, Z=blue). */}
-      {frames.eeMatrix && frames.eePos && (
-        <group matrix={frames.eeMatrix} matrixAutoUpdate={false}>
-          {/* Tool point. In drag mode it grows to ~2.2x joint-sphere radius and
-              renders on top of overlapping joint spheres (renderOrder + depthTest)
-              so the user can always grab it. */}
-          {(() => {
-            const dragMode = interactionMode === 'drag' && !!onEEDrag
-            const r = dragMode ? radius * 2.0 : radius * 0.6
-            return (
-              <mesh
-                castShadow
-                receiveShadow
-                renderOrder={dragMode ? 999 : 0}
-                onPointerDown={dragMode
-                  ? (e) => {
-                      e.stopPropagation()
-                      // R3F's ThreeEvent exposes the camera + the hit point in world space.
-                      const re = e as unknown as {
-                        nativeEvent: PointerEvent
-                        camera: THREE.Camera
-                        point: THREE.Vector3
-                      }
-                      const canvas = re.nativeEvent.target as HTMLCanvasElement
-                      startDrag(
-                        re,
-                        'ee',
-                        -1,
-                        0,
-                        { camera: re.camera, canvas, worldPoint: re.point.clone() },
-                      )
-                    }
-                  : undefined}
-                onPointerOver={dragMode ? (e) => { e.stopPropagation(); document.body.style.cursor = 'grab' } : undefined}
-                onPointerOut={dragMode ? () => { document.body.style.cursor = 'auto' } : undefined}
-              >
-                <sphereGeometry args={[r, 20, 20]} />
-                <meshStandardMaterial
-                  color={dragMode ? '#fbbf24' : '#ffffff'}
-                  emissive={dragMode ? '#f59e0b' : '#a5d6a7'}
-                  emissiveIntensity={dragMode ? 0.9 : 0.6}
-                  transparent={dragMode}
-                  opacity={dragMode ? 0.65 : 1}
-                  depthTest={!dragMode}
-                />
-              </mesh>
-            )
-          })()}
-          {/* Axis triad — cylinders extend along their respective axis */}
-          <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color="#ef5350" />
-          <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color="#66bb6a" />
-          <EEAxis axis="z" length={radius * 4} thickness={radius * 0.25} color="#42a5f5" />
-        </group>
-      )}
+      {/* End-effector — procedural machined cap + RGB axis triad.
+          EEHitZone renders first (before joints) so in drag mode it can
+          claim pointer events via its priority sphere raycast. */}
+      {frames.eeMatrix && frames.eePos && (() => {
+        const dragMode = interactionMode === 'drag' && !!onEEDrag
+        const startEEDrag = dragMode
+          ? (e: React.PointerEvent) => {
+              e.stopPropagation()
+              const re = e as unknown as {
+                nativeEvent: PointerEvent
+                camera: THREE.Camera
+                point: THREE.Vector3
+              }
+              const canvas = re.nativeEvent.target as HTMLCanvasElement
+              startDrag(
+                re,
+                'ee',
+                -1,
+                0,
+                { camera: re.camera, canvas, worldPoint: re.point.clone() },
+              )
+            }
+          : undefined
+        return (
+          <group>
+            {/* Priority hit zone — must appear before RevoluteJoint nodes in
+                the JSX but wins via custom raycast distance bias. */}
+            {dragMode && (
+              <EEHitZone
+                eePos={frames.eePos}
+                hitRadius={radius * 2.8}
+                onPointerDown={startEEDrag!}
+                onPointerOver={() => { document.body.style.cursor = 'grab' }}
+                onPointerOut={() => { document.body.style.cursor = 'auto' }}
+              />
+            )}
+            <EndEffectorMesh
+              eeMatrix={frames.eeMatrix}
+              linkRadius={radius}
+              active={dragMode}
+              renderOrder={dragMode ? 999 : 0}
+              onPointerDown={dragMode ? startEEDrag : undefined}
+              onPointerOver={dragMode ? (e) => { e.stopPropagation(); document.body.style.cursor = 'grab' } : undefined}
+              onPointerOut={dragMode ? () => { document.body.style.cursor = 'auto' } : undefined}
+            />
+            <group matrix={frames.eeMatrix} matrixAutoUpdate={false}>
+              <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color="#ef5350" />
+              <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color="#66bb6a" />
+              <EEAxis axis="z" length={radius * 4} thickness={radius * 0.25} color="#42a5f5" />
+            </group>
+          </group>
+        )
+      })()}
 
       {/* Workspace hull overlay */}
       {workspace && showWorkspaceHull && workspace.hull && (
@@ -506,6 +520,7 @@ export function ArmCanvas({
         <WorkspacePoints points={workspace.points} />
       )}
     </group>
+    </MeshQualityContext.Provider>
   )
 }
 
@@ -546,39 +561,84 @@ function EEAxis({ axis, length, thickness, color }: EEAxisProps) {
   )
 }
 
-// ── JointSphere ─────────────────────────────────────────────────────────────
+// ── EEHitZone ───────────────────────────────────────────────────────────────
+// Invisible priority drag-handle placed at the EE world position.
+//
+// Problem: RevoluteJoint calls stopPropagation on pointerDown, and R3F fires
+// events sorted closest-to-camera first. The last joint housing (large hex
+// geometry) is often physically adjacent to the EE and wins the raycast.
+//
+// Solution: this component overrides its mesh's raycast with a mathematical
+// sphere test and reports a hit 0.25 m closer to the camera than reality.
+// That tiny bias guarantees the EE sphere sorts before any joint geometry
+// that overlaps it, without affecting any other click in the scene.
 
-interface JointSphereProps {
-  position: [number, number, number]
-  radius: number
-  baseColor: string
-  clickable: boolean
-  onClick?: () => void
-  draggable?: boolean
-  onDragStart?: (e: { nativeEvent: PointerEvent }) => void
+interface EEHitZoneProps {
+  eePos: THREE.Vector3
+  hitRadius: number
+  onPointerDown: (e: React.PointerEvent) => void
+  onPointerOver?: (e: React.PointerEvent) => void
+  onPointerOut?: () => void
 }
 
-function JointSphere({ position, radius, baseColor, clickable, onClick, draggable, onDragStart }: JointSphereProps) {
-  const [hovered, setHovered] = useState(false)
-  const interactive = clickable || draggable
+function EEHitZone({ eePos, hitRadius, onPointerDown, onPointerOver, onPointerOut }: EEHitZoneProps) {
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  // Install the custom sphere raycast once the mesh is mounted.
+  // We update it whenever eePos or hitRadius changes so it stays accurate.
+  useEffect(() => {
+    const mesh = meshRef.current
+    if (!mesh) return
+    const center = eePos.clone()
+    const r = hitRadius
+    mesh.raycast = (raycaster, intersects) => {
+      const sphere = new THREE.Sphere(center, r)
+      const hit = new THREE.Vector3()
+      if (!raycaster.ray.intersectSphere(sphere, hit)) return
+      // Report slightly closer than reality so we sort before adjacent joints.
+      const realDist = raycaster.ray.origin.distanceTo(hit)
+      intersects.push({
+        distance: Math.max(0, realDist - 0.25),
+        point: hit.clone(),
+        object: mesh,
+        face: null,
+        faceIndex: 0,
+      } as THREE.Intersection)
+    }
+  }, [eePos, hitRadius])
 
   return (
-      <mesh
-        castShadow
-        receiveShadow
-      position={position}
-      onClick={clickable ? (e) => { e.stopPropagation(); onClick?.() } : undefined}
-      onPointerDown={draggable ? (e) => { e.stopPropagation(); onDragStart?.(e as unknown as { nativeEvent: PointerEvent }) } : undefined}
-      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = draggable ? 'grab' : 'pointer' } : undefined}
-      onPointerOut={interactive ? () => { setHovered(false); document.body.style.cursor = 'auto' } : undefined}
+    <mesh
+      ref={meshRef}
+      position={eePos}
+      onPointerDown={onPointerDown}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
     >
-      <sphereGeometry args={[hovered ? radius * 1.18 : radius, 14, 14]} />
-      <meshStandardMaterial
-        color={hovered ? '#ffffff' : baseColor}
-        emissive={hovered ? baseColor : '#000000'}
-        emissiveIntensity={hovered ? 0.4 : 0}
-      />
+      {/* Geometry is needed for the default raycast to be replaced; tiny icosahedron
+          is cheap. The actual hit-testing is done by the custom raycast above. */}
+      <sphereGeometry args={[hitRadius, 4, 4]} />
+      <meshBasicMaterial visible={false} />
     </mesh>
+  )
+}
+
+// ── BasDisc ──────────────────────────────────────────────────────────────────
+// World-origin base assembly — bolt-circle disc with bearing turret (lab_instrument).
+
+function BasDisc({ radius }: { radius: number }) {
+  const materials = useMaterials(0)
+  const quality = useMeshQuality()
+  const tokens = getMachineStyle(defaultMachineStyle)
+  const recipe = useMemo(
+    () => buildBaseAssembly({ radius: radius * 2, thickness: 0.04, tokens }),
+    [radius, tokens],
+  )
+  // Recipe emits primitives in a "+X = up" frame; rotate so +X → world +Z.
+  return (
+    <group rotation={[0, -Math.PI / 2, 0]}>
+      <RecipeNodes recipe={recipe} materials={materials} quality={quality} castShadow receiveShadow />
+    </group>
   )
 }
 

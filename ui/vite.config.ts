@@ -19,4 +19,9 @@ export default defineConfig({
       },
     },
   },
+  // @ts-expect-error vitest adds `test` to the config; vite's types don't include it
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+  },
 })
