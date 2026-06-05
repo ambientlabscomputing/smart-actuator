@@ -11,7 +11,7 @@
  * Backward-compat: callers that pass only `linkLengths` get a synthetic
  * chain with d=α=θ_offset=0, which produces the original planar XY arm.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { DHJointValues, WorkspaceResult } from '../lib/types'
 
@@ -38,6 +38,23 @@ interface ArmCanvasProps {
   workspace?: WorkspaceResult | null
   /** When true, also render the raw sampled point cloud (default false). */
   showWorkspacePoints?: boolean
+  /**
+   * When 'drag', joint spheres and the EE sphere respond to pointer-drag,
+   * calling onJointDrag / onEEDrag as the user moves the pointer.
+   */
+  interactionMode?: 'view' | 'drag'
+  /**
+   * Called during drag on a revolute joint sphere or prismatic carriage.
+   * newValue is in radians (revolute) or metres (prismatic).
+   */
+  onJointDrag?: (jointIndex: number, jointName: string, newValue: number) => void
+  /**
+   * Called during drag on the end-effector sphere.
+   * delta is the world-space translation to apply (metres).
+   */
+  onEEDrag?: (delta: [number, number, number]) => void
+  /** Called with true when a joint/EE drag begins and false when it ends. */
+  onDragStateChange?: (dragging: boolean) => void
 }
 
 const LINK_COLORS = ['#4fc3f7', '#81d4fa', '#b3e5fc']
@@ -53,6 +70,10 @@ export function ArmCanvas({
   onJointClick,
   workspace,
   showWorkspacePoints = false,
+  interactionMode = 'view',
+  onJointDrag,
+  onEEDrag,
+  onDragStateChange,
 }: ArmCanvasProps) {
   // Build a uniform joint list. If dhJoints isn't given, synthesise from
   // linkLengths so old callers keep working.
@@ -74,6 +95,117 @@ export function ArmCanvas({
   // Always render every defined joint. Pad missing telemetry angles with 0
   // so joints show at their resting position when offline or partially connected.
   const nJoints = joints.length
+
+  // ── Drag state ─────────────────────────────────────────────────────────────
+  type DragType = 'revolute' | 'prismatic' | 'ee'
+  interface DragState {
+    type: DragType
+    jointIndex: number  // -1 for EE
+    startClientX: number
+    startClientY: number
+    startValue: number  // radians or metres; 0 for EE
+    // EE-only: camera + canvas + drag plane for accurate world-space projection
+    camera?: THREE.Camera
+    canvas?: HTMLCanvasElement
+    plane?: THREE.Plane
+    planeOrigin?: THREE.Vector3
+  }
+  const dragRef = useRef<DragState | null>(null)
+  const raycasterRef = useRef(new THREE.Raycaster())
+
+  useEffect(() => {
+    if (interactionMode !== 'drag') return
+
+    const onMove = (e: PointerEvent) => {
+      const ds = dragRef.current
+      if (!ds) return
+      const dx = e.clientX - ds.startClientX
+      const dy = e.clientY - ds.startClientY
+
+      if (ds.type === 'revolute' && onJointDrag) {
+        const joint = joints[ds.jointIndex]
+        // 200 px = π rad
+        const newAngle = ds.startValue - dy * (Math.PI / 200)
+        const lo = joint.limit_lower * DEG
+        const hi = joint.limit_upper * DEG
+        const clamped = Math.max(lo, Math.min(hi, newAngle))
+        onJointDrag(ds.jointIndex, joint.name, clamped)
+      } else if (ds.type === 'prismatic' && onJointDrag) {
+        const joint = joints[ds.jointIndex]
+        // Axis determines which screen delta maps most naturally:
+        // X-axis joint → horizontal mouse, Y/Z → vertical mouse
+        const rawDelta = joint.axis === 'x' ? dx * 0.002 : -dy * 0.002
+        const newPos = ds.startValue + rawDelta
+        const clamped = Math.max(joint.limit_lower, Math.min(joint.limit_upper, newPos))
+        onJointDrag(ds.jointIndex, joint.name, clamped)
+      } else if (ds.type === 'ee' && onEEDrag && ds.camera && ds.canvas && ds.plane && ds.planeOrigin) {
+        // Ray-cast the current pointer through the camera onto a plane that
+        // passes through the EE start point with normal = camera forward.
+        // This makes the EE follow the cursor exactly along the screen.
+        const rect = ds.canvas.getBoundingClientRect()
+        const ndc = new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1,
+        )
+        raycasterRef.current.setFromCamera(ndc, ds.camera)
+        const hit = new THREE.Vector3()
+        if (raycasterRef.current.ray.intersectPlane(ds.plane, hit)) {
+          const delta: [number, number, number] = [
+            hit.x - ds.planeOrigin.x,
+            hit.y - ds.planeOrigin.y,
+            hit.z - ds.planeOrigin.z,
+          ]
+          onEEDrag(delta)
+        }
+      }
+    }
+
+    const onUp = () => {
+      if (dragRef.current) onDragStateChange?.(false)
+      dragRef.current = null
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [interactionMode, joints, onJointDrag, onEEDrag, onDragStateChange])
+
+  // Helper: begin a drag.
+  const startDrag = (
+    e: { nativeEvent: PointerEvent },
+    type: DragType,
+    jointIndex: number,
+    startValue: number,
+    extras?: { camera: THREE.Camera; canvas: HTMLCanvasElement; worldPoint: THREE.Vector3 },
+  ) => {
+    let plane: THREE.Plane | undefined
+    let planeOrigin: THREE.Vector3 | undefined
+    if (extras) {
+      // Drag plane: passes through the EE start point, normal faces the camera.
+      const cameraForward = new THREE.Vector3()
+      extras.camera.getWorldDirection(cameraForward)
+      // Plane normal must point AT the camera (opposite of forward) for
+      // setFromNormalAndCoplanarPoint to give a stable intersection.
+      const normal = cameraForward.clone().negate()
+      plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, extras.worldPoint)
+      planeOrigin = extras.worldPoint.clone()
+    }
+    dragRef.current = {
+      type,
+      jointIndex,
+      startClientX: e.nativeEvent.clientX,
+      startClientY: e.nativeEvent.clientY,
+      startValue,
+      camera: extras?.camera,
+      canvas: extras?.canvas,
+      plane,
+      planeOrigin,
+    }
+    onDragStateChange?.(true)
+  }
 
   // ── Forward kinematics ──────────────────────────────────────────────────────
   const frames = useMemo(() => {
@@ -233,7 +365,12 @@ export function ArmCanvas({
               <meshStandardMaterial color="#455a64" />
             </mesh>
             {/* Sliding carriage at current q */}
-            <mesh position={carriagePos}>
+            <mesh
+              position={carriagePos}
+              onPointerDown={interactionMode === 'drag'
+                ? (e) => { e.stopPropagation(); startDrag(e as unknown as { nativeEvent: PointerEvent }, 'prismatic', i, anglesRad[i] ?? 0) }
+                : undefined}
+            >
               <boxGeometry args={[radius * 2.4, radius * 2.4, radius * 2.4]} />
               <meshStandardMaterial color={carriageColor} />
             </mesh>
@@ -291,6 +428,10 @@ export function ArmCanvas({
           baseColor={i === 0 ? '#546e7a' : '#ff8a65'}
           clickable={!!onJointClick}
           onClick={onJointClick ? () => onJointClick(i) : undefined}
+          draggable={interactionMode === 'drag'}
+          onDragStart={interactionMode === 'drag'
+            ? (e) => startDrag(e, f.isPrismatic ? 'prismatic' : 'revolute', i, anglesRad[i] ?? 0)
+            : undefined}
         />
       ))}
 
@@ -298,11 +439,49 @@ export function ArmCanvas({
           showing the tool frame orientation (X=red, Y=green, Z=blue). */}
       {frames.eeMatrix && frames.eePos && (
         <group matrix={frames.eeMatrix} matrixAutoUpdate={false}>
-          {/* Tool point */}
-          <mesh>
-            <sphereGeometry args={[radius * 0.6, 16, 16]} />
-            <meshStandardMaterial color="#ffffff" emissive="#a5d6a7" emissiveIntensity={0.6} />
-          </mesh>
+          {/* Tool point. In drag mode it grows to ~2.2x joint-sphere radius and
+              renders on top of overlapping joint spheres (renderOrder + depthTest)
+              so the user can always grab it. */}
+          {(() => {
+            const dragMode = interactionMode === 'drag' && !!onEEDrag
+            const r = dragMode ? radius * 2.0 : radius * 0.6
+            return (
+              <mesh
+                renderOrder={dragMode ? 999 : 0}
+                onPointerDown={dragMode
+                  ? (e) => {
+                      e.stopPropagation()
+                      // R3F's ThreeEvent exposes the camera + the hit point in world space.
+                      const re = e as unknown as {
+                        nativeEvent: PointerEvent
+                        camera: THREE.Camera
+                        point: THREE.Vector3
+                      }
+                      const canvas = re.nativeEvent.target as HTMLCanvasElement
+                      startDrag(
+                        re,
+                        'ee',
+                        -1,
+                        0,
+                        { camera: re.camera, canvas, worldPoint: re.point.clone() },
+                      )
+                    }
+                  : undefined}
+                onPointerOver={dragMode ? (e) => { e.stopPropagation(); document.body.style.cursor = 'grab' } : undefined}
+                onPointerOut={dragMode ? () => { document.body.style.cursor = 'auto' } : undefined}
+              >
+                <sphereGeometry args={[r, 20, 20]} />
+                <meshStandardMaterial
+                  color={dragMode ? '#fbbf24' : '#ffffff'}
+                  emissive={dragMode ? '#f59e0b' : '#a5d6a7'}
+                  emissiveIntensity={dragMode ? 0.9 : 0.6}
+                  transparent={dragMode}
+                  opacity={dragMode ? 0.65 : 1}
+                  depthTest={!dragMode}
+                />
+              </mesh>
+            )
+          })()}
           {/* Axis triad — cylinders extend along their respective axis */}
           <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color="#ef5350" />
           <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color="#66bb6a" />
@@ -368,17 +547,21 @@ interface JointSphereProps {
   baseColor: string
   clickable: boolean
   onClick?: () => void
+  draggable?: boolean
+  onDragStart?: (e: { nativeEvent: PointerEvent }) => void
 }
 
-function JointSphere({ position, radius, baseColor, clickable, onClick }: JointSphereProps) {
+function JointSphere({ position, radius, baseColor, clickable, onClick, draggable, onDragStart }: JointSphereProps) {
   const [hovered, setHovered] = useState(false)
+  const interactive = clickable || draggable
 
   return (
     <mesh
       position={position}
       onClick={clickable ? (e) => { e.stopPropagation(); onClick?.() } : undefined}
-      onPointerOver={clickable ? (e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer' } : undefined}
-      onPointerOut={clickable ? () => { setHovered(false); document.body.style.cursor = 'auto' } : undefined}
+      onPointerDown={draggable ? (e) => { e.stopPropagation(); onDragStart?.(e as unknown as { nativeEvent: PointerEvent }) } : undefined}
+      onPointerOver={interactive ? (e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = draggable ? 'grab' : 'pointer' } : undefined}
+      onPointerOut={interactive ? () => { setHovered(false); document.body.style.cursor = 'auto' } : undefined}
     >
       <sphereGeometry args={[hovered ? radius * 1.18 : radius, 14, 14]} />
       <meshStandardMaterial
