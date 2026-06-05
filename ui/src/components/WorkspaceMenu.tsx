@@ -24,6 +24,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import BlurOnIcon from '@mui/icons-material/BlurOn'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
+import GrainIcon from '@mui/icons-material/Grain'
 
 import { CartesianJogPanel } from './CartesianJogPanel'
 import type { DHJointValues } from '../lib/types'
@@ -73,8 +74,10 @@ interface WorkspaceMenuProps {
   onEdit?: () => void
   onPrograms?: () => void
   programsActive?: boolean
-  showWorkspace?: boolean
-  onToggleWorkspace?: () => void
+  showReachabilityHull?: boolean
+  showWorkspaceSamples?: boolean
+  onToggleReachability?: () => void
+  onToggleWorkspaceSamples?: () => void
   // ── Cartesian jog (optional; only shown when machineId is provided) ─────
   machineId?: string | null
   /** Joint names in chain order, e.g. ['shoulder', 'elbow']. */
@@ -100,8 +103,10 @@ export function WorkspaceMenu({
   onEdit,
   onPrograms,
   programsActive,
-  showWorkspace,
-  onToggleWorkspace,
+  showReachabilityHull,
+  showWorkspaceSamples,
+  onToggleReachability,
+  onToggleWorkspaceSamples,
   machineId,
   jointNamesOrdered,
   currentQRad,
@@ -270,17 +275,32 @@ export function WorkspaceMenu({
         )}
 
         {/* Workspace overlay toggle ────────────────────────────────────────── */}
-        {onToggleWorkspace && (
-          <Tooltip title={showWorkspace ? 'Hide workspace' : 'Show workspace'} placement="right">
+        {onToggleReachability && (
+          <Tooltip title={showReachabilityHull ? 'Hide reachability hull' : 'Show reachability hull'} placement="right">
             <IconButton
-              onClick={onToggleWorkspace}
+              onClick={onToggleReachability}
               style={{
-                ...toolBtn(showWorkspace ? '#a78bfa' : undefined),
-                background: showWorkspace ? 'rgba(124,58,237,0.2)' : 'transparent',
+                ...toolBtn(showReachabilityHull ? '#a78bfa' : undefined),
+                background: showReachabilityHull ? 'rgba(124,58,237,0.2)' : 'transparent',
               }}
               size="small"
             >
               <BlurOnIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {showReachabilityHull && onToggleWorkspaceSamples && (
+          <Tooltip title={showWorkspaceSamples ? 'Hide workspace samples' : 'Show workspace samples'} placement="right">
+            <IconButton
+              onClick={onToggleWorkspaceSamples}
+              style={{
+                ...toolBtn(showWorkspaceSamples ? '#67e8f9' : '#6b7280'),
+                background: showWorkspaceSamples ? 'rgba(34,211,238,0.16)' : 'transparent',
+              }}
+              size="small"
+            >
+              <GrainIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}

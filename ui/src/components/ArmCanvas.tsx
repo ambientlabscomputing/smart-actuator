@@ -36,8 +36,10 @@ interface ArmCanvasProps {
   onJointClick?: (index: number) => void
   /** Pre-computed reachable workspace to render as an overlay hull. */
   workspace?: WorkspaceResult | null
+  /** When true, render the reachability hull (default false). */
+  showWorkspaceHull?: boolean
   /** When true, also render the raw sampled point cloud (default false). */
-  showWorkspacePoints?: boolean
+  showWorkspaceSamples?: boolean
   /**
    * When 'drag', joint spheres and the EE sphere respond to pointer-drag,
    * calling onJointDrag / onEEDrag as the user moves the pointer.
@@ -69,7 +71,8 @@ export function ArmCanvas({
   jointLimitsDeg,
   onJointClick,
   workspace,
-  showWorkspacePoints = false,
+  showWorkspaceHull = false,
+  showWorkspaceSamples = false,
   interactionMode = 'view',
   onJointDrag,
   onEEDrag,
@@ -360,13 +363,15 @@ export function ArmCanvas({
         return (
           <group key={`rail${i}`} matrix={f.preJointMatrix} matrixAutoUpdate={false}>
             {/* Static rail */}
-            <mesh position={railPos} rotation={rotation}>
+            <mesh position={railPos} rotation={rotation} castShadow receiveShadow>
               <cylinderGeometry args={[railThickness, railThickness, f.travelM, 12]} />
               <meshStandardMaterial color="#455a64" />
             </mesh>
             {/* Sliding carriage at current q */}
             <mesh
               position={carriagePos}
+              castShadow
+              receiveShadow
               onPointerDown={interactionMode === 'drag'
                 ? (e) => { e.stopPropagation(); startDrag(e as unknown as { nativeEvent: PointerEvent }, 'prismatic', i, anglesRad[i] ?? 0) }
                 : undefined}
@@ -379,7 +384,7 @@ export function ArmCanvas({
       })}
 
       {/* Base disc */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius * 2, radius * 2, 0.04, 24]} />
         <meshStandardMaterial color="#546e7a" />
       </mesh>
@@ -389,7 +394,7 @@ export function ArmCanvas({
         <group key={`link${i}`} matrix={f.linkFrameMatrix} matrixAutoUpdate={false}>
           {/* cylinderGeometry is along Y; rotate -π/2 about Z so it aligns with +X */}
           {Math.abs(f.a) > 1e-6 && (
-            <mesh position={[f.a / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+            <mesh position={[f.a / 2, 0, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow receiveShadow>
               <cylinderGeometry args={[radius, radius, Math.abs(f.a), 16]} />
               <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
             </mesh>
@@ -411,7 +416,7 @@ export function ArmCanvas({
         return (
           <group key={`dlink${i}`} matrix={placement} matrixAutoUpdate={false}>
             {/* cylinderGeometry is along Y; rotate π/2 about X so it aligns with +Z */}
-            <mesh position={[0, 0, d / 2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh position={[0, 0, d / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
               <cylinderGeometry args={[radius, radius, Math.abs(d), 16]} />
               <meshStandardMaterial color={LINK_COLORS[i % LINK_COLORS.length]} />
             </mesh>
@@ -447,6 +452,8 @@ export function ArmCanvas({
             const r = dragMode ? radius * 2.0 : radius * 0.6
             return (
               <mesh
+                castShadow
+                receiveShadow
                 renderOrder={dragMode ? 999 : 0}
                 onPointerDown={dragMode
                   ? (e) => {
@@ -490,12 +497,12 @@ export function ArmCanvas({
       )}
 
       {/* Workspace hull overlay */}
-      {workspace && workspace.hull && (
+      {workspace && showWorkspaceHull && workspace.hull && (
         <WorkspaceOverlay hull={workspace.hull} />
       )}
 
       {/* Workspace point cloud (behind sub-toggle) */}
-      {workspace && showWorkspacePoints && workspace.points.length > 0 && (
+      {workspace && showWorkspaceSamples && workspace.points.length > 0 && (
         <WorkspacePoints points={workspace.points} />
       )}
     </group>
@@ -556,7 +563,9 @@ function JointSphere({ position, radius, baseColor, clickable, onClick, draggabl
   const interactive = clickable || draggable
 
   return (
-    <mesh
+      <mesh
+        castShadow
+        receiveShadow
       position={position}
       onClick={clickable ? (e) => { e.stopPropagation(); onClick?.() } : undefined}
       onPointerDown={draggable ? (e) => { e.stopPropagation(); onDragStart?.(e as unknown as { nativeEvent: PointerEvent }) } : undefined}
@@ -598,10 +607,10 @@ function WorkspaceOverlay({ hull }: { hull: WorkspaceHullData }) {
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial
+      <meshBasicMaterial
         color="#4fc3f7"
         transparent
-        opacity={0.15}
+        opacity={0.07}
         side={THREE.DoubleSide}
         depthWrite={false}
       />
