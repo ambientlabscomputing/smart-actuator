@@ -37,10 +37,14 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
   const [editError, setEditError] = useState<string | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [showPrograms, setShowPrograms] = useState(false)
-  const [showWorkspace, setShowWorkspace] = useState(false)
+  const [showReachabilityHull, setShowReachabilityHull] = useState(false)
+  const [showWorkspaceSamples, setShowWorkspaceSamples] = useState(false)
 
   // Workspace overlay — lazy-loaded when toggled on; refetched after edits.
-  const { data: workspaceData, refetch: refetchWorkspace } = useWorkspace(machineId, showWorkspace)
+  const { data: workspaceData, refetch: refetchWorkspace } = useWorkspace(
+    machineId,
+    showReachabilityHull || showWorkspaceSamples,
+  )
 
   // ── Telemetry panel ────────────────────────────────────────────────────────
   const [selectedJoint, setSelectedJoint] = useState<number | null>(null)
@@ -233,7 +237,8 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
             radius={linkRadius ?? undefined}
             onJointClick={(i) => setSelectedJoint(prev => prev === i ? null : i)}
             workspace={workspaceData}
-            showWorkspacePoints={showWorkspace}
+            showWorkspaceHull={showReachabilityHull}
+            showWorkspaceSamples={showWorkspaceSamples}
           />
         </AppCanvas>
         <WorkspaceMenu
@@ -251,8 +256,19 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
           onEdit={() => void handleOpenEdit()}
           onPrograms={() => setShowPrograms((v) => !v)}
           programsActive={showPrograms}
-          showWorkspace={showWorkspace}
-          onToggleWorkspace={() => setShowWorkspace((v) => !v)}
+          showReachabilityHull={showReachabilityHull}
+          showWorkspaceSamples={showWorkspaceSamples}
+          onToggleReachability={() => {
+            setShowReachabilityHull((v) => {
+              const next = !v
+              if (!next) setShowWorkspaceSamples(false)
+              return next
+            })
+          }}
+          onToggleWorkspaceSamples={() => {
+            if (!showReachabilityHull) return
+            setShowWorkspaceSamples((v) => !v)
+          }}
           machineId={machineId}
           jointNamesOrdered={joints}
           currentQRad={anglesRad}

@@ -16,9 +16,10 @@
  * truth keeps everything consistent.
  */
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei'
+import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
 import type { ReactNode } from 'react'
 import * as THREE from 'three'
+import { StageFloor } from './canvas/StageFloor'
 
 // Make every Object3D (cameras, lights, helpers) default to Z-up.
 // Set once at module load — affects new instances only, not ones already mounted.
@@ -44,9 +45,15 @@ export function AppCanvas({
     <Canvas
       style={{ width: '100%', height: '100%' }}
       camera={{ position: initialCameraPosition, fov: 45, near: 0.01, far: 100 }}
-      onCreated={({ camera, controls }) => {
+      shadows
+      onCreated={({ camera, controls, gl }) => {
         camera.up.set(0, 0, 1)
         camera.lookAt(...initialCameraTarget)
+        gl.toneMapping = THREE.ACESFilmicToneMapping
+        gl.toneMappingExposure = 1.02
+        gl.outputColorSpace = THREE.SRGBColorSpace
+        gl.shadowMap.enabled = true
+        gl.shadowMap.type = THREE.PCFSoftShadowMap
         // OrbitControls (if already attached) needs to re-read camera.up.
         if (controls && 'update' in controls) {
           (controls as { update: () => void }).update()
@@ -54,37 +61,31 @@ export function AppCanvas({
       }}
     >
       {/* ── Background ─────────────────────────────────────────────── */}
-      <color attach="background" args={['#0a0e14']} />
+      <color attach="background" args={['#1e2630']} />
 
       {/* ── Lighting ───────────────────────────────────────────────── */}
-      {/* Fill: uniform low-intensity ambient */}
-      <ambientLight intensity={0.4} />
-      {/* Sky/ground hemisphere tint for CAD-style shading */}
-      <hemisphereLight args={['#3a4a6b', '#1a1a1a', 0.55]} />
-      {/* Key light from upper-right-back (above the ground plane in Z-up) */}
-      <directionalLight position={[3, 5, 3]} intensity={0.9} />
-
-      {/* ── Ground grid on XY plane (Z-up, arm base at Z=0) ────────── */}
-      {/* Grid is authored in three's XZ plane; rotate it +90° about X to
-          lay it into world XY, then push slightly below Z=0 to avoid
-          z-fighting with anything drawn at the origin. */}
-      <Grid
-        args={[10, 10]}
-        rotation={[Math.PI / 2, 0, 0]}
-        position={[0, 0, -0.001]}
-        cellSize={0.05}
-        cellThickness={0.5}
-        cellColor="#2a3340"
-        sectionSize={0.25}
-        sectionThickness={1.0}
-        sectionColor="#4a6a8a"
-        fadeDistance={6}
-        fadeStrength={1.2}
-        infiniteGrid
+      <ambientLight intensity={0.08} />
+      <directionalLight
+        color="#fff1e0"
+        position={[3, -2, 4]}
+        intensity={1.12}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-near={0.2}
+        shadow-camera-far={12}
+        shadow-camera-left={-2.8}
+        shadow-camera-right={2.8}
+        shadow-camera-top={2.8}
+        shadow-camera-bottom={-2.8}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.02}
       />
+      <directionalLight color="#b8c7d6" position={[-2, -2, 1.5]} intensity={0.35} />
+      <directionalLight color="#ffffff" position={[-1, 3, 3]} intensity={0.5} />
 
-      {/* ── World-origin axes: X=red, Y=green, Z=blue ──────────────── */}
-      <axesHelper args={[0.2]} />
+      {/* ── Stage floor on XY plane (Z-up, arm base at Z=0) ─────────── */}
+      <StageFloor />
 
       {/* ── Orbit controls ─────────────────────────────────────────── */}
       {/* maxPolarAngle clamps "look-under-ground"; with Z-up the polar

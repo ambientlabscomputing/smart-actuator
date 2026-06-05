@@ -8,6 +8,10 @@ help:
 install-brain:
 	@cd brain && make install
 
+## install-ui: Install UI
+install-ui:
+	@cd ui && npm install
+
 ## run: Start the full stack (sidecar + brain + ui — Brain spawns sims) via overmind/foreman
 run: stop build
 	@if command -v overmind >/dev/null 2>&1; then \
