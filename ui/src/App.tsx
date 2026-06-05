@@ -8,6 +8,7 @@ import { LoginScreen } from '@/components/auth/LoginScreen'
 import { ProgramsPage } from '@/components/programs/ProgramsPage'
 import { GCodePage } from '@/components/programs/GCodePage'
 import { TeachPage } from '@/components/teach/TeachPage'
+import { MeshLab } from './pages/MeshLab'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
 import { useWorkspace } from './hooks/useWorkspace'
 import { RequireAuth } from '@/lib/RequireAuth'
@@ -466,6 +467,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
+      {import.meta.env.DEV && <Route path="/mesh-lab" element={<MeshLab />} />}
       <Route element={<RequireAuth />}>
         <Route path="/" element={rootElement} />
         <Route path="/onboarding" element={onboardingElement} />

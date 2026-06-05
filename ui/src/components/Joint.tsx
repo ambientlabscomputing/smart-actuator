@@ -1,26 +1,33 @@
 /**
- * Joint — renders a single rotary joint as a cylinder.
+ * Joint — backward-compatibility wrapper for legacy callers.
  *
- * This is the ONLY file in the project that imports @react-three/drei or three.
- * All other files that need to render a joint must use this component.
+ * New code should use RevoluteJoint / LinkMesh from components/mesh/ directly.
+ * This thin wrapper delegates to RevoluteJoint so the visual language is
+ * consistent even for old call sites.
  */
-import { Cylinder } from '@react-three/drei'
+import { RevoluteJoint } from './mesh/RevoluteJoint'
+import { MeshQualityContext } from './mesh/MeshQualityContext'
+import * as THREE from 'three'
 
 interface JointProps {
-  /** Current joint angle in radians — drives rotation around the Z axis. */
+  /** Current joint angle in radians — unused visually (hub is static). */
   angleRad: number
-  /** Visual length of the cylinder (metres). */
+  /** Visual length of the cylinder (metres) — used as linkRadius reference. */
   length?: number
   /** Visual radius of the cylinder (metres). */
   radius?: number
 }
 
-export function Joint({ angleRad, length = 1.5, radius = 0.15 }: JointProps) {
+export function Joint({ radius = 0.15 }: JointProps) {
+  const identityMatrix = new THREE.Matrix4()
   return (
-    <mesh rotation={[0, 0, angleRad]}>
-      <Cylinder args={[radius, radius, length, 16]}>
-        <meshStandardMaterial color="#4fc3f7" />
-      </Cylinder>
-    </mesh>
+    <MeshQualityContext.Provider value="medium">
+      <RevoluteJoint
+        frameMatrix={identityMatrix}
+        linkRadius={radius}
+        slotIndex={1}
+      />
+    </MeshQualityContext.Provider>
   )
 }
+
