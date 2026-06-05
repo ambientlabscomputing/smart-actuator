@@ -25,6 +25,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined'
 import CodeIcon from '@mui/icons-material/Code'
 import DataObjectIcon from '@mui/icons-material/DataObject'
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,18 @@ function SideNav({ onClose }: { onClose: () => void }) {
           </ListItemIcon>
           <ListItemText
             primary="G-code"
+            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => go('/teach')}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+            <RadioButtonCheckedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Teach"
             slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>

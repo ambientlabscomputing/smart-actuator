@@ -18,6 +18,7 @@ from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
 from brain.service.file_service import FileService
 from brain.service.gcode_service import GCodeService
+from brain.service.teach_service import TeachService
 from brain.service.template_service import TemplateService
 from brain.service.user_service import UserService
 from brain.service.workspace_service import WorkspaceService
@@ -61,6 +62,7 @@ class BrainService(Service):
         oauth_service: OAuthService,
         file_service: FileService,
         gcode: GCodeService,
+        teach: TeachService,
         sim_lifecycle: SimLifecycleService | None = None,
         hardware_lifecycle: HardwareLifecycleService | None = None,
     ) -> None:
@@ -85,6 +87,7 @@ class BrainService(Service):
         self.oauth_service = oauth_service
         self.file_service = file_service
         self.gcode = gcode
+        self.teach = teach
 
     async def start(self) -> None:
         logger.info("Starting BrainService")
@@ -94,6 +97,7 @@ class BrainService(Service):
         await self.state.start()
         await self.calibration.start()
         await self.programs.start()
+        await self.teach.start()
         if self.sim_lifecycle is not None or self.hardware_lifecycle is not None:
             try:
                 sidecar_ready = await self.sidecar.wait_until_ready(timeout=30.0)

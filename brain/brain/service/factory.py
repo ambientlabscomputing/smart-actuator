@@ -18,6 +18,7 @@ from brain.service.service import BrainService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
+from brain.service.teach_service import TeachService
 from brain.service.template_service import TemplateService
 
 # Resolve the forward-reference `Program` inside GCodeTranslationResult so
@@ -68,6 +69,13 @@ def new_brain_service(config: Config) -> BrainService:
     oauth_service = OAuthService(repository, config)
     file_service = FileService(repository, config)
     gcode = GCodeService(file_service, programs)
+    teach = TeachService(
+        repository,
+        config,
+        state=state,
+        programs=programs,
+        observability=observability,
+    )
 
     return BrainService(
         repository=repository,
@@ -91,4 +99,5 @@ def new_brain_service(config: Config) -> BrainService:
         oauth_service=oauth_service,
         file_service=file_service,
         gcode=gcode,
+        teach=teach,
     )

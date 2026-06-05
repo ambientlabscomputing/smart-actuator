@@ -30,12 +30,15 @@ interface AppCanvasProps {
   initialCameraPosition?: [number, number, number]
   /** Point the camera looks at / OrbitControls pivot (metres). Defaults to [0, 0, 0]. */
   initialCameraTarget?: [number, number, number]
+  /** When false, OrbitControls rotation/pan is disabled (e.g. during joint drag). */
+  orbitEnabled?: boolean
 }
 
 export function AppCanvas({
   children,
   initialCameraPosition = [1.5, 1.5, 1.0],
   initialCameraTarget = [0, 0, 0],
+  orbitEnabled = true,
 }: AppCanvasProps) {
   return (
     <Canvas
@@ -88,6 +91,7 @@ export function AppCanvas({
           angle is measured from camera.up (+Z), so π/2 == horizon. */}
       <OrbitControls
         makeDefault
+        enabled={orbitEnabled}
         target={initialCameraTarget}
         enableDamping
         dampingFactor={0.08}

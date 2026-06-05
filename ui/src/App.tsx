@@ -7,6 +7,7 @@ import { MachineEditor } from '@/components/MachineEditor'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { ProgramsPage } from '@/components/programs/ProgramsPage'
 import { GCodePage } from '@/components/programs/GCodePage'
+import { TeachPage } from '@/components/teach/TeachPage'
 import { useJointState, useMachineControl, brainGet, brainPatch } from './hooks/useJointState'
 import { useWorkspace } from './hooks/useWorkspace'
 import { RequireAuth } from '@/lib/RequireAuth'
@@ -439,6 +440,13 @@ export default function App() {
       ? <Navigate to="/onboarding" replace />
       : <GCodePage machineId={machineId} />
 
+  // Teach route: same guard.
+  const teachElement = machineLoading
+    ? <LoadingScreen />
+    : !machineId
+      ? <Navigate to="/onboarding" replace />
+      : <TeachPage machineId={machineId} />
+
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
@@ -447,6 +455,7 @@ export default function App() {
         <Route path="/onboarding" element={onboardingElement} />
         <Route path="/programs" element={programsElement} />
         <Route path="/gcode" element={gcodeElement} />
+        <Route path="/teach" element={teachElement} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

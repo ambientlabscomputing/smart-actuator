@@ -1,4 +1,5 @@
 from brain.models.base import SqlBase
+from brain.models.teach import SqlTeachSession  # noqa: F401 — registers table with SqlBase
 from brain.repository.calibration_repository import CalibrationRepository
 from brain.repository.file_repository import FileRepository
 from brain.repository.hardware_repository import HardwareRepository
@@ -7,6 +8,7 @@ from brain.repository.mode_event_repository import ModeEventRepository
 from brain.repository.program_repository import ProgramRepository
 from brain.repository.session_maker import get_engine
 from brain.repository.sim_repository import SimRepository
+from brain.repository.teach_repository import TeachRepository
 from brain.repository.user_repository import UserRepository
 from brain.utils.logger import logger
 
@@ -27,6 +29,7 @@ class Repository:
         self.mode_event = ModeEventRepository()
         self.user = UserRepository()
         self.files = FileRepository()
+        self.teach = TeachRepository()
 
     async def start(self) -> None:
         """Open the database, run migrations, and initialise sub-repositories."""
