@@ -99,7 +99,6 @@ class KinematicsService:
         machine = await self._load_kinematics(machine_id)
         if machine is None:
             return []
-
         dh = machine.description.dh_chain
         ee = machine.description.end_effector
         transforms = joint_transforms(dh, angles_rad)
@@ -107,6 +106,75 @@ class KinematicsService:
         # Append true EE position (applies offset)
         positions.append(ee_position_with_spec(dh, angles_rad, ee))
         return positions
+
+    async def sample_arm_points(
+        self, 
+        machine_id: str, 
+        angles_rad: list[float], 
+        per_link_samples: int = 8
+    ) -> list[tuple[float, float, float]]:
+        """
+        Sample points along the arm to detect collisions.
+        
+        Samples points between each joint origin and the end-effector to catch
+        mid-link collisions that might not be detected by just checking joint
+        origins and EE.
+        
+        Args:
+            machine_id: ID of the machine
+            angles_rad: Joint angles in radians
+            per_link_samples: Number of samples per link segment (default 8)
+            
+        Returns:
+            List of (x, y, z) coordinates for all sampled points
+        """
+        # Get joint origins and EE position
+        joint_positions = await self.forward_kinematics_async(machine_id, angles_rad)
+        
+        if len(joint_positions) < 2:
+            return joint_positions
+            
+        # Sample between each consecutive pair of joint positions
+        sampled_points = []
+        
+        # Add the first joint position
+        sampled_points.append(joint_positions[0])
+        
+        # Sample between consecutive joints
+        for i in range(len(joint_positions) - 1):
+            start_pos = joint_positions[i]
+            end_pos = joint_positions[i + 1]
+            
+            # Add intermediate samples along the link segment
+            for j in range(1, per_link_samples):
+                t = j / per_link_samples
+                x = start_pos[0] + t * (end_pos[0] - start_pos[0])
+                y = start_pos[1] + t * (end_pos[1] - start_pos[1])
+                z = start_pos[2] + t * (end_pos[2] - start_pos[2])
+                sampled_points.append((x, y, z))
+            
+            # Add the end point of this segment
+            sampled_points.append(end_pos)
+        
+        return sampled_points
+
+    async def joint_limits_rad(
+        self, machine_id: str
+    ) -> list[tuple[float, float]]:
+        """
+        Return [(lower, upper), ...] joint limits in radians, in chain order.
+        Empty list if the machine has no kinematics.
+        """
+        import math
+
+        machine = await self._load_kinematics(machine_id)
+        if machine is None or machine.description.dh_chain is None:
+            return []
+        return [
+            (math.radians(j.limit_lower), math.radians(j.limit_upper))
+            for j in machine.description.dh_chain.joints
+        ]
+
 
     async def inverse_kinematics(
         self,

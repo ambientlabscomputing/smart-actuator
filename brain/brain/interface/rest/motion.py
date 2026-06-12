@@ -7,6 +7,7 @@ from brain.interface.rest.deps import get_service
 from brain.models.motion import Pose
 from brain.models.state import MachineMode
 from brain.service.service import BrainService
+from brain.utils.logger import logger
 
 router = APIRouter(prefix="/move", tags=["motion"])
 
@@ -47,6 +48,40 @@ async def move_joint(body: MoveJointBody, svc: Service) -> dict:
             status_code=409,
             detail={"mode": mode, "reason": f"move_joint not permitted in mode '{mode}'"},
         )
+
+    # Defense-in-depth floor collision check.
+    # Build the full configuration vector (DH order) from current state merged
+    # with the requested targets, then check against the constraint.
+    try:
+        machine = await svc.machine.get_machine(body.machine_id)
+        if machine and machine.description.dh_chain:
+            joint_names = [j.name for j in machine.description.dh_chain.joints]
+            # Current positions for joints not in the target set
+            current_state = svc.state.get_measured_state(body.machine_id)
+            current_pos: dict[str, float] = {}
+            if current_state:
+                current_pos = {js.joint_name: js.position for js in current_state.measured}
+            # Merge: start from current, override with incoming targets
+            full_q = [
+                body.joint_targets.get(name, current_pos.get(name, 0.0))
+                for name in joint_names
+            ]
+            collision = await svc.safety.check_configuration(body.machine_id, full_q)
+            if not collision.ok:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "reason": "floor_collision",
+                        "message": collision.message,
+                        "position": collision.position,
+                        "depth_m": collision.depth_m,
+                    },
+                )
+    except HTTPException:
+        raise  # never swallow 409s
+    except Exception as exc:
+        # Non-fatal: log and allow the move rather than block on an internal error.
+        logger.warning("move_joint: collision pre-check failed (non-blocking): %s", exc)
 
     await svc.motion.move_joint(body.machine_id, body.joint_targets)
     return {"status": "executing", "mode": mode}

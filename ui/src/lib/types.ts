@@ -190,6 +190,10 @@ export interface IKPreviewResponse {
   residual_m: number
   strategy_used: string
   elapsed_ms: number
+  collision_blocked: boolean
+  collision_resolved: boolean
+  resolved_branch: string | null
+  requires_reconfig: boolean
 }
 
 export interface Machine {

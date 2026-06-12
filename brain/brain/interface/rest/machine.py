@@ -267,6 +267,11 @@ class IKPreviewResponse(BaseModel):
     residual_m: float
     strategy_used: str
     elapsed_ms: float
+    # Collision-related fields
+    collision_blocked: bool = False
+    collision_resolved: bool = False
+    resolved_branch: str | None = None
+    requires_reconfig: bool = False
 
 
 @router.put(
@@ -372,10 +377,41 @@ async def ik_preview(
         machine.description.ik_overrides and machine.description.ik_overrides.force_numeric
     ) else body.strategy
 
+    # Check for collisions with floor — always run this so we can resolve branch if needed
+    collision_blocked = False
+    collision_resolved = False
+    resolved_branch = None
+    requires_reconfig = False
+    
+    try:
+        result = await svc.safety.solve_clear_of_floor(
+            machine_id,
+            body.target_pose,
+            seed=body.seed,
+            strategy=body.strategy,
+            branch_preference=body.branch_preference,
+        )
+
+        collision_blocked = result["blocked"]
+        collision_resolved = not result["blocked"] and result["resolved_branch"] is not None
+        resolved_branch = result["resolved_branch"]
+        requires_reconfig = result["requires_reconfig"]
+
+        # If a collision-free branch was found, use its joint angles
+        if not collision_blocked and result["q"]:
+            solved_q = result["q"]
+
+    except Exception as e:
+        logger.warning(f"Failed to check collision in IK preview: {e}")
+
     return IKPreviewResponse(
         machine_id=machine_id,
         solved_q=solved_q,
         residual_m=residual_m,
         strategy_used=strategy_used,
         elapsed_ms=elapsed_ms,
+        collision_blocked=collision_blocked,
+        collision_resolved=collision_resolved,
+        resolved_branch=resolved_branch,
+        requires_reconfig=requires_reconfig
     )
