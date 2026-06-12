@@ -62,6 +62,7 @@ export function CartesianJogPanel({
   const [lastResult, setLastResult] = useState<IKPreviewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [branchPref, setBranchPref] = useState<'' | 'elbow_up' | 'elbow_down'>('')
 
   // Sync targets to live FK only when no edit is pending
   useEffect(() => {
@@ -79,6 +80,7 @@ export function CartesianJogPanel({
   const sendJog = async (
     newPos: [number, number, number],
     newQuat: [number, number, number, number],
+    branch: '' | 'elbow_up' | 'elbow_down' = branchPref,
   ) => {
     if (disabled || busy) return
     setBusy(true)
@@ -86,8 +88,14 @@ export function CartesianJogPanel({
     try {
       const result = await ik.previewIK(newPos, newQuat, {
         strategy: 'auto',
+        branch_preference: branch,
         seed: currentQRad,
       })
+      setLastResult(result)
+      if (result.collision_blocked) {
+        setError('Floor collision — cannot reach this pose in any configuration')
+        return
+      }
       const joint_targets: Record<string, number> = {}
       result.solved_q.forEach((angleRad, i) => {
         const name = jointNames[i]
@@ -96,7 +104,6 @@ export function CartesianJogPanel({
       await brainPost('/move/joint', { machine_id: machineId, joint_targets })
       setTargetPos(newPos)
       setTargetQuat(newQuat)
-      setLastResult(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -126,6 +133,12 @@ export function CartesianJogPanel({
     if (currentEEQuat) setTargetQuat(currentEEQuat)
     setLastResult(null)
     setError(null)
+  }
+
+  // Switch IK branch and immediately re-solve + move at the current target pose.
+  const selectBranch = (branch: '' | 'elbow_up' | 'elbow_down') => {
+    setBranchPref(branch)
+    void sendJog(targetPos, targetQuat, branch)
   }
 
   const euler = quatToEulerDeg(targetQuat)
@@ -241,6 +254,21 @@ export function CartesianJogPanel({
         </>
       )}
 
+      {/* ── Branch preference ─────────────────────────────────────────────── */}
+      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ ...labelStyle, flex: 1 }}>Config</span>
+        {(['', 'elbow_up', 'elbow_down'] as const).map((b) => (
+          <button
+            key={b || 'auto'}
+            onClick={() => selectBranch(b)}
+            disabled={disabled || busy}
+            style={branchBtnStyle(branchPref === b)}
+          >
+            {b === '' ? 'Auto' : b === 'elbow_up' ? 'Up' : 'Down'}
+          </button>
+        ))}
+      </div>
+
       {/* ── Re-anchor ────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={resetToCurrent} disabled={!currentEE} style={resetBtnStyle}>
@@ -254,6 +282,12 @@ export function CartesianJogPanel({
           <div><strong>Strategy:</strong> {lastResult.strategy_used}</div>
           <div><strong>Residual:</strong> {(lastResult.residual_m * 1000).toFixed(2)} mm</div>
           <div><strong>Elapsed:</strong> {lastResult.elapsed_ms.toFixed(1)} ms</div>
+          {lastResult.collision_resolved && !lastResult.collision_blocked && (
+            <div style={collisionResolvedStyle}>
+              ↕ Switched to {lastResult.resolved_branch ?? 'alternate'} to clear floor
+              {lastResult.requires_reconfig && ' (large reconfiguration)'}
+            </div>
+          )}
         </div>
       )}
 
@@ -369,4 +403,24 @@ const errorStyle: React.CSSProperties = {
   marginTop: 8,
   color: '#f87171',
   fontSize: 11,
+}
+
+const collisionResolvedStyle: React.CSSProperties = {
+  marginTop: 4,
+  color: '#fbbf24',
+  fontSize: 11,
+}
+
+function branchBtnStyle(isActive: boolean): React.CSSProperties {
+  return {
+    background: isActive ? 'rgba(99,102,241,0.25)' : '#1f2937',
+    color: isActive ? '#818cf8' : '#6b7280',
+    border: `1px solid ${isActive ? '#818cf8' : '#374151'}`,
+    borderRadius: 4,
+    padding: '2px 7px',
+    fontSize: 10,
+    fontWeight: 600,
+    cursor: 'pointer',
+    letterSpacing: '0.04em',
+  }
 }

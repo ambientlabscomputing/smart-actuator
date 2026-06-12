@@ -14,6 +14,7 @@ from brain.utils.config import Config
 from brain.utils.logger import logger
 
 if False:  # TYPE_CHECKING
+    from brain.service.safety_service import SafetyService
     from brain.service.workspace_service import WorkspaceService
 
 # Number of interpolated waypoints for MOVE_L straight-line Cartesian moves.
@@ -39,12 +40,14 @@ class MotionService:
         config: Config,
         *,
         workspace: "WorkspaceService | None" = None,
+        safety: "SafetyService | None" = None,
     ) -> None:
         self._repository = repository
         self._sidecar = sidecar
         self._kinematics = kinematics
         self._config = config
         self._workspace = workspace
+        self._safety = safety
 
     async def generate_trajectory(self, machine_id: str, command: MoveCommand) -> JointTrajectory:
         """Convert a MoveCommand into a timed joint-space trajectory."""
@@ -209,10 +212,38 @@ class MotionService:
         """
         if not trajectory.points:
             return
+
+        # Check for collisions before executing (only when safety service is wired in)
+        if self._safety is not None:
+            safety_result = await self._safety.check_collision(machine_id, trajectory)
+            if not safety_result["ok"]:
+                logger.warning(
+                    "Collision detected at t=%s: %s",
+                    safety_result["violation_at_s"],
+                    safety_result["message"],
+                )
+                raise RuntimeError(f"Collision detected: {safety_result['message']}")
+
         final_positions = dict(trajectory.points[-1].positions)
         if not final_positions:
             return
         await self.move_joint(machine_id, final_positions)
+
+    async def execute_with_recovery(self, machine_id: str, trajectory: JointTrajectory) -> None:
+        """
+        Execute a trajectory with collision recovery capability.
+        This method attempts to handle collisions by trying alternative configurations.
+        """
+        try:
+            await self.execute(machine_id, trajectory)
+        except RuntimeError as e:
+            if "Collision detected" in str(e):
+                logger.warning(f"Attempting collision recovery for: {e}")
+                # In a more advanced implementation, we could attempt to compute
+                # an elbow-up configuration or other recovery strategies here
+                raise  # Re-raise the error for now
+            else:
+                raise  # Re-raise if it's not a collision error
 
     async def pause(self, machine_id: str) -> None:
         """Pause execution on all actuators atomically."""

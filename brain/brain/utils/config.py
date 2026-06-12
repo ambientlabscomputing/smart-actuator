@@ -90,6 +90,21 @@ class FilesConfig(BaseModel):
     )
 
 
+class SafetyConfig(BaseModel):
+    floor_z: float = Field(
+        default=0.0,
+        description="Z-coordinate of the ground plane collision constraint (metres)",
+    )
+    floor_margin_m: float = Field(
+        default=0.005,
+        description="Safety clearance above the floor plane (metres, default 5 mm)",
+    )
+    link_collision_samples: int = Field(
+        default=8,
+        description="Number of intermediate points sampled per link segment for collision detection",
+    )
+
+
 class OAuthConfig(BaseModel):
     """OAuth Server configuration"""
 
@@ -124,6 +139,9 @@ class Config(BaseModel):
     )
     files: FilesConfig = Field(
         default_factory=FilesConfig, description="File storage configuration"
+    )
+    safety: SafetyConfig = Field(
+        default_factory=SafetyConfig, description="Safety and collision detection configuration"
     )
 
 config: Config | None = None
