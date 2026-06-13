@@ -73,6 +73,12 @@ export function SkeuomorphicMotor({
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const dragging = useRef(false)
+  // Continuous-jog drag state: the raw atan2 angle has a 2π discontinuity at
+  // the 9-o'clock seam. We track the last raw sample and accumulate the
+  // *wrapped* delta onto the live target so the setpoint follows the pointer
+  // smoothly across the seam instead of teleporting ~2π.
+  const lastRaw = useRef(0)
+  const accum = useRef(0)
 
   // ── Derived visual values ────────────────────────────────────────────────
 
@@ -127,15 +133,24 @@ export function SkeuomorphicMotor({
     (e: React.PointerEvent) => {
       if (!ready) return
       dragging.current = true
+      // Anchor the continuous accumulator at the current target so dragging
+      // moves relative to where the needle already is.
+      lastRaw.current = svgAngle(e)
+      accum.current = targetPosition
       ;(e.target as Element).setPointerCapture(e.pointerId)
     },
-    [ready],
+    [ready, svgAngle, targetPosition],
   )
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!dragging.current) return
-      onJog(svgAngle(e))
+      const raw = svgAngle(e)
+      // Shortest-path delta avoids the ±π seam discontinuity.
+      const delta = wrapAngleRad(raw - lastRaw.current)
+      lastRaw.current = raw
+      accum.current += delta
+      onJog(accum.current)
     },
     [onJog, svgAngle],
   )

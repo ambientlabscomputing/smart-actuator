@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SimFaultKind"],"struct":["PlantParams","PlantState","PlantTruth","SimPlant"]};
+window.SIDEBAR_ITEMS = {"enum":["SimFaultKind"],"fn":["wrap_to_pi"],"struct":["PlantParams","PlantState","PlantTruth","SimPlant"]};

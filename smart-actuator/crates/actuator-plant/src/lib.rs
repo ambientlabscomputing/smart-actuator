@@ -12,6 +12,20 @@ use tracing::trace;
 
 use actuator_core::{hardware::Hardware, types::ControlMode};
 
+/// Wrap an angle (rad) into `[-π, π)`.
+///
+/// Used by the position controller so the error always describes the *shortest*
+/// path around the circle. Without this, a setpoint just past the 0/2π seam
+/// (e.g. commanding 0 rad while the rotor sits at 2π⁻) yields an error of ~−2π
+/// and the motor drives the long way around instead of nudging forward across
+/// the seam.
+#[inline]
+pub fn wrap_to_pi(angle: f64) -> f64 {
+    use std::f64::consts::{PI, TAU};
+    (angle + PI).rem_euclid(TAU) - PI
+}
+
+
 // ── Plant parameters ──────────────────────────────────────────────────────────
 
 /// Physical and control parameters for the sim plant.
@@ -141,7 +155,9 @@ impl SimPlant {
         // Controller torque from commanded mode/setpoint
         let motor_torque = match s.commanded_mode {
             ControlMode::Position => {
-                let err = s.commanded_setpoint - s.position;
+                // Shortest-path error: wrap into [-π, π) so motion continues
+                // forward across the 0/2π seam instead of unwinding backward.
+                let err = wrap_to_pi(s.commanded_setpoint - s.position);
                 p.kp_pos * err - p.kd_pos * s.velocity
             }
             ControlMode::Velocity => {
@@ -313,3 +329,52 @@ impl Hardware for SimPlant {
         self.state.lock().await.sim_time_s
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::{PI, TAU};
+
+    #[test]
+    fn wrap_to_pi_maps_into_range() {
+        assert!((wrap_to_pi(0.0) - 0.0).abs() < 1e-12);
+        assert!((wrap_to_pi(TAU) - 0.0).abs() < 1e-12);
+        assert!((wrap_to_pi(PI - 0.01) - (PI - 0.01)).abs() < 1e-12);
+        // Just past +π wraps to just past −π.
+        assert!((wrap_to_pi(PI + 0.01) - (-PI + 0.01)).abs() < 1e-9);
+        // A setpoint of 0 with the rotor near 2π⁻ → tiny positive error.
+        let err = wrap_to_pi(0.0 - (TAU - 0.05));
+        assert!(err > 0.0 && err < 0.1, "expected small positive err, got {err}");
+    }
+
+    #[tokio::test]
+    async fn position_control_takes_short_path_across_seam() {
+        // Rotor parked just shy of a full turn; command 0 rad.
+        // Correct behavior: drive *forward* across the seam (velocity > 0),
+        // not backward all the way around.
+        let plant = SimPlant::new(PlantParams {
+            inertia: 0.01,
+            damping: 0.05,
+            encoder_noise_std: 0.0,
+            kp_pos: 5.0,
+            kd_pos: 0.5,
+            kp_vel: 1.0,
+            kt: 1.0,
+            thermal_capacitance: 100.0,
+            thermal_resistance: 1.0,
+        });
+        plant
+            .set_plant_state(TAU - 0.05, 0.0, None, None)
+            .await;
+        plant.apply_motor_command(ControlMode::Position, 0.0).await;
+        plant.tick(0.001).await;
+
+        let truth = plant.get_truth().await;
+        assert!(
+            truth.velocity > 0.0,
+            "rotor should advance forward across the 0/2π seam, got vel={}",
+            truth.velocity
+        );
+    }
+}
+

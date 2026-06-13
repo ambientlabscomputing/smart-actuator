@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,6 +17,8 @@ from brain.models.machine import (
 from brain.models.motion import Pose
 from brain.service.ik import IKCallOptions, IKNoSolution, IKUnreachable
 from brain.service.service import BrainService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/machine", tags=["machine"])
 
