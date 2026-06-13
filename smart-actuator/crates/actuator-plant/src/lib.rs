@@ -1,3 +1,9 @@
+//! Actuator physics plant — Euler-integration dynamics model.
+//!
+//! Extracted from `actuator-sim` so that both the simulator binary and the
+//! wasm demo crate can share the exact same physics without pulling in
+//! tokio/tonic/std::fs or any other host-only dependency.
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -57,6 +63,7 @@ pub struct PlantTruth {
     pub current: f64,
     pub temperature: f64,
     pub sim_time_s: f64,
+    pub commanded_mode: ControlMode,
 }
 
 // ── Fault injection kinds ─────────────────────────────────────────────────────
@@ -70,15 +77,15 @@ pub enum SimFaultKind {
 // ── Internal state ────────────────────────────────────────────────────────────
 
 struct PlantState {
-    position: f64,           // rad
-    velocity: f64,           // rad/s
-    current: f64,            // A
-    temperature: f64,        // °C
+    position: f64,            // rad
+    velocity: f64,            // rad/s
+    current: f64,             // A
+    temperature: f64,         // °C
     ambient_temperature: f64, // °C
     commanded_mode: ControlMode,
     commanded_setpoint: f64,
-    external_torque: f64,    // N·m (set by backdoor)
-    external_torque_ticks: u64, // ticks remaining; u64::MAX = indefinite
+    external_torque: f64,        // N·m (set by backdoor)
+    external_torque_ticks: u64,  // ticks remaining; u64::MAX = indefinite
     sim_time_s: f64,
     paused: bool,
 }
@@ -110,14 +117,14 @@ impl Default for PlantState {
 /// visible through the `Hardware` trait — keeping the seam clean.
 pub struct SimPlant {
     state: Mutex<PlantState>,
-    params: PlantParams,
+    params: Mutex<PlantParams>,
 }
 
 impl SimPlant {
     pub fn new(params: PlantParams) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(PlantState::default()),
-            params,
+            params: Mutex::new(params),
         })
     }
 
@@ -129,7 +136,7 @@ impl SimPlant {
         if s.paused {
             return;
         }
-        let p = &self.params;
+        let p = self.params.lock().await;
 
         // Controller torque from commanded mode/setpoint
         let motor_torque = match s.commanded_mode {
@@ -189,7 +196,7 @@ impl SimPlant {
         );
     }
 
-    // ── Backdoor access (called from backdoor.rs only) ────────────────────────
+    // ── Backdoor access ───────────────────────────────────────────────────────
 
     pub async fn get_truth(&self) -> PlantTruth {
         let s = self.state.lock().await;
@@ -199,6 +206,7 @@ impl SimPlant {
             current: s.current,
             temperature: s.temperature,
             sim_time_s: s.sim_time_s,
+            commanded_mode: s.commanded_mode,
         }
     }
 
@@ -250,15 +258,27 @@ impl SimPlant {
     }
 
     pub async fn step(&self, dt: f64) {
-        // step() is only meaningful while paused; it temporarily unpauses for
-        // one integration step.
-        {
-            self.state.lock().await.paused = false;
-        }
+        // Temporarily unpause for one integration step.
+        self.state.lock().await.paused = false;
         self.tick(dt).await;
-        {
-            self.state.lock().await.paused = true;
-        }
+        self.state.lock().await.paused = true;
+    }
+
+    /// Update control gains at runtime (exposed to the WASM demo).
+    pub async fn update_gains(&self, kp_pos: f64, kd_pos: f64, kp_vel: f64) {
+        let mut p = self.params.lock().await;
+        p.kp_pos = kp_pos;
+        p.kd_pos = kd_pos;
+        p.kp_vel = kp_vel;
+    }
+
+    /// Replace the entire param set (used by actuator-sim config reload).
+    pub async fn set_params(&self, params: PlantParams) {
+        *self.params.lock().await = params;
+    }
+
+    pub async fn get_params(&self) -> PlantParams {
+        self.params.lock().await.clone()
     }
 }
 

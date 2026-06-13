@@ -3,7 +3,6 @@ mod cmd;
 mod config;
 mod logging;
 mod server;
-mod plant;
 mod sim_cmd;
 mod sim_proto;
 
@@ -11,8 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use actuator_core::{AppService, Service};
+use actuator_plant::{PlantParams, SimPlant};
 use clap::{Parser, Subcommand};
-use plant::{PlantParams, SimPlant};
 use tracing::info;
 
 #[derive(Parser)]

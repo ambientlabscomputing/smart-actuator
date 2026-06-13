@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 actuator-proto.workspace = true
 actuator-core.workspace = true
+actuator-plant = { path = "../actuator-plant" }
 
 tokio.workspace = true
 tonic.workspace = true

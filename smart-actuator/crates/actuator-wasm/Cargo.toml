@@ -1,0 +1,31 @@
+[package]
+name = "actuator-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# This crate is its own workspace root so wasm-pack can build it standalone
+# without needing the smart-actuator workspace toolchain (stable vs xtensa-esp).
+[workspace]
+members = ["."]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+actuator-core = { path = "../actuator-core" }
+actuator-plant = { path = "../actuator-plant" }
+
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+futures-executor = "0.3"
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[features]
+default = ["console_error_panic_hook"]
+
+# wasm32 can't link tokio's net/process/signal, so we pull in getrandom with
+# the js feature so rand (if transitively included) resolves its RNG.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }

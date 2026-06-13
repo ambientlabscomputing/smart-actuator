@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use tracing::info;
 
-use crate::plant::{SimFaultKind, SimPlant};
+use actuator_plant::{SimFaultKind, SimPlant};
 use crate::sim_proto::actuator_sim::{
     simulator_backdoor_server::{SimulatorBackdoor, SimulatorBackdoorServer},
     AmbientTempRequest, BackdoorEmpty, BackdoorResponse, ExternalTorqueRequest,
