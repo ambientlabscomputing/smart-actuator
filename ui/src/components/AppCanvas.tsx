@@ -33,6 +33,16 @@ interface AppCanvasProps {
   initialCameraTarget?: [number, number, number]
   /** When false, OrbitControls rotation/pan is disabled (e.g. during joint drag). */
   orbitEnabled?: boolean
+  /** When true, the camera slowly orbits the target (used by template thumbnails). */
+  autoRotate?: boolean
+  /** Auto-rotate speed (drei units). Defaults to a slow ~10°/s feel. */
+  autoRotateSpeed?: number
+  /** When false, hide the corner orientation gizmo (e.g. thumbnails). */
+  showGizmo?: boolean
+  /** When false, hide the stage floor (e.g. thumbnails). */
+  showFloor?: boolean
+  /** When false, disable zoom + pan user interaction (e.g. thumbnails). */
+  interactive?: boolean
 }
 
 export function AppCanvas({
@@ -40,6 +50,11 @@ export function AppCanvas({
   initialCameraPosition = [1.5, 1.5, 1.0],
   initialCameraTarget = [0, 0, 0],
   orbitEnabled = true,
+  autoRotate = false,
+  autoRotateSpeed = 0.6,
+  showGizmo = true,
+  showFloor = true,
+  interactive = true,
 }: AppCanvasProps) {
   return (
     <Canvas
@@ -85,7 +100,7 @@ export function AppCanvas({
       <directionalLight color="#fff1e0" position={[-1, 3, 3]} intensity={0.5} />
 
       {/* ── Stage floor on XY plane (Z-up, arm base at Z=0) ─────────── */}
-      <StageFloor />
+      {showFloor && <StageFloor />}
 
       {/* ── Orbit controls ─────────────────────────────────────────── */}
       {/* maxPolarAngle clamps "look-under-ground"; with Z-up the polar
@@ -100,13 +115,19 @@ export function AppCanvas({
         maxDistance={8}
         maxPolarAngle={Math.PI / 2 + 0.15}
         zoomSpeed={0.8}
+        autoRotate={autoRotate}
+        autoRotateSpeed={autoRotateSpeed}
+        enableZoom={interactive}
+        enablePan={interactive}
       />
 
       {/* ── Corner orientation gizmo ───────────────────────────────── */}
       {/* Click a face to snap the camera to Top / Front / Side view  */}
-      <GizmoHelper alignment="top-right" margin={[60, 60]}>
-        <GizmoViewport axisColors={['#ff5566', '#88dd55', '#5599ff']} labelColor="white" />
-      </GizmoHelper>
+      {showGizmo && (
+        <GizmoHelper alignment="top-right" margin={[60, 60]}>
+          <GizmoViewport axisColors={['#ff5566', '#88dd55', '#5599ff']} labelColor="white" />
+        </GizmoHelper>
+      )}
 
       {children}
     </Canvas>

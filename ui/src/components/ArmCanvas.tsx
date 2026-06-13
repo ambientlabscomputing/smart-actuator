@@ -25,6 +25,7 @@ import { buildBaseAssembly } from './mesh/assemblies'
 import { getMachineStyle, defaultMachineStyle } from '../design/machineStyles'
 import { machineColors } from '../design/tokens'
 import { semantic, chart } from '@/design'
+import type { MeshQuality } from '../design/machineTokens'
 
 interface ArmCanvasProps {
   /** Current joint angles in radians, one per joint in slot order. */
@@ -74,6 +75,8 @@ interface ArmCanvasProps {
    * the hero-shot aesthetic.
    */
   showLimits?: boolean
+  /** Mesh quality for procedural geometry. Defaults to 'medium'. */
+  quality?: MeshQuality
 }
 
 const DEG = Math.PI / 180
@@ -93,6 +96,7 @@ export function ArmCanvas({
   onEEDrag,
   onDragStateChange,
   showLimits = false,
+  quality = 'medium',
 }: ArmCanvasProps) {
   // Build a uniform joint list. If dhJoints isn't given, synthesise from
   // linkLengths so old callers keep working.
@@ -329,7 +333,7 @@ export function ArmCanvas({
   const arcOuterR = arcInnerR + radius * 1.4
 
   return (
-    <MeshQualityContext.Provider value="medium">
+    <MeshQualityContext.Provider value={quality}>
     <group>
       {/* Joint-limit motion envelope — off by default, toggled via showLimits.
           Only renders for joints with a meaningful limit span (< 340°). */}
