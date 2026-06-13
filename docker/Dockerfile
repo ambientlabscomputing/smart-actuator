@@ -43,11 +43,13 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Python 3.13 interpreter + all installed packages from the builder
-COPY --from=python_builder /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=python_builder /usr/local/bin/python3.13 /usr/local/bin/python3.13
-COPY --from=python_builder /usr/local/bin/brain      /usr/local/bin/brain
+COPY --from=python_builder /usr/local/lib/python3.13        /usr/local/lib/python3.13
+COPY --from=python_builder /usr/local/lib/libpython3.13.so.1.0 /usr/local/lib/libpython3.13.so.1.0
+COPY --from=python_builder /usr/local/bin/python3.13        /usr/local/bin/python3.13
+COPY --from=python_builder /usr/local/bin/brain             /usr/local/bin/brain
 RUN ln -sf /usr/local/bin/python3.13 /usr/local/bin/python3 \
- && ln -sf /usr/local/bin/python3.13 /usr/local/bin/python
+ && ln -sf /usr/local/bin/python3.13 /usr/local/bin/python \
+ && ldconfig
 
 WORKDIR /app
 
