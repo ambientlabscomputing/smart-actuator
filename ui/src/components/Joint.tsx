@@ -30,4 +30,3 @@ export function Joint({ radius = 0.15 }: JointProps) {
     </MeshQualityContext.Provider>
   )
 }
-

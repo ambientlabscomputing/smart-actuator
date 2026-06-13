@@ -5,4 +5,3 @@
 // via this library target so they share the same driver implementations.
 
 pub mod hal;
-

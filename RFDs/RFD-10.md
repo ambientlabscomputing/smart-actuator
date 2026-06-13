@@ -129,7 +129,7 @@ flowchart TD
 
 | From | To | Wire gauge | Notes |
 |---|---|---|---|
-| 12V PSU (+) | ACS723 `IP+` | 18–20 AWG | Motor rail current flows through the sensor |  
+| 12V PSU (+) | ACS723 `IP+` | 18–20 AWG | Motor rail current flows through the sensor |
 | ACS723 `IP-` | TMC2209 `VM` (both VM pins) | 18–20 AWG | After sensor; feeds driver motor rail; tie both VM pins together |
 | 12V PSU (−) | TMC2209 `GND` | 18–20 AWG | Star ground point on PSU side |
 | TMC2209 `GND` | ESP32 `GND` | 22 AWG | Single cross-domain ground tie |

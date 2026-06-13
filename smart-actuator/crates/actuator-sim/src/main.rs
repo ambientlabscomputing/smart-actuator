@@ -253,4 +253,3 @@ async fn run(config: config::ActuatorConfig, config_path: String) -> anyhow::Res
 
     Ok(())
 }
-

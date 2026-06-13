@@ -38,6 +38,11 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Generate public docs bundle
+        run: |
+          pip install -e brain/"[dev]" --quiet
+          make public-ui-docs
+
       - name: Build WASM and static site
         run: make public-ui-build
 

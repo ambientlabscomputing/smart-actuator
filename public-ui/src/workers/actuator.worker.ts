@@ -199,4 +199,3 @@ self.addEventListener('message', async (e: MessageEvent<WorkerCommand>) => {
       break
   }
 })
-

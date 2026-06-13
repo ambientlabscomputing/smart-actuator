@@ -33,4 +33,3 @@ nix = { version = "0.29", features = ["signal"] }
 
 [build-dependencies]
 tonic-build = "0.13"
-

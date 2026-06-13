@@ -104,5 +104,3 @@ pub fn connect(modem: Modem, cfg: &FirmwareConfig) -> Result<NetworkHandles> {
         _mdns,
     })
 }
-
-
