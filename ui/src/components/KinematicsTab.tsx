@@ -14,6 +14,7 @@
  *  • Numeric tunable knobs (only shown when force_numeric or no decomposition)
  *  • "Try a pose" panel → POST /machine/:id/ik/preview
  */
+import { bg, text, borderColor, accent, semantic } from '@/design'
 import React, { useState } from 'react'
 import type { EndEffectorSpec, IKBlockVerification, IKNumericConfig, IKPreviewResponse, Machine } from '../lib/types'
 import type { UseMachineIKResult } from '../hooks/useMachineIK'
@@ -174,7 +175,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function StrategyBadge({ strategy }: { strategy: string }) {
-  const color = strategy === 'analytic' ? '#4caf50' : '#2196f3'
+  const color = strategy === 'analytic' ? semantic.ok : semantic.info
   return (
     <span style={{ ...chipStyle, background: color }}>
       {strategy === 'analytic' ? 'Analytic' : 'Numeric'}
@@ -183,11 +184,11 @@ function StrategyBadge({ strategy }: { strategy: string }) {
 }
 
 function BlockChip({ block }: { block: IKBlockVerification }) {
-  const colors: Record<string, string> = { ok: '#4caf50', warning: '#ff9800', error: '#f44336' }
-  const bg = colors[block.status] ?? '#888'
+  const colors: Record<string, string> = { ok: semantic.ok, warning: semantic.warn, error: semantic.danger }
+  const chipBg = colors[block.status] ?? text.faint
   return (
     <div style={blockChipStyle}>
-      <span style={{ ...chipStyle, background: bg }}>{block.status.toUpperCase()}</span>
+      <span style={{ ...chipStyle, background: chipBg }}>{block.status.toUpperCase()}</span>
       <span style={blockKindStyle}>{block.kind}</span>
       <span style={blockJointsStyle}>joints [{block.joints.join(', ')}]</span>
       {block.reason && <span style={blockReasonStyle}>{block.reason}</span>}
@@ -363,10 +364,10 @@ const panelStyle: React.CSSProperties = {
 }
 
 const sectionStyle: React.CSSProperties = {
-  border: '1px solid #333',
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 6,
   padding: '8px 12px',
-  background: '#1a1a1a',
+  background: bg.surfaceRaised,
 }
 
 const sectionHeadStyle: React.CSSProperties = {
@@ -375,7 +376,7 @@ const sectionHeadStyle: React.CSSProperties = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  color: '#888',
+  color: text.dim,
 }
 
 const rowStyle: React.CSSProperties = {
@@ -388,7 +389,7 @@ const rowStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
-  color: '#aaa',
+  color: text.dim,
   flexShrink: 0,
 }
 
@@ -403,7 +404,7 @@ const chipStyle: React.CSSProperties = {
   borderRadius: 10,
   fontSize: 11,
   fontWeight: 600,
-  color: '#fff',
+  color: text.primary,
 }
 
 const blockChipStyle: React.CSSProperties = {
@@ -415,10 +416,10 @@ const blockChipStyle: React.CSSProperties = {
 }
 
 const blockKindStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600 }
-const blockJointsStyle: React.CSSProperties = { fontSize: 11, color: '#aaa' }
+const blockJointsStyle: React.CSSProperties = { fontSize: 11, color: text.dim }
 const blockReasonStyle: React.CSSProperties = {
   fontSize: 11,
-  color: '#ff9800',
+  color: semantic.warn,
   width: '100%',
   marginTop: 2,
   paddingLeft: 4,
@@ -429,20 +430,20 @@ const eeEditorStyle: React.CSSProperties = { display: 'flex', flexDirection: 'co
 const eeActionsStyle: React.CSSProperties = { display: 'flex', gap: 8, marginTop: 8 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#2a2a2a',
-  border: '1px solid #444',
+  background: borderColor.dim,
+  border: `1px solid ${borderColor.focus}`,
   borderRadius: 4,
-  color: '#eee',
+  color: text.primary,
   padding: '3px 6px',
   fontSize: 12,
   width: 120,
 }
 
 const btnStyle: React.CSSProperties = {
-  background: '#2563eb',
+  background: accent.default,
   border: 'none',
   borderRadius: 4,
-  color: '#fff',
+  color: text.primary,
   padding: '5px 12px',
   fontSize: 12,
   cursor: 'pointer',
@@ -450,19 +451,19 @@ const btnStyle: React.CSSProperties = {
 
 const btnSecStyle: React.CSSProperties = {
   ...btnStyle,
-  background: '#444',
+  background: borderColor.focus,
 }
 
-const summaryStyle: React.CSSProperties = { fontSize: 11, color: '#aaa', margin: '4px 0 0' }
-const dimStyle: React.CSSProperties = { fontSize: 12, color: '#666' }
-const errorStyle: React.CSSProperties = { color: '#f44336', fontSize: 12 }
+const summaryStyle: React.CSSProperties = { fontSize: 11, color: text.dim, margin: '4px 0 0' }
+const dimStyle: React.CSSProperties = { fontSize: 12, color: text.faint }
+const errorStyle: React.CSSProperties = { color: semantic.danger, fontSize: 12 }
 
 const resultStyle: React.CSSProperties = {
   marginTop: 8,
   padding: '6px 10px',
-  background: '#111',
+  background: bg.canvas,
   borderRadius: 4,
   fontSize: 12,
   lineHeight: 1.7,
-  color: '#ccc',
+  color: text.secondary,
 }

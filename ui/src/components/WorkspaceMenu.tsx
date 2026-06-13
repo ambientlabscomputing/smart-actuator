@@ -28,6 +28,7 @@ import GrainIcon from '@mui/icons-material/Grain'
 
 import { CartesianJogPanel } from './CartesianJogPanel'
 import type { DHJointValues } from '../lib/types'
+import { bg, text, borderColor, semantic, accent, colorForMode } from '@/design'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,28 +38,13 @@ function normalizeDeg(deg: number): number {
   return d > 180 ? d - 360 : d
 }
 
-function modeColor(mode: string): string {
-  switch (mode) {
-    case 'idle':
-    case 'manual':
-      return '#22c55e'
-    case 'estopped':
-    case 'fault':
-      return '#ef4444'
-    case 'run':
-      return '#3b82f6'
-    default:
-      return '#6b7280'
-  }
-}
-
 const JOG_STEP_DEG = 5
 const JOG_STEP_MM = 5
 
 // ── Shared icon button style ──────────────────────────────────────────────────
 
 function toolBtn(color?: string): React.CSSProperties {
-  return { color: color ?? '#6b7280', padding: 5 }
+  return { color: color ?? text.dim, padding: 5 }
 }
 
 // ── WorkspaceMenu ─────────────────────────────────────────────────────────────
@@ -148,9 +134,9 @@ export function WorkspaceMenu({
           top: 16,
           left: 16,
           zIndex: 20,
-          background: 'rgba(13, 13, 13, 0.92)',
+          background: `${bg.canvas}eb`,
           backdropFilter: 'blur(6px)',
-          border: '1px solid #1f2937',
+          border: `1px solid ${borderColor.dim}`,
           borderRadius: 3,
           boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
           display: 'flex',
@@ -169,15 +155,15 @@ export function WorkspaceMenu({
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: modeColor(mode),
+              background: colorForMode(mode),
               margin: '6px 0',
-              boxShadow: `0 0 6px ${modeColor(mode)}88`,
+              boxShadow: `0 0 6px ${colorForMode(mode)}88`,
               flexShrink: 0,
             }}
           />
         </Tooltip>
 
-        <Divider flexItem style={{ borderColor: '#1f2937' }} />
+        <Divider flexItem style={{ borderColor: borderColor.dim }} />
 
         {/* E-Stop ─────────────────────────────────────────────────────────── */}
         <Tooltip title={isEstopped ? 'Estopped' : 'Emergency Stop  (Space)'} placement="right">
@@ -186,7 +172,7 @@ export function WorkspaceMenu({
               onClick={handleEstop}
               disabled={isEstopped || busy}
               style={{
-                ...toolBtn(isEstopped ? '#7f1d1d' : '#ef4444'),
+                ...toolBtn(isEstopped ? `${semantic.danger}88` : semantic.danger),
                 opacity: isEstopped ? 0.5 : 1,
               }}
               size="small"
@@ -203,7 +189,7 @@ export function WorkspaceMenu({
               <IconButton
                 onClick={handleResume}
                 disabled={busy}
-                style={toolBtn('#22c55e')}
+                style={toolBtn(semantic.ok)}
                 size="small"
               >
                 <PlayArrowIcon fontSize="small" />
@@ -212,7 +198,7 @@ export function WorkspaceMenu({
           </Tooltip>
         )}
 
-        <Divider flexItem style={{ borderColor: '#1f2937', margin: '2px 0' }} />
+        <Divider flexItem style={{ borderColor: borderColor.dim, margin: '2px 0' }} />
 
         {/* Jog controls popover trigger ────────────────────────────────────── */}
         <Tooltip title="Jog joints" placement="right">
@@ -220,8 +206,8 @@ export function WorkspaceMenu({
             <IconButton
               onClick={(e) => setJogAnchor(jogAnchor ? null : e.currentTarget)}
               style={{
-                ...toolBtn(jogAnchor ? '#60a5fa' : undefined),
-                background: jogAnchor ? 'rgba(37,99,235,0.2)' : 'transparent',
+                ...toolBtn(jogAnchor ? accent.default : undefined),
+                background: jogAnchor ? accent.dim : 'transparent',
               }}
               size="small"
             >
@@ -238,8 +224,8 @@ export function WorkspaceMenu({
                 onClick={(e) => setCartesianAnchor(cartesianAnchor ? null : e.currentTarget)}
                 disabled={isDisabled}
                 style={{
-                  ...toolBtn(cartesianAnchor ? '#fbbf24' : undefined),
-                  background: cartesianAnchor ? 'rgba(251,191,36,0.18)' : 'transparent',
+                  ...toolBtn(cartesianAnchor ? accent.default : undefined),
+                  background: cartesianAnchor ? accent.dim : 'transparent',
                 }}
                 size="small"
               >
@@ -264,8 +250,8 @@ export function WorkspaceMenu({
             <IconButton
               onClick={onPrograms}
               style={{
-                ...toolBtn(programsActive ? '#60a5fa' : undefined),
-                background: programsActive ? 'rgba(37,99,235,0.2)' : 'transparent',
+                ...toolBtn(programsActive ? accent.default : undefined),
+                background: programsActive ? accent.dim : 'transparent',
               }}
               size="small"
             >
@@ -280,8 +266,8 @@ export function WorkspaceMenu({
             <IconButton
               onClick={onToggleReachability}
               style={{
-                ...toolBtn(showReachabilityHull ? '#a78bfa' : undefined),
-                background: showReachabilityHull ? 'rgba(124,58,237,0.2)' : 'transparent',
+                ...toolBtn(showReachabilityHull ? text.primary : undefined),
+                background: showReachabilityHull ? bg.surfaceAlt : 'transparent',
               }}
               size="small"
             >
@@ -295,8 +281,8 @@ export function WorkspaceMenu({
             <IconButton
               onClick={onToggleWorkspaceSamples}
               style={{
-                ...toolBtn(showWorkspaceSamples ? '#67e8f9' : '#6b7280'),
-                background: showWorkspaceSamples ? 'rgba(34,211,238,0.16)' : 'transparent',
+                ...toolBtn(showWorkspaceSamples ? text.primary : text.dim),
+                background: showWorkspaceSamples ? bg.surfaceAlt : 'transparent',
               }}
               size="small"
             >
@@ -305,14 +291,14 @@ export function WorkspaceMenu({
           </Tooltip>
         )}
 
-        <Divider flexItem style={{ borderColor: '#1f2937', margin: '2px 0' }} />
+        <Divider flexItem style={{ borderColor: borderColor.dim, margin: '2px 0' }} />
 
         {/* Connection status ───────────────────────────────────────────────── */}
         <Tooltip title={connected ? 'Live' : 'Offline'} placement="right">
           <div style={{ padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {connected
-              ? <WifiIcon style={{ fontSize: 18, color: '#22c55e' }} />
-              : <WifiOffIcon style={{ fontSize: 18, color: '#6b7280' }} />}
+              ? <WifiIcon style={{ fontSize: 18, color: semantic.ok }} />
+              : <WifiOffIcon style={{ fontSize: 18, color: text.disabled }} />}
           </div>
         </Tooltip>
       </div>
@@ -328,8 +314,8 @@ export function WorkspaceMenu({
         slotProps={{
           paper: {
             sx: {
-              background: 'rgba(13,13,13,0.96)',
-              border: '1px solid #374151',
+              background: `${bg.canvas}f5`,
+              border: `1px solid ${borderColor.default}`,
               borderRadius: '3px',
               boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
               padding: '10px 12px',
@@ -339,12 +325,12 @@ export function WorkspaceMenu({
           },
         }}
       >
-        <div style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#6b7280', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontFamily: "'Inter', system-ui, sans-serif", color: text.faint, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
           Jog  ·  joints
         </div>
 
         {joints.length === 0 && (
-          <div style={{ color: '#4b5563', fontSize: 12, padding: '4px 0' }}>No joints</div>
+          <div style={{ color: text.disabled, fontSize: 12, padding: '4px 0' }}>No joints</div>
         )}
 
         {joints.map((joint) => {
@@ -369,7 +355,7 @@ export function WorkspaceMenu({
               {/* Joint name */}
               <span
                 style={{
-                  color: '#9ca3af',
+                  color: text.dim,
                   fontSize: 11,
                   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
                   minWidth: 72,
@@ -388,7 +374,7 @@ export function WorkspaceMenu({
                     onClick={() => void handleJog(joint, -deltaPos)}
                     disabled={isDisabled}
                     size="small"
-                    style={{ padding: 3, color: isDisabled ? '#374151' : '#9ca3af' }}
+                    style={{ padding: 3, color: isDisabled ? borderColor.default : text.dim }}
                   >
                     <ChevronLeftIcon style={{ fontSize: 18 }} />
                   </IconButton>
@@ -398,7 +384,7 @@ export function WorkspaceMenu({
               {/* Current value */}
               <span
                 style={{
-                  color: '#e5e7eb',
+                  color: text.secondary,
                   fontSize: 12,
                   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
                   fontFeatureSettings: '"tnum" 1',
@@ -417,7 +403,7 @@ export function WorkspaceMenu({
                     onClick={() => void handleJog(joint, deltaPos)}
                     disabled={isDisabled}
                     size="small"
-                    style={{ padding: 3, color: isDisabled ? '#374151' : '#9ca3af' }}
+                    style={{ padding: 3, color: isDisabled ? borderColor.default : text.dim }}
                   >
                     <ChevronRightIcon style={{ fontSize: 18 }} />
                   </IconButton>
@@ -439,8 +425,8 @@ export function WorkspaceMenu({
         slotProps={{
           paper: {
             sx: {
-              background: 'rgba(13,13,13,0.96)',
-              border: '1px solid #374151',
+              background: `${bg.canvas}f5`,
+              border: `1px solid ${borderColor.default}`,
               borderRadius: '3px',
               boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
               padding: '10px 12px',

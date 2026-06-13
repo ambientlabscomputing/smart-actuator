@@ -26,6 +26,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutlined'
 import CodeIcon from '@mui/icons-material/Code'
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function SideNav({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      style={{ width: 240, height: '100%', background: '#111827', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1f2937' }}
+      style={{ width: 240, height: '100%', background: bg.surface, display: 'flex', flexDirection: 'column', borderRight: `1px solid ${borderColor.dim}` }}
       role="presentation"
     >
       {/* Brand */}
@@ -57,11 +58,11 @@ function SideNav({ onClose }: { onClose: () => void }) {
           alignItems: 'center',
           gap: 10,
           padding: '16px 16px 14px',
-          borderBottom: '1px solid #1f2937',
+          borderBottom: `1px solid ${borderColor.dim}`,
         }}
       >
-        <SmartToyOutlinedIcon style={{ color: '#3b82f6', fontSize: 18 }} />
-        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#f9fafb', fontSize: 13, fontWeight: 600, letterSpacing: '0.02em' }}>
+        <SmartToyOutlinedIcon style={{ color: accent.default, fontSize: 18 }} />
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: text.primary, fontSize: 13, fontWeight: 600, letterSpacing: '0.02em' }}>
           Smart Actuator
         </span>
       </div>
@@ -69,57 +70,57 @@ function SideNav({ onClose }: { onClose: () => void }) {
       <List disablePadding sx={{ flex: 1, padding: '8px 0' }}>
         <ListItemButton
           onClick={() => go('/')}
-          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: bg.surfaceAlt } }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+          <ListItemIcon sx={{ minWidth: 36, color: accent.default }}>
             <SmartToyOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary="Jog Actuators"
-            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+            slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>
         <ListItemButton
           onClick={() => go('/programs')}
-          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: bg.surfaceAlt } }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+          <ListItemIcon sx={{ minWidth: 36, color: accent.default }}>
             <CodeIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary="Programs"
-            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+            slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>
         <ListItemButton
           onClick={() => go('/gcode')}
-          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: bg.surfaceAlt } }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+          <ListItemIcon sx={{ minWidth: 36, color: accent.default }}>
             <DataObjectIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary="G-code"
-            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+            slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>
         <ListItemButton
           onClick={() => go('/teach')}
-          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: '#1f2937' } }}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: bg.surfaceAlt } }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: '#60a5fa' }}>
+          <ListItemIcon sx={{ minWidth: 36, color: accent.default }}>
             <RadioButtonCheckedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText
             primary="Teach"
-            slotProps={{ primary: { sx: { color: '#e5e7eb', fontSize: 14, fontWeight: 500 } } }}
+            slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>
       </List>
 
       {/* Footer version hint */}
-      <div style={{ padding: '12px 20px', borderTop: '1px solid #1f2937' }}>
-        <span style={{ color: '#4b5563', fontSize: 11 }}>Smart Actuator UI</span>
+      <div style={{ padding: '12px 20px', borderTop: `1px solid ${borderColor.dim}` }}>
+        <span style={{ color: text.disabled, fontSize: 11 }}>Smart Actuator UI</span>
       </div>
     </div>
   )
@@ -156,8 +157,8 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
           alignItems: 'center',
           height: 52,
           padding: '0 8px 0 4px',
-          background: '#0d0d0d',
-          borderBottom: '1px solid #1f2937',
+          background: bg.canvas,
+          borderBottom: `1px solid ${borderColor.dim}`,
           zIndex: 100,
           flexShrink: 0,
           userSelect: 'none',
@@ -169,7 +170,7 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
           <IconButton
             onClick={() => setDrawerOpen(true)}
             size="small"
-            style={{ color: '#6b7280', flexShrink: 0 }}
+            style={{ color: text.dim, flexShrink: 0 }}
           >
             <MenuIcon fontSize="small" />
           </IconButton>
@@ -180,7 +181,7 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
           <span
             style={{
               fontFamily: "'Inter', system-ui, sans-serif",
-              color: '#f3f4f6',
+              color: text.primary,
               fontSize: 14,
               fontWeight: 600,
               letterSpacing: '0.03em',
@@ -196,7 +197,7 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
             <span
               style={{
                 fontFamily: "'Inter', system-ui, sans-serif",
-                color: '#4b5563',
+                color: text.disabled,
                 fontSize: 10,
                 letterSpacing: '0.04em',
                 lineHeight: 1.2,
@@ -224,8 +225,8 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
                   height: 28,
                   fontSize: 11,
                   fontWeight: 700,
-                  background: '#2563eb',
-                  color: '#fff',
+                  background: accent.default,
+                  color: accent.on,
                 }}
               >
                 {initials}
@@ -255,9 +256,9 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
         slotProps={{
           paper: {
             sx: {
-              background: '#1a1a2e',
-              border: '1px solid #1f2937',
-              borderRadius: '8px',
+              background: bg.surfaceRaised,
+              border: `1px solid ${borderColor.dim}`,
+              borderRadius: '2px',
               minWidth: 180,
               boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
             },
@@ -266,31 +267,31 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
       >
         {/* User info header */}
         <div style={{ padding: '12px 16px 10px' }}>
-          <div style={{ color: '#f3f4f6', fontSize: 13, fontWeight: 600 }}>
+          <div style={{ color: text.primary, fontSize: 13, fontWeight: 600 }}>
             {user?.name ?? user?.username}
           </div>
           {user?.name && user.username && (
-            <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>
+            <div style={{ color: text.faint, fontSize: 11, marginTop: 2 }}>
               @{user.username}
             </div>
           )}
         </div>
 
-        <Divider style={{ borderColor: '#1f2937', margin: '0 0 4px' }} />
+        <Divider style={{ borderColor: borderColor.dim, margin: '0 0 4px' }} />
 
         <MenuItem
-          style={{ color: '#9ca3af', fontSize: 13, padding: '8px 16px', gap: 10 }}
+          style={{ color: text.dim, fontSize: 13, padding: '8px 16px', gap: 10 }}
           disabled
         >
-          <PersonOutlineIcon style={{ fontSize: 16, color: '#6b7280' }} />
+          <PersonOutlineIcon style={{ fontSize: 16, color: text.faint }} />
           Profile
         </MenuItem>
 
-        <Divider style={{ borderColor: '#1f2937', margin: '4px 0' }} />
+        <Divider style={{ borderColor: borderColor.dim, margin: '4px 0' }} />
 
         <MenuItem
           onClick={handleSignOut}
-          style={{ color: '#f87171', fontSize: 13, padding: '8px 16px', gap: 10 }}
+          style={{ color: semantic.danger, fontSize: 13, padding: '8px 16px', gap: 10 }}
         >
           <LogoutIcon style={{ fontSize: 16 }} />
           Sign out

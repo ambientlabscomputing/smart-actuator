@@ -16,7 +16,7 @@
 import type React from 'react'
 import { fontStacks, fontWeight, fontSize } from '../../design/typography'
 import { radius } from '../../design/chrome'
-import { bg, borderColor, text, semantic, provisionalAccent } from '../../design/neutrals'
+import { bg, borderColor, text, semantic, accent } from '../../design/neutrals'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
@@ -34,9 +34,9 @@ function variantStyle(variant: Variant, disabled: boolean): React.CSSProperties 
   switch (variant) {
     case 'primary':
       return {
-        background: provisionalAccent.default,
-        border: `1px solid ${provisionalAccent.default}`,
-        color: '#fff',
+        background: accent.default,
+        border: `1px solid ${accent.default}`,
+        color: text.primary,
         cursor: 'pointer',
       }
     case 'secondary':
@@ -57,7 +57,7 @@ function variantStyle(variant: Variant, disabled: boolean): React.CSSProperties 
       return {
         background: semantic.danger,
         border: `1px solid ${semantic.danger}`,
-        color: '#fff',
+        color: text.primary,
         cursor: 'pointer',
       }
   }

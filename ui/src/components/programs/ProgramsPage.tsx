@@ -22,6 +22,7 @@ import type { ProgramMeta, ProgramStep, SavedProgram, StepKind } from './program
 import { useJointState } from '../../hooks/useJointState'
 import { forwardKinematics } from '../../lib/fk'
 import type { DHJointValues } from '../../lib/types'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 interface ProgramsPageProps {
   machineId: string
@@ -30,10 +31,10 @@ interface ProgramsPageProps {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#111827',
-  border: '1px solid #374151',
+  background: bg.surface,
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 2,
-  color: '#f3f4f6',
+  color: text.primary,
   fontFamily: "'Inter', system-ui, sans-serif",
   fontSize: 13,
   padding: '5px 10px',
@@ -207,7 +208,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
   const isSaved = savedPrograms.some((p) => p.program_id === programId)
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d0d0d' }}>
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: bg.canvas }}>
       <AppToolbar title="Programs" />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -216,14 +217,14 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
           style={{
             width: 220,
             flexShrink: 0,
-            background: '#111',
-            borderRight: '1px solid #1f2937',
+            background: bg.canvas,
+            borderRight: `1px solid ${borderColor.dim}`,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid #1f2937', flexShrink: 0 }}>
+          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${borderColor.dim}`, flexShrink: 0 }}>
             <SectionLabel gutterBottom>Saved programs</SectionLabel>
             <Button
               variant="ghost"
@@ -236,7 +237,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {listLoading && (
-              <p style={{ color: '#4b5563', fontSize: 11, padding: '4px 14px' }}>Loading…</p>
+              <p style={{ color: text.disabled, fontSize: 11, padding: '4px 14px' }}>Loading…</p>
             )}
             {savedPrograms.map((p) => (
               <button
@@ -246,10 +247,10 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
                   display: 'block',
                   width: '100%',
                   textAlign: 'left',
-                  background: p.program_id === programId ? '#172033' : 'transparent',
+                  background: p.program_id === programId ? accent.dim : 'transparent',
                   border: 'none',
-                  borderLeft: p.program_id === programId ? '2px solid #2563eb' : '2px solid transparent',
-                  color: p.program_id === programId ? '#93c5fd' : '#9ca3af',
+                  borderLeft: p.program_id === programId ? `2px solid ${accent.default}` : '2px solid transparent',
+                  color: p.program_id === programId ? accent.default : text.dim,
                   cursor: 'pointer',
                   fontFamily: "'Inter', system-ui, sans-serif",
                   fontSize: 12,
@@ -260,7 +261,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
               </button>
             ))}
           </div>
-          <div style={{ padding: '10px 14px', borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+          <div style={{ padding: '10px 14px', borderTop: `1px solid ${borderColor.dim}`, flexShrink: 0 }}>
             <Button variant="ghost" size="sm" fullWidth onClick={() => navigate('/')}>
               ← Back to workspace
             </Button>
@@ -312,13 +313,13 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
 
           {/* Error banners */}
           {saveError && (
-            <p style={{ color: '#f87171', fontSize: 12, margin: 0 }}>{saveError}</p>
+            <p style={{ color: semantic.danger, fontSize: 12, margin: 0 }}>{saveError}</p>
           )}
           {deleteError && (
-            <p style={{ color: '#f87171', fontSize: 12, margin: 0 }}>{deleteError}</p>
+            <p style={{ color: semantic.danger, fontSize: 12, margin: 0 }}>{deleteError}</p>
           )}
           {runError && (
-            <p style={{ color: '#f87171', fontSize: 12, margin: 0 }}>{runError}</p>
+            <p style={{ color: semantic.danger, fontSize: 12, margin: 0 }}>{runError}</p>
           )}
 
           {/* Actions */}

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 import {
   Alert,
   Box,
@@ -55,12 +56,12 @@ export function LoginScreen() {
 
   const textFieldSx = {
     mb: 2,
-    '& .MuiInputBase-input': { color: '#f3f4f6' },
-    '& .MuiInputLabel-root': { color: '#9ca3af' },
-    '& .MuiInputLabel-root.Mui-focused': { color: '#60a5fa' },
-    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#4b5563' },
-    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6b7280' },
-    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' },
+    '& .MuiInputBase-input': { color: text.primary },
+    '& .MuiInputLabel-root': { color: text.dim },
+    '& .MuiInputLabel-root.Mui-focused': { color: accent.default },
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: text.disabled },
+    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: text.faint },
+    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: semantic.info },
   }
 
   return (
@@ -70,12 +71,12 @@ export function LoginScreen() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: '#0d0d0d',
+        background: bg.canvas,
       }}
     >
-      <Card sx={{ width: 360, background: '#1a1a1a', border: '1px solid #374151' }}>
+      <Card sx={{ width: 360, background: bg.surfaceRaised, border: `1px solid ${borderColor.default}` }}>
         <CardContent sx={{ p: 4 }}>
-          <Typography variant="h6" sx={{ color: '#f3f4f6', mb: 3, fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ color: text.primary, mb: 3, fontWeight: 600 }}>
             Sign in to Brain
           </Typography>
 

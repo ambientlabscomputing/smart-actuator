@@ -20,6 +20,7 @@ import { EndEffectorMesh } from '../components/mesh/EndEffectorMesh'
 import type { MeshQuality } from '../design/machineTokens'
 import type { MachineStyleName } from '../design/machineStyles'
 import { getMachineStyle } from '../design/machineStyles'
+import { text, borderColor, accent, semantic, chart } from '@/design'
 import { buildPrismaticRecipe } from '../components/mesh/prismatic'
 import { buildBaseAssembly } from '../components/mesh/assemblies'
 import { MotionEnvelope } from '../components/mesh/MotionEnvelope'
@@ -44,11 +45,11 @@ function PrismaticPreview({
       <RecipeNodes recipe={recipe} materials={materials} quality={quality} castShadow receiveShadow />
       <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius * 0.35, radius * 0.35, 0.4, 12]} />
-        <meshStandardMaterial color="#455a64" />
+        <meshStandardMaterial color={machineColors.prismaticRail} />
       </mesh>
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[radius * 2.4, radius * 2.4, radius * 2.4]} />
-        <meshStandardMaterial color="#4fc3f7" />
+        <meshStandardMaterial color={chart.position} />
       </mesh>
     </group>
   )
@@ -145,7 +146,7 @@ function MeshLabScene({
       <ambientLight intensity={0.08} />
       <directionalLight position={[3, -2, 4]} color="#fff1e0" intensity={1.12} castShadow />
       <directionalLight position={[-2, -2, 1.5]} color="#b8c7d6" intensity={0.35} />
-      <directionalLight position={[-1, 3, 3]} color="#ffffff" intensity={0.5} />
+      <directionalLight position={[-1, 3, 3]} color="#fff1e0" intensity={0.5} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.3, 0]} receiveShadow>
         <planeGeometry args={[8, 8]} />
@@ -189,8 +190,8 @@ export function MeshLab() {
     display: 'block', width: '100%', textAlign: 'left',
     padding: '5px 10px', marginBottom: 4,
     background: selected ? '#1e3a5f' : '#1f2028',
-    border: selected ? '1px solid #3b82f6' : '1px solid #2e303a',
-    color: selected ? '#93c5fd' : '#9ca3af',
+    border: selected ? `1px solid ${semantic.info}` : '1px solid #2e303a',
+    color: selected ? accent.default : text.dim,
     fontFamily: 'monospace', fontSize: 12, cursor: 'pointer',
   })
 
@@ -211,40 +212,40 @@ export function MeshLab() {
 
       <div style={{ width: 240, padding: '24px 16px', borderLeft: '1px solid #2e303a', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto' }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 8 }}>MESH LAB</div>
-          <div style={{ fontSize: 11, color: '#4b5563' }}>dev-only preview</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: text.faint, marginBottom: 8 }}>MESH LAB</div>
+          <div style={{ fontSize: 11, color: text.disabled }}>dev-only preview</div>
         </div>
 
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b7280', display: 'block', marginBottom: 6 }}>Family</label>
+          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: text.faint, display: 'block', marginBottom: 6 }}>Family</label>
           {FAMILIES.map(f => (
             <button key={f} onClick={() => setFamilyChoice(f)} style={buttonStyle(familyChoice === f)}>{f}</button>
           ))}
         </div>
 
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b7280', display: 'block', marginBottom: 6 }}>Quality</label>
+          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: text.faint, display: 'block', marginBottom: 6 }}>Quality</label>
           {QUALITIES.map(q => (
             <button key={q} onClick={() => setQuality(q)} style={buttonStyle(quality === q)}>{q}</button>
           ))}
         </div>
 
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b7280', display: 'block', marginBottom: 6 }}>Style (tokens)</label>
+          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: text.faint, display: 'block', marginBottom: 6 }}>Style (tokens)</label>
           {STYLES.map(s => (
             <button key={s} onClick={() => setStyle(s)} style={buttonStyle(style === s)}>{s}</button>
           ))}
         </div>
 
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b7280', display: 'block', marginBottom: 6 }}>Joint active</label>
+          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: text.faint, display: 'block', marginBottom: 6 }}>Joint active</label>
           <button onClick={() => setActiveJoint(v => !v)} style={buttonStyle(activeJoint)}>
             {activeJoint ? 'ON' : 'OFF'}
           </button>
         </div>
 
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b7280', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: text.faint, display: 'block', marginBottom: 6 }}>
             Motion pointer ({(currentAngle * 180 / Math.PI).toFixed(0)}°)
           </label>
           <input
@@ -255,7 +256,7 @@ export function MeshLab() {
           />
         </div>
 
-        <div style={{ marginTop: 'auto', fontSize: 10, color: '#374151', lineHeight: 1.5 }}>
+        <div style={{ marginTop: 'auto', fontSize: 10, color: borderColor.default, lineHeight: 1.5 }}>
           base&nbsp;|&nbsp;link&nbsp;|&nbsp;rev&nbsp;|&nbsp;prismatic&nbsp;|&nbsp;arc&nbsp;|&nbsp;EE
         </div>
       </div>

@@ -18,6 +18,7 @@ import type { IKPreviewResponse } from '../lib/types'
 import { useMachineIK } from '../hooks/useMachineIK'
 import { brainPost } from '../hooks/useJointState'
 import { quatFromAxisAngle, quatMultiply, quatToEulerDeg } from '../lib/fk'
+import { bg, text, borderColor, accent, semantic, chart } from '@/design'
 import { SectionLabel } from './ui/SectionLabel'
 import { Select } from './ui/Select'
 import { Stepper } from './ui/Stepper'
@@ -210,7 +211,7 @@ export function CartesianJogPanel({
 
           {(['Rx', 'Ry', 'Rz'] as const).map((axisName, i) => (
             <div key={axisName} style={rowStyle}>
-              <span style={{ ...axisLabelStyle, color: '#d1d5db' }}>{axisName}</span>
+              <span style={{ ...axisLabelStyle, color: text.secondary }}>{axisName}</span>
               <Stepper
                 label={`Jog ${axisName}`}
                 value={`${euler[i].toFixed(1)}°`}
@@ -275,14 +276,14 @@ const rowStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  color: '#6b7280',
+  color: text.faint,
   fontSize: 11,
   fontFamily: "'Inter', system-ui, sans-serif",
   minWidth: 36,
 }
 
 const axisLabelStyle: React.CSSProperties = {
-  color: '#e5e7eb',
+  color: text.secondary,
   fontSize: 11,
   fontWeight: 600,
   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
@@ -294,8 +295,8 @@ const axisLabelStyle: React.CSSProperties = {
 function frameToggleStyle(isActive: boolean): React.CSSProperties {
   return {
     background: isActive ? 'rgba(251,191,36,0.15)' : 'transparent',
-    color: isActive ? '#fbbf24' : '#6b7280',
-    border: `1px solid ${isActive ? '#fbbf24' : '#374151'}`,
+    color: isActive ? accent.default : text.faint,
+    border: `1px solid ${isActive ? accent.default : borderColor.default}`,
     borderRadius: 2,
     padding: '1px 6px',
     fontSize: 10,
@@ -309,32 +310,32 @@ function frameToggleStyle(isActive: boolean): React.CSSProperties {
 const statusStyle: React.CSSProperties = {
   marginTop: 8,
   padding: '6px 8px',
-  background: '#0d0d0d',
-  border: '1px solid #1f2937',
+  background: bg.canvas,
+  border: `1px solid ${borderColor.dim}`,
   borderRadius: 2,
   fontSize: 11,
   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
-  color: '#6b7280',
+  color: text.faint,
   lineHeight: 1.6,
 }
 
 const errorStyle: React.CSSProperties = {
   marginTop: 6,
-  color: '#f87171',
+  color: semantic.danger,
   fontSize: 11,
 }
 
 const collisionResolvedStyle: React.CSSProperties = {
   marginTop: 4,
-  color: '#fbbf24',
+  color: accent.default,
   fontSize: 11,
 }
 
 function branchBtnStyle(isActive: boolean): React.CSSProperties {
   return {
     background: isActive ? 'rgba(99,102,241,0.18)' : 'transparent',
-    color: isActive ? '#818cf8' : '#6b7280',
-    border: `1px solid ${isActive ? '#818cf8' : '#374151'}`,
+    color: isActive ? chart.velocity : text.faint,
+    border: `1px solid ${isActive ? chart.velocity : borderColor.default}`,
     borderRadius: 2,
     padding: '2px 7px',
     fontSize: 10,

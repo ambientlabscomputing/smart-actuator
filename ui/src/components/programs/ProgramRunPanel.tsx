@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { ProgramRunView } from './ProgramRunView'
 import { brainFetch, nodeToStep } from './programAst'
 import type { ProgramMeta, ProgramStep, SavedProgram } from './programAst'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 interface ProgramRunPanelProps {
   machineId: string
@@ -77,10 +78,10 @@ export function ProgramRunPanel({ machineId }: ProgramRunPanelProps) {
 
   const inputStyle: React.CSSProperties = {
     flex: 1,
-    background: '#111827',
-    border: '1px solid #374151',
+    background: bg.surface,
+    border: `1px solid ${borderColor.default}`,
     borderRadius: 6,
-    color: '#f3f4f6',
+    color: text.primary,
     fontSize: 12,
     padding: '4px 8px',
     cursor: 'pointer',
@@ -112,10 +113,10 @@ export function ProgramRunPanel({ machineId }: ProgramRunPanelProps) {
         onClick={() => void handleRun()}
         disabled={!selectedId || running}
         style={{
-          background: '#2563eb',
+          background: accent.default,
           border: 'none',
           borderRadius: 6,
-          color: '#fff',
+          color: text.primary,
           cursor: selectedId && !running ? 'pointer' : 'not-allowed',
           fontSize: 13,
           fontWeight: 600,
@@ -128,7 +129,7 @@ export function ProgramRunPanel({ machineId }: ProgramRunPanelProps) {
       </button>
 
       {runError && (
-        <p style={{ color: '#f87171', fontSize: 11, margin: 0 }}>{runError}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, margin: 0 }}>{runError}</p>
       )}
 
       {/* Live run progress */}
@@ -146,9 +147,9 @@ export function ProgramRunPanel({ machineId }: ProgramRunPanelProps) {
         style={{
           marginTop: 4,
           background: 'transparent',
-          border: '1px solid #374151',
+          border: `1px solid ${borderColor.default}`,
           borderRadius: 6,
-          color: '#9ca3af',
+          color: text.dim,
           cursor: 'pointer',
           fontSize: 11,
           padding: '5px 0',

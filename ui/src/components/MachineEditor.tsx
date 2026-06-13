@@ -16,6 +16,7 @@ import { AppCanvas } from './AppCanvas'
 import { ArmCanvas } from './ArmCanvas'
 import { KinematicsTab } from './KinematicsTab'
 import { useMachineIK } from '../hooks/useMachineIK'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 export interface MachineEditorProps {
   template: Template
@@ -387,7 +388,7 @@ const containerStyle: React.CSSProperties = {
 const canvasPaneStyle: React.CSSProperties = {
   flex: '1 1 0',
   minWidth: 0,
-  background: '#111',
+  background: bg.canvas,
 }
 
 const sliderPaneStyle: React.CSSProperties = {
@@ -395,23 +396,23 @@ const sliderPaneStyle: React.CSSProperties = {
   flexShrink: 0,
   display: 'flex',
   flexDirection: 'column',
-  background: '#1a1a1a',
-  borderLeft: '1px solid #333',
+  background: bg.surfaceRaised,
+  borderLeft: `1px solid ${borderColor.default}`,
 }
 
 const tabBarStyle: React.CSSProperties = {
   display: 'flex',
-  borderBottom: '1px solid #333',
+  borderBottom: `1px solid ${borderColor.default}`,
   flexShrink: 0,
 }
 
 const tabBtnStyle = (active: boolean): React.CSSProperties => ({
   flex: 1,
   padding: '10px 0',
-  background: active ? '#2563eb' : 'transparent',
-  color: active ? '#fff' : '#9ca3af',
+  background: active ? accent.default : 'transparent',
+  color: active ? accent.on : text.dim,
   border: 'none',
-  borderBottom: active ? '2px solid #60a5fa' : '2px solid transparent',
+  borderBottom: active ? `2px solid ${accent.default}` : '2px solid transparent',
   fontSize: 13,
   fontWeight: active ? 600 : 400,
   cursor: 'pointer',
@@ -429,7 +430,7 @@ const sliderScrollStyle: React.CSSProperties = {
 
 const actionsStyle: React.CSSProperties = {
   padding: '12px 16px',
-  borderTop: '1px solid #333',
+  borderTop: `1px solid ${borderColor.default}`,
   display: 'flex',
   alignItems: 'center',
   gap: 8,
@@ -460,40 +461,40 @@ const readoutRowStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  color: '#e0e0e0',
+  color: text.secondary,
   fontSize: 13,
   fontWeight: 500,
 }
 
 const descStyle: React.CSSProperties = {
-  color: '#666',
+  color: text.faint,
   fontSize: 11,
   marginBottom: 2,
 }
 
 const readoutStyle: React.CSSProperties = {
-  color: '#fff',
+  color: text.primary,
   fontSize: 13,
   fontFamily: 'monospace',
   minWidth: 52,
 }
 
 const unitStyle: React.CSSProperties = {
-  color: '#9ca3af',
+  color: text.dim,
   fontSize: 11,
 }
 
 const rangeStyle: React.CSSProperties = {
   width: '100%',
-  accentColor: '#2563eb',
+  accentColor: accent.default,
 }
 
 const submitBtnStyle: React.CSSProperties = {
   marginLeft: 'auto',
-  background: '#1d4ed8',
-  color: '#fff',
+  background: accent.default,
+  color: accent.on,
   border: 'none',
-  borderRadius: 6,
+  borderRadius: 2,
   padding: '8px 20px',
   fontSize: 14,
   fontWeight: 600,
@@ -501,13 +502,13 @@ const submitBtnStyle: React.CSSProperties = {
 }
 
 const errorStyle: React.CSSProperties = {
-  color: '#f87171',
+  color: semantic.danger,
   fontSize: 12,
   flex: 1,
 }
 
 const emptyStyle: React.CSSProperties = {
-  color: '#666',
+  color: text.faint,
   fontSize: 12,
   textAlign: 'center',
   marginTop: 24,
@@ -515,7 +516,7 @@ const emptyStyle: React.CSSProperties = {
 
 // Advanced panel styles
 const advSectionStyle: React.CSSProperties = {
-  color: '#6b7280',
+  color: text.faint,
   fontSize: 11,
   fontWeight: 600,
   textTransform: 'uppercase',
@@ -529,7 +530,7 @@ const jointBlockStyle: React.CSSProperties = {
   flexDirection: 'column',
   gap: 6,
   paddingTop: 8,
-  borderTop: '1px solid #2a2a2a',
+  borderTop: `1px solid ${borderColor.dim}`,
 }
 
 const advRowStyle: React.CSSProperties = {
@@ -540,7 +541,7 @@ const advRowStyle: React.CSSProperties = {
 }
 
 const advLabelStyle: React.CSSProperties = {
-  color: '#d1d5db',
+  color: text.secondary,
   fontSize: 12,
   flex: 1,
   minWidth: 0,
@@ -555,10 +556,10 @@ const advInputGroupStyle: React.CSSProperties = {
 
 const advInputStyle: React.CSSProperties = {
   width: 80,
-  background: '#111',
-  border: '1px solid #444',
-  borderRadius: 4,
-  color: '#fff',
+  background: bg.canvas,
+  border: `1px solid ${borderColor.focus}`,
+  borderRadius: 2,
+  color: text.primary,
   fontSize: 12,
   fontFamily: 'monospace',
   padding: '3px 6px',
@@ -567,7 +568,7 @@ const advInputStyle: React.CSSProperties = {
 
 const advInputReadOnlyStyle: React.CSSProperties = {
   ...advInputStyle,
-  color: '#6b7280',
-  borderColor: '#2a2a2a',
+  color: text.faint,
+  borderColor: borderColor.dim,
   cursor: 'not-allowed',
 }

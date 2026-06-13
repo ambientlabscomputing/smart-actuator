@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/AuthContext'
 import type { DHChainValues, DHJointValues, Template } from './lib/types'
 import { dhToLinkLengths, dhValuesFromSchema } from './lib/dh'
 import { forwardKinematics } from './lib/fk'
+import { bg, text, borderColor, semantic } from '@/design'
 import './App.css'
 
 // ── Workspace view (machine already exists) ──────────────────────────────────
@@ -151,11 +152,11 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
   // When editing, show the editor full-screen instead of the workspace
   if (editing && editTemplate) {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d0d0d' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: '#1a1a1a', borderBottom: '1px solid #333' }}>
-          <span style={{ color: '#9ca3af', fontSize: 13, fontWeight: 600 }}>Edit machine</span>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: bg.canvas }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: bg.surfaceRaised, borderBottom: `1px solid ${borderColor.default}` }}>
+          <span style={{ color: text.dim, fontSize: 13, fontWeight: 600 }}>Edit machine</span>
           <div style={{ flex: 1 }} />
-          {editLoading && <span style={{ color: '#9ca3af', fontSize: 12 }}>Saving…</span>}
+          {editLoading && <span style={{ color: text.dim, fontSize: 12 }}>Saving…</span>}
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MachineEditor
@@ -171,7 +172,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
             actionsLeft={
               <button
                 onClick={() => setEditing(false)}
-                style={{ background: '#374151', border: 'none', borderRadius: 6, color: '#d1d5db', cursor: 'pointer', padding: '8px 16px', fontSize: 14 }}
+                style={{ background: borderColor.default, border: 'none', borderRadius: 2, color: text.secondary, cursor: 'pointer', padding: '8px 16px', fontSize: 14 }}
               >
                 Cancel
               </button>
@@ -222,7 +223,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
     <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppToolbar />
       {editError && (
-        <div style={{ background: '#7f1d1d', color: '#fca5a5', fontSize: 12, padding: '6px 16px' }}>
+        <div style={{ background: `${semantic.danger}33`, color: semantic.danger, fontSize: 12, padding: '6px 16px' }}>
           {editError}
         </div>
       )}
@@ -293,8 +294,8 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
               right: 0,
               bottom: 0,
               width: 360,
-              background: '#0d0d0d',
-              borderLeft: '1px solid #374151',
+              background: bg.canvas,
+              borderLeft: `1px solid ${borderColor.default}`,
               display: 'flex',
               flexDirection: 'column',
               zIndex: 10,
@@ -305,13 +306,13 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
                 display: 'flex',
                 alignItems: 'center',
                 padding: '10px 16px',
-                borderBottom: '1px solid #374151',
+              borderBottom: `1px solid ${borderColor.default}`,
                 flexShrink: 0,
               }}
             >
               <span
                 style={{
-                  color: '#f3f4f6',
+                  color: text.primary,
                   fontSize: 13,
                   fontWeight: 600,
                   textTransform: 'uppercase',
@@ -326,7 +327,7 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
                   marginLeft: 'auto',
                   background: 'transparent',
                   border: 'none',
-                  color: '#6b7280',
+                  color: text.faint,
                   cursor: 'pointer',
                   fontSize: 16,
                   lineHeight: 1,

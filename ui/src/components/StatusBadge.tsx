@@ -6,6 +6,7 @@
  */
 import { Stack } from './Stack'
 import { Typography } from './Typography'
+import { semantic } from '@/design'
 
 interface StatusBadgeProps {
   connected: boolean
@@ -20,7 +21,7 @@ export function StatusBadge({ connected }: StatusBadgeProps) {
           width: 8,
           height: 8,
           borderRadius: '50%',
-          backgroundColor: connected ? '#66bb6a' : '#ef5350',
+          backgroundColor: connected ? semantic.ok : semantic.danger,
           flexShrink: 0,
         }}
       />

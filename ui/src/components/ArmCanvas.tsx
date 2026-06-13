@@ -24,6 +24,7 @@ import { MotionEnvelope } from './mesh/MotionEnvelope'
 import { buildBaseAssembly } from './mesh/assemblies'
 import { getMachineStyle, defaultMachineStyle } from '../design/machineStyles'
 import { machineColors } from '../design/tokens'
+import { semantic, chart } from '@/design'
 
 interface ArmCanvasProps {
   /** Current joint angles in radians, one per joint in slot order. */
@@ -377,13 +378,13 @@ export function ArmCanvas({
           f.axis === 'x' ? [q, 0, 0] :
           f.axis === 'y' ? [0, q, 0] :
           [0, 0, q]
-        const carriageColor = machineColors.prismaticCarriage[i % machineColors.prismaticCarriage.length]
+        const carriageColor = machineColors.prismaticCarriage
         return (
           <group key={`rail${i}`} matrix={f.preJointMatrix} matrixAutoUpdate={false}>
             {/* Static rail */}
             <mesh position={railPos} rotation={rotation} castShadow receiveShadow>
               <cylinderGeometry args={[railThickness, railThickness, f.travelM, 12]} />
-              <meshStandardMaterial color="#455a64" />
+              <meshStandardMaterial color={machineColors.prismaticRail} />
             </mesh>
             {/* Sliding carriage at current q */}
             <mesh
@@ -502,9 +503,9 @@ export function ArmCanvas({
               onPointerOut={dragMode ? () => { document.body.style.cursor = 'auto' } : undefined}
             />
             <group matrix={frames.eeMatrix} matrixAutoUpdate={false}>
-              <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color="#ef5350" />
-              <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color="#66bb6a" />
-              <EEAxis axis="z" length={radius * 4} thickness={radius * 0.25} color="#42a5f5" />
+              <EEAxis axis="x" length={radius * 4} thickness={radius * 0.25} color={semantic.danger} />
+              <EEAxis axis="y" length={radius * 4} thickness={radius * 0.25} color={semantic.ok} />
+              <EEAxis axis="z" length={radius * 4} thickness={radius * 0.25} color={semantic.info} />
             </group>
           </group>
         )
@@ -668,7 +669,7 @@ function WorkspaceOverlay({ hull }: { hull: WorkspaceHullData }) {
   return (
     <mesh geometry={geometry}>
       <meshBasicMaterial
-        color="#4fc3f7"
+        color={chart.position}
         transparent
         opacity={0.07}
         side={THREE.DoubleSide}
@@ -690,7 +691,7 @@ function WorkspacePoints({ points }: { points: [number, number, number][] }) {
 
   return (
     <points geometry={geometry}>
-      <pointsMaterial color="#80cbc4" size={0.01} sizeAttenuation />
+      <pointsMaterial color={machineColors.link[0]} size={0.01} sizeAttenuation />
     </points>
   )
 }

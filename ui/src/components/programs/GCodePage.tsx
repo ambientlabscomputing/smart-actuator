@@ -22,12 +22,13 @@ import {
   generateGcodeSample,
 } from '../../lib/gcodeApi'
 import type { GCodePreview, GCodeTranslationResult } from '../../lib/gcodeApi'
+import { bg, text, borderColor, accent, semantic, chart } from '@/design'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: '#111827',
-  border: '1px solid #374151',
+  background: bg.surface,
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 2,
   padding: '14px 18px',
   display: 'flex',
@@ -36,10 +37,10 @@ const card: React.CSSProperties = {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#111827',
-  border: '1px solid #374151',
+  background: bg.surface,
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 2,
-  color: '#f3f4f6',
+  color: text.primary,
   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
   fontFeatureSettings: '"tnum" 1',
   fontSize: 12,
@@ -52,13 +53,13 @@ const inputStyle: React.CSSProperties = {
 // ── Motion-type colour map ────────────────────────────────────────────────────
 
 const MOTION_COLOR: Record<string, string> = {
-  rapid: '#facc15',   // yellow
-  feed: '#3b82f6',    // blue
-  arc: '#a855f7',     // purple
+  rapid: semantic.warn,   // yellow
+  feed: semantic.info,    // blue
+  arc: chart.velocity,     // purple
 }
 
 function motionColor(type: string): string {
-  return MOTION_COLOR[type] ?? '#6b7280'
+  return MOTION_COLOR[type] ?? text.faint
 }
 
 // ── SVG path preview ─────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ function PathPreview({ preview, size = 340 }: PathPreviewProps) {
   const { positions, motion_types } = preview
   if (positions.length === 0) {
     return (
-      <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+      <div style={{ color: text.faint, fontSize: 13, textAlign: 'center', padding: 40 }}>
         No poses to preview.
       </div>
     )
@@ -123,12 +124,12 @@ function PathPreview({ preview, size = 340 }: PathPreviewProps) {
     <svg
       width={size}
       height={size}
-      style={{ background: '#0d0d0d', borderRadius: 2, display: 'block' }}
+      style={{ background: bg.canvas, borderRadius: 2, display: 'block' }}
       viewBox={`0 0 ${size} ${size}`}
     >
       {/* Grid lines */}
-      <line x1={pad} y1={size / 2} x2={size - pad} y2={size / 2} stroke="#1f2937" strokeWidth={1} />
-      <line x1={size / 2} y1={pad} x2={size / 2} y2={size - pad} stroke="#1f2937" strokeWidth={1} />
+      <line x1={pad} y1={size / 2} x2={size - pad} y2={size / 2} stroke={borderColor.dim} strokeWidth={1} />
+      <line x1={size / 2} y1={pad} x2={size / 2} y2={size - pad} stroke={borderColor.dim} strokeWidth={1} />
       {/* Path */}
       {segments.map((s, idx) => (
         <polyline
@@ -144,13 +145,13 @@ function PathPreview({ preview, size = 340 }: PathPreviewProps) {
       {/* Start dot */}
       {(() => {
         const [x, y] = toSvg(positions[0][0], positions[0][1])
-        return <circle cx={x} cy={y} r={3} fill="#22c55e" />
+        return <circle cx={x} cy={y} r={3} fill={semantic.ok} />
       })()}
       {/* End dot */}
       {(() => {
         const last = positions[positions.length - 1]
         const [x, y] = toSvg(last[0], last[1])
-        return <circle cx={x} cy={y} r={3} fill="#ef4444" />
+        return <circle cx={x} cy={y} r={3} fill={semantic.danger} />
       })()}
     </svg>
   )
@@ -164,16 +165,16 @@ function Legend() {
       {Object.entries(MOTION_COLOR).map(([type, color]) => (
         <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 12, height: 3, background: color, borderRadius: 0 }} />
-          <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>{type}</span>
+          <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: text.dim, fontSize: 11 }}>{type}</span>
         </div>
       ))}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>start</span>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: semantic.ok }} />
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: text.dim, fontSize: 11 }}>start</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
-        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>end</span>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: semantic.danger }} />
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: text.dim, fontSize: 11 }}>end</span>
       </div>
     </div>
   )
@@ -385,7 +386,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
   const busy = uploading || previewing || translating
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: '#0d0d0d' }}>
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: bg.canvas }}>
       <AppToolbar title="G-code" />
 
       <div
@@ -461,16 +462,16 @@ export function GCodePage({ machineId }: GCodePageProps) {
             </Button>
 
             {generateError && (
-              <span style={{ color: '#f87171', fontSize: 12 }}>{generateError}</span>
+              <span style={{ color: semantic.danger, fontSize: 12 }}>{generateError}</span>
             )}
-            <div style={{ color: '#4b5563', fontSize: 11, lineHeight: 1.4 }}>
+            <div style={{ color: text.disabled, fontSize: 11, lineHeight: 1.4 }}>
               Tip: set Origin X = Width/2, Origin Y = Height/2 to keep the entire
               pattern in the positive quadrant (required for CNC gantries).
             </div>
           </div>
 
           {/* Divider */}
-          <div style={{ color: '#4b5563', fontSize: 11, textAlign: 'center' }}>— or upload a file —</div>
+          <div style={{ color: text.disabled, fontSize: 11, textAlign: 'center' }}>— or upload a file —</div>
 
           {/* Upload card */}
           <div style={card}>
@@ -491,11 +492,11 @@ export function GCodePage({ machineId }: GCodePageProps) {
               </Button>
             )}
             {fileId != null && (
-              <span style={{ color: '#22c55e', fontSize: 12 }}>
+              <span style={{ color: semantic.ok, fontSize: 12 }}>
                 ✓ Uploaded (file_id={fileId})
               </span>
             )}
-            {uploadError && <span style={{ color: '#f87171', fontSize: 12 }}>{uploadError}</span>}
+            {uploadError && <span style={{ color: semantic.danger, fontSize: 12 }}>{uploadError}</span>}
           </div>
 
           {/* Options card */}
@@ -562,44 +563,44 @@ export function GCodePage({ machineId }: GCodePageProps) {
               fullWidth
               onClick={() => void handleRun()}
               disabled={result == null || runId != null}
-              style={{ color: result != null && runId == null ? '#4ade80' : undefined }}
+              style={{ color: result != null && runId == null ? semantic.ok : undefined }}
             >
               Run
             </Button>
           </div>
 
-          {previewError && <span style={{ color: '#f87171', fontSize: 12 }}>{previewError}</span>}
-          {translateError && <span style={{ color: '#f87171', fontSize: 12 }}>{translateError}</span>}
-          {runError && <span style={{ color: '#f87171', fontSize: 12 }}>{runError}</span>}
+          {previewError && <span style={{ color: semantic.danger, fontSize: 12 }}>{previewError}</span>}
+          {translateError && <span style={{ color: semantic.danger, fontSize: 12 }}>{translateError}</span>}
+          {runError && <span style={{ color: semantic.danger, fontSize: 12 }}>{runError}</span>}
 
           {/* Result summary */}
           {result && (
-            <div style={{ ...card, borderColor: '#1f2937' }}>
+            <div style={{ ...card, borderColor: borderColor.dim }}>
               <SectionLabel>Result</SectionLabel>
-              <span style={{ color: '#d1d5db', fontSize: 12 }}>
+              <span style={{ color: text.secondary, fontSize: 12 }}>
                 {result.pose_count} poses saved as{' '}
-                <code style={{ color: '#60a5fa' }}>{result.program.meta.name}</code>
+                <code style={{ color: accent.default }}>{result.program.meta.name}</code>
               </span>
               {result.warnings.length > 0 && (
                 <div>
-                  <SectionLabel style={{ color: '#fbbf24', marginBottom: 4 }}>Warnings</SectionLabel>
+                  <SectionLabel style={{ color: accent.default, marginBottom: 4 }}>Warnings</SectionLabel>
                   {result.warnings.map((w, i) => (
-                    <div key={i} style={{ color: '#fbbf24', fontSize: 11, marginBottom: 2 }}>{w}</div>
+                    <div key={i} style={{ color: accent.default, fontSize: 11, marginBottom: 2 }}>{w}</div>
                   ))}
                 </div>
               )}
               {result.dropped_lines.length > 0 && (
                 <div>
-                  <SectionLabel style={{ color: '#f87171', marginBottom: 4 }}>
+                  <SectionLabel style={{ color: semantic.danger, marginBottom: 4 }}>
                     {result.dropped_lines.length} dropped line(s)
                   </SectionLabel>
                   {result.dropped_lines.slice(0, 5).map(([ln, msg], i) => (
-                    <div key={i} style={{ color: '#f87171', fontSize: 11, marginBottom: 2 }}>
+                    <div key={i} style={{ color: semantic.danger, fontSize: 11, marginBottom: 2 }}>
                       Line {ln}: {msg}
                     </div>
                   ))}
                   {result.dropped_lines.length > 5 && (
-                    <div style={{ color: '#6b7280', fontSize: 11 }}>
+                    <div style={{ color: text.faint, fontSize: 11 }}>
                       … and {result.dropped_lines.length - 5} more
                     </div>
                   )}
@@ -613,7 +614,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {preview ? (
             <>
-              <div style={{ color: '#9ca3af', fontSize: 12 }}>
+              <div style={{ color: text.dim, fontSize: 12 }}>
                 {preview.pose_count} pose{preview.pose_count !== 1 ? 's' : ''}
                 {preview.truncated ? ` (preview capped at ${preview.positions.length})` : ''}
                 {' '}— XY plane view
@@ -621,7 +622,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
               <PathPreview preview={preview} size={460} />
               <Legend />
               {preview.warnings.length > 0 && !result && (
-                <div style={{ color: '#fbbf24', fontSize: 11 }}>
+                <div style={{ color: accent.default, fontSize: 11 }}>
                   {preview.warnings.map((w, i) => <div key={i}>{w}</div>)}
                 </div>
               )}
@@ -633,10 +634,10 @@ export function GCodePage({ machineId }: GCodePageProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#4b5563',
+                color: text.disabled,
                 fontSize: 13,
                 fontFamily: "'Inter', system-ui, sans-serif",
-                border: '1px dashed #374151',
+                border: `1px dashed ${borderColor.default}`,
                 borderRadius: 2,
                 minHeight: 300,
               }}

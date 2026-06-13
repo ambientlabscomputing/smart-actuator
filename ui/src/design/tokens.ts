@@ -1,9 +1,9 @@
 /**
- * Base design tokens — single source of truth for the Smart Actuator UI.
+ * Base design tokens — Smart Actuator UI machine / 3D colours.
  *
- * Box 2 lands the `machine` subset only.
- * Box 4 will replace provisional hex values with the final colour system
- * and add `bg`, `text`, `accent`, etc. for the 2D chrome.
+ * Box 2 landed the `machine` and `labInstrument` subsets.
+ * Box 4 adds `prismaticCarriage` brass and updates this comment.
+ * 2D chrome tokens (bg, text, accent, semantic) live in theme.ts.
  *
  * Rule: NO hex literal or raw number is allowed in a component file.
  * Components import from here (or from machineTokens.ts) instead.
@@ -26,8 +26,9 @@ export const machineColors = {
   eeActive: '#fbbf24',
   /** Prismatic rail (static) */
   prismaticRail: '#455a64',
-  /** Prismatic carriage — re-uses link colour rotation */
-  prismaticCarriage: ['#4fc3f7', '#81d4fa', '#b3e5fc'] as readonly string[],
+  /** Prismatic carriage — warm brass/sandy beige; distinct from revolute terracotta
+   *  and link cyan so joint type is legible at a glance without using accent. */
+  prismaticCarriage: '#A08060',
   /** Joint-limit arc sector tint */
   limitArc: '#ffca28',
 } as const
