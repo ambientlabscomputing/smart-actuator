@@ -39,7 +39,8 @@ RUN apt-get update \
       libgomp1 \
       nginx \
       ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -f /etc/nginx/sites-enabled/default
 
 # Install the pre-built brain wheel from the builder
 COPY --from=python_builder /dist /dist
