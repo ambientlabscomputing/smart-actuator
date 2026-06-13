@@ -1,0 +1,47 @@
+# Production brain config — used inside the Docker image.
+# Mutable state (db, logs, certs, files, cached templates) lives under /data
+# so it can be persisted via a volume mount.
+db:
+  path: /data/brain.db
+  log_sql: false
+
+grpc:
+  host: 0.0.0.0
+  port: 50061
+
+log:
+  log_file: /data/brain.log
+  log_level: INFO
+  log_to_console: true
+
+oauth:
+  cert_path: /data/cert.pem
+  key_path: /data/key.pem
+  token_ttl_seconds: 3600
+
+rest:
+  host: 0.0.0.0
+  port: 8080
+
+sidecar:
+  socket: unix:///tmp/sidecar.sock
+
+sim:
+  binary_path: /usr/local/bin/actuator-sim
+  config_path: /app/actuator-sim-config.yaml
+  port_range_start: 50100
+  port_range_end: 50199
+
+templates:
+  dir: /app/templates
+  cache_dir: /data/templates
+  trusted_sources:
+    - github.com/ambient-labs
+
+files:
+  storage_dir: /data/files
+
+safety:
+  floor_z: 0.0
+  floor_margin_m: 0.005
+  link_collision_samples: 8

@@ -1,0 +1,33 @@
+# ── Rust build artifacts (the biggest offender — can be >6 GB) ────────────────
+smart-actuator/target/
+
+# ── Node modules ──────────────────────────────────────────────────────────────
+ui/node_modules/
+ui/dist/
+
+# ── Python build / cache ──────────────────────────────────────────────────────
+brain/__pycache__/
+brain/**/__pycache__/
+brain/**/*.pyc
+brain/**/*.pyo
+brain/.venv/
+brain/dist/
+brain/*.egg-info/
+brain/brain.db
+brain/brain.log
+brain/cert.pem
+brain/key.pem
+
+# ── Dev / editor artefacts ────────────────────────────────────────────────────
+.git/
+.gitignore
+**/.DS_Store
+
+# ── Local runtime state ───────────────────────────────────────────────────────
+*.pid
+*.log
+*.sock
+data/
+
+# ── Docker files (Dockerfile itself is not needed inside the image) ───────────
+docker/Dockerfile
