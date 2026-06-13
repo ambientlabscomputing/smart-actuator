@@ -300,4 +300,3 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
     </>
   )
 }
-

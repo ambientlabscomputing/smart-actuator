@@ -621,4 +621,3 @@ mod tests {
         assert_eq!(resp.refusal, Some(RefusalReason::TrajectoryRunning));
     }
 }
-

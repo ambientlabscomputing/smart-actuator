@@ -9,4 +9,3 @@ pub use types::{
     SafetyConfig, TemperatureResponse, TrackingErrorReport, TrajectoryPoint, TrajectorySegment,
     VelocityResponse,
 };
-

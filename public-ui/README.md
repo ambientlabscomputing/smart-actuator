@@ -1,73 +1,92 @@
-# React + TypeScript + Vite
+# public-ui
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Public landing site for smart-actuator, including the WebAssembly-powered actuator demo.
 
-Currently, two official plugins are available:
+## What this app does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Hosts the public homepage for jogactuators.com.
+- Runs the actuator simulation demo in a Web Worker using Rust compiled to WebAssembly.
+- Provides onboarding paths (`/get-started`) and a docs hub entry (`/docs`).
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 22+
+- Rust toolchain
+- wasm-pack
 
-## Expanding the ESLint configuration
+Install `wasm-pack` if needed:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Local development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+From repository root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+make public-ui-dev
 ```
+
+This will:
+
+1. Build `actuator-wasm` into `smart-actuator/pkg-wasm`
+2. Install npm dependencies for `public-ui`
+3. Start Vite dev server
+
+## Production build
+
+From repository root:
+
+```bash
+make public-ui-build
+```
+
+Or from `public-ui` directly:
+
+```bash
+npm install
+npm run build
+```
+
+## Preview production bundle
+
+```bash
+make public-ui-preview
+```
+
+## Deployment
+
+### Manual deploy
+
+```bash
+make deploy-public-ui
+```
+
+### CI deploy
+
+GitHub Actions workflow deploys to Cloudflare Pages when a bare semver tag is pushed:
+
+- Example tag: `1.2.3`
+- Workflow file: `.github/workflows/public-ui-pages-deploy.yml`
+
+Required repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+## Routing notes
+
+This app uses lightweight path-based rendering without a router dependency.
+
+Cloudflare Pages deep-link support is handled by:
+
+- `public/_redirects` with `/* /index.html 200`
+
+## Key paths
+
+- `src/App.tsx` - top-level page rendering and route handling
+- `src/components/ActuatorDemo.tsx` - demo composition
+- `src/workers/actuator.worker.ts` - worker simulation loop
+- `public/_headers` - response headers including wasm content type
+- `public/_redirects` - SPA fallback for deep links

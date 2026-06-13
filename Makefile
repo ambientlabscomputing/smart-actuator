@@ -21,16 +21,30 @@ install-ui:
 install-public-ui:
 	@cd public-ui && npm install
 
+## install-pre-commit: Install pre-commit and activate git hooks
+install-pre-commit:
+	@python3 -m pip install --user pre-commit
+	@python3 -m pre_commit install --install-hooks
+
+## pre-commit: Run all pre-commit hooks across the repo
+pre-commit:
+	@python3 -m pre_commit run --all-files
+
 ## wasm-build: Compile the actuator-wasm crate to WebAssembly (output: smart-actuator/pkg-wasm/)
 wasm-build:
 	@wasm-pack build smart-actuator/crates/actuator-wasm --target web --out-dir ../../../pkg-wasm
+
+## public-ui-docs: Generate static docs artifacts for publishing under /docs (requires brain deps installed)
+public-ui-docs:
+	@pip install -q -e brain/"[dev]" --quiet
+	@bash scripts/generate_public_docs.sh
 
 ## public-ui-dev: Build WASM then start the public UI dev server (hot reload)
 public-ui-dev: wasm-build
 	@cd public-ui && npm install && npx vite
 
 ## public-ui-build: Build WASM then produce a production public UI bundle (output: public-ui/dist/)
-public-ui-build: wasm-build
+public-ui-build: wasm-build public-ui-docs
 	@cd public-ui && npm install && npx tsc -b && npx vite build
 
 ## public-ui-preview: Build WASM + production bundle, then serve it locally for inspection

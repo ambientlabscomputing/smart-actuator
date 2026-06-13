@@ -1,7 +1,31 @@
+default_stages: [pre-commit]
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.0
+    rev: v0.15.1
     hooks:
       - id: ruff
+        files: ^brain/.*\.py$
         args: [--fix]
       - id: ruff-format
+        files: ^brain/.*\.py$
+
+  - repo: local
+    hooks:
+      - id: generate-public-docs
+        name: Generate and stage public docs
+        entry: bash -lc 'make public-ui-docs && git add public-ui/public/docs'
+        language: system
+        pass_filenames: false
+        files: ^(brain/|smart-actuator/proto/|RFDs/|scripts/(extract_openapi\.py|generate_public_docs\.sh)|README\.md|brain/README\.md)

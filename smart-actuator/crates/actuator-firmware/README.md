@@ -104,6 +104,6 @@ The control logic (`AppService` from `actuator-core`) is shared between firmware
 and simulator — the only difference is the `Hardware` implementation. In firmware
 it is `HalHardware`; in the simulator it is `SimPlant`.
 
-Phase 1: `HalHardware` stubs return constants. The gRPC surface is fully live.  
-Phase 2: Each `hal/` sub-module gets real driver calls.  
+Phase 1: `HalHardware` stubs return constants. The gRPC surface is fully live.
+Phase 2: Each `hal/` sub-module gets real driver calls.
 Phase 3: A 1 kHz PD loop is pinned to core 0; the gRPC server stays on core 1.

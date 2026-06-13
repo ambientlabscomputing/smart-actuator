@@ -26,4 +26,3 @@ physics:
   encoder_noise_std: 0.0  # rad   (0 = noiseless)
   thermal_resistance: 5.0    # °C/W
   thermal_capacitance: 10.0  # J/°C
-

@@ -79,7 +79,7 @@ export function useJointState(machineId: string): UseJointStateResult {
                 return `${j.joint_name}=${((j.position * 180) / Math.PI).toFixed(2)}°`
               })
               .join('  ')
-             
+
             console.debug(`[ws ${parsed.mode}]`, angles)
           }
           setState(parsed)
