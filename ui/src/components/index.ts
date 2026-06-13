@@ -7,6 +7,7 @@
  *
  * To use a new MUI / R3F primitive elsewhere in the app, wrap it here first.
  */
+export { AppThemeProvider } from './theme/AppThemeProvider'
 export { AppCanvas } from './AppCanvas'
 export { AppToolbar } from './AppToolbar'
 export { ArmCanvas } from './ArmCanvas'

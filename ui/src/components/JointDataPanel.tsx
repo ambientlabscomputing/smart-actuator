@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { JointState } from '../hooks/useJointState'
 import { InteractiveJob } from './calibration/InteractiveJob'
 import { getToken } from '../lib/authClient'
+import { bg, text, borderColor, accent, semantic, chart } from '@/design'
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ interface SparklineProps {
 
 function Sparkline({ values, color, width = 220, height = 36 }: SparklineProps) {
   if (values.length < 2) {
-    return <div style={{ width, height, background: '#111' }} />
+    return <div style={{ width, height, background: bg.canvas }} />
   }
   const min = Math.min(...values)
   const max = Math.max(...values)
@@ -34,7 +35,7 @@ function Sparkline({ values, color, width = 220, height = 36 }: SparklineProps) 
     .join(' ')
 
   return (
-    <svg width={width} height={height} style={{ display: 'block', background: '#111', borderRadius: 4 }}>
+    <svg width={width} height={height} style={{ display: 'block', background: bg.canvas, borderRadius: 4 }}>
       <polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={pts} />
     </svg>
   )
@@ -53,7 +54,7 @@ function MetricRow({ label, value, history, color }: MetricRowProps) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ color: '#9ca3af', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ color: text.dim, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {label}
         </span>
         <span style={{ color, fontSize: 13, fontFamily: 'monospace', fontWeight: 600 }}>
@@ -130,8 +131,8 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         top: 16,
         right: 16,
         width: 268,
-        background: '#1a1a1a',
-        border: '1px solid #333',
+        background: bg.surfaceRaised,
+        border: `1px solid ${borderColor.default}`,
         borderRadius: 10,
         padding: '14px 16px',
         boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
@@ -146,12 +147,12 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
             width: 10,
             height: 10,
             borderRadius: '50%',
-            background: hasFault ? '#ef4444' : '#22c55e',
+            background: hasFault ? semantic.danger : semantic.ok,
             marginRight: 8,
             flexShrink: 0,
           }}
         />
-        <span style={{ color: '#f3f4f6', fontSize: 14, fontWeight: 600, flex: 1 }}>
+        <span style={{ color: text.primary, fontSize: 14, fontWeight: 600, flex: 1 }}>
           {joint.joint_name}
         </span>
         <button
@@ -159,7 +160,7 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
           style={{
             background: 'none',
             border: 'none',
-            color: '#6b7280',
+            color: text.faint,
             cursor: 'pointer',
             fontSize: 16,
             lineHeight: 1,
@@ -174,8 +175,8 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
       {hasFault && (
         <div
           style={{
-            background: '#7f1d1d',
-            color: '#fca5a5',
+            background: semantic.danger,
+            color: semantic.danger,
             fontSize: 11,
             borderRadius: 4,
             padding: '4px 8px',
@@ -191,7 +192,7 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         label={positionLabel}
         value={positionValue}
         history={history?.position ?? []}
-        color="#4fc3f7"
+        color={chart.position}
       />
 
       {/* Velocity */}
@@ -199,7 +200,7 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         label="Velocity"
         value={velocityValue}
         history={history?.velocity ?? []}
-        color="#a78bfa"
+        color={chart.velocity}
       />
 
       {/* Current */}
@@ -207,7 +208,7 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         label="Current"
         value={`${current} A`}
         history={history?.current_a ?? []}
-        color="#fb923c"
+        color={chart.current}
       />
 
       {/* Temperature */}
@@ -215,10 +216,10 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
         label="Temperature"
         value={`${temp} °C`}
         history={history?.temperature_c ?? []}
-        color="#f87171"
+        color={semantic.danger}
       />
 
-      <div style={{ color: '#4b5563', fontSize: 10, textAlign: 'right', marginTop: 4 }}>
+      <div style={{ color: text.disabled, fontSize: 10, textAlign: 'right', marginTop: 4 }}>
         click ball to deselect
       </div>
 
@@ -231,9 +232,9 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
             marginTop: 12,
             width: '100%',
             padding: '7px 0',
-            background: '#1e3a5f',
-            color: '#93c5fd',
-            border: '1px solid #1d4ed8',
+            background: accent.dim,
+            color: accent.default,
+            border: `1px solid ${accent.hover}`,
             borderRadius: 6,
             cursor: calBusy ? 'default' : 'pointer',
             fontSize: 12,

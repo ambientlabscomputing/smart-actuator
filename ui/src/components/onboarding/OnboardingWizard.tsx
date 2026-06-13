@@ -14,6 +14,7 @@ import { getToken } from '../../lib/authClient'
 import type { DHChainValues, Template, TemplateJoint } from '../../lib/types'
 import { dhValuesFromSchema } from '../../lib/dh'
 import { MachineEditor } from '../MachineEditor'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 interface BindingResult {
   machine_id: string
@@ -78,9 +79,9 @@ function TemplatePicker({
   if (err) {
     return (
       <div>
-        <p style={{ color: '#f44' }}>Error: {err}</p>
+        <p style={{ color: semantic.danger }}>Error: {err}</p>
         <button
-          style={{ marginTop: 8, background: '#374151', border: 'none', borderRadius: 6, color: '#d1d5db', cursor: 'pointer', padding: '8px 16px', fontSize: 13 }}
+          style={{ marginTop: 8, background: borderColor.default, border: 'none', borderRadius: 6, color: text.secondary, cursor: 'pointer', padding: '8px 16px', fontSize: 13 }}
           onClick={load}
         >
           Retry
@@ -112,9 +113,9 @@ function TemplatePicker({
           >
             <strong>{t.name}</strong>
             <br />
-            <small style={{ color: '#aaa' }}>{t.summary}</small>
+            <small style={{ color: text.dim }}>{t.summary}</small>
             <br />
-            <small style={{ color: '#666' }}>v{t.version}</small>
+            <small style={{ color: text.faint }}>v{t.version}</small>
           </button>
         ))}
       </div>
@@ -228,10 +229,10 @@ function BindingStep({
       <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: 16 }}>
         <thead>
           <tr>
-            <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Slot</th>
-            <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Joint</th>
-            <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 12px 4px 0' }}>Kind</th>
-            <th style={{ textAlign: 'left', color: '#aaa', padding: '4px 0' }}>Status</th>
+            <th style={{ textAlign: 'left', color: text.dim, padding: '4px 12px 4px 0' }}>Slot</th>
+            <th style={{ textAlign: 'left', color: text.dim, padding: '4px 12px 4px 0' }}>Joint</th>
+            <th style={{ textAlign: 'left', color: text.dim, padding: '4px 12px 4px 0' }}>Kind</th>
+            <th style={{ textAlign: 'left', color: text.dim, padding: '4px 0' }}>Status</th>
             <th />
           </tr>
         </thead>
@@ -243,20 +244,20 @@ function BindingStep({
             const hw = hwInputs[j.slot] ?? defaultHw()
             return (
               <tr key={j.slot}>
-                <td style={{ padding: '6px 12px 6px 0', color: '#ccc' }}>{j.slot}</td>
-                <td style={{ padding: '6px 12px 6px 0', color: '#ccc' }}>{j.name}</td>
+                <td style={{ padding: '6px 12px 6px 0', color: text.secondary }}>{j.slot}</td>
+                <td style={{ padding: '6px 12px 6px 0', color: text.secondary }}>{j.name}</td>
                 <td style={{ padding: '6px 12px 6px 0' }}>
                   {!r && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
-                          style={{ ...kindBtn, background: k === 'sim' ? '#1565c0' : '#333' }}
+                          style={{ ...kindBtn, background: k === 'sim' ? accent.default : borderColor.default }}
                           onClick={() => setKind(j.slot, 'sim')}
                         >
                           Sim
                         </button>
                         <button
-                          style={{ ...kindBtn, background: k === 'hardware' ? '#4a148c' : '#333' }}
+                          style={{ ...kindBtn, background: k === 'hardware' ? accent.hover : borderColor.default }}
                           onClick={() => setKind(j.slot, 'hardware')}
                         >
                           Hardware
@@ -266,13 +267,13 @@ function BindingStep({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              style={{ ...kindBtn, background: hw.transport === 'serial' ? '#006064' : '#333', fontSize: 11 }}
+                              style={{ ...kindBtn, background: hw.transport === 'serial' ? accent.dim : borderColor.default, fontSize: 11 }}
                               onClick={() => setHwField(j.slot, 'transport', 'serial')}
                             >
                               USB-CDC
                             </button>
                             <button
-                              style={{ ...kindBtn, background: hw.transport === 'tcp' ? '#33691e' : '#333', fontSize: 11 }}
+                              style={{ ...kindBtn, background: hw.transport === 'tcp' ? accent.dim : borderColor.default, fontSize: 11 }}
                               onClick={() => setHwField(j.slot, 'transport', 'tcp')}
                             >
                               TCP/IP
@@ -317,18 +318,18 @@ function BindingStep({
                 <td style={{ padding: '6px 12px 6px 0' }}>
                   {r ? (
                     r.pid != null ? (
-                      <span style={{ color: '#69f0ae' }}>
+                      <span style={{ color: semantic.ok }}>
                         ✓ pid={r.pid} port={r.address?.split(':').at(-1)}
                       </span>
                     ) : (
-                      <span style={{ color: '#69f0ae' }}>✓ {r.address}</span>
+                      <span style={{ color: semantic.ok }}>✓ {r.address}</span>
                     )
                   ) : err ? (
-                    <span style={{ color: '#f44' }}>{err}</span>
+                    <span style={{ color: semantic.danger }}>{err}</span>
                   ) : binding === j.slot ? (
-                    <span style={{ color: '#aaa' }}>{k === 'hardware' ? 'Connecting…' : 'Spawning…'}</span>
+                    <span style={{ color: text.dim }}>{k === 'hardware' ? 'Connecting…' : 'Spawning…'}</span>
                   ) : (
-                    <span style={{ color: '#666' }}>–</span>
+                    <span style={{ color: text.faint }}>–</span>
                   )}
                 </td>
                 <td>
@@ -357,7 +358,7 @@ function BindingStep({
           Bind all slots →
         </button>
         {allBound && (
-          <button style={{ ...btn, background: '#1b5e20' }} onClick={onDone}>
+          <button style={{ ...btn, background: semantic.ok }} onClick={onDone}>
             Open workspace →
           </button>
         )}
@@ -474,18 +475,18 @@ const overlay: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#0d0d0d',
+  background: bg.canvas,
 }
 
 const panel: React.CSSProperties = {
-  background: '#1a1a1a',
-  border: '1px solid #333',
+  background: bg.surfaceRaised,
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 8,
   padding: 32,
   width: 560,
   maxHeight: '90vh',
   overflowY: 'auto',
-  color: '#e0e0e0',
+  color: text.secondary,
   fontFamily: 'system-ui, sans-serif',
   display: 'flex',
   flexDirection: 'column',
@@ -495,19 +496,19 @@ const heading: React.CSSProperties = {
   fontSize: 20,
   fontWeight: 600,
   marginBottom: 20,
-  color: '#fff',
+  color: text.primary,
 }
 
-const hint: React.CSSProperties = { color: '#888', marginBottom: 16, fontSize: 13 }
+const hint: React.CSSProperties = { color: text.dim, marginBottom: 16, fontSize: 13 }
 
 const card: React.CSSProperties = {
-  background: '#222',
-  border: '1px solid #444',
+  background: bg.surfaceRaised,
+  border: `1px solid ${borderColor.focus}`,
   borderRadius: 6,
   padding: '12px 16px',
   cursor: 'pointer',
   textAlign: 'left',
-  color: '#e0e0e0',
+  color: text.secondary,
   minWidth: 200,
 }
 
@@ -515,25 +516,25 @@ const breadcrumb: React.CSSProperties = {
   display: 'flex',
   gap: 16,
   fontSize: 13,
-  color: '#666',
+  color: text.faint,
   flexShrink: 0,
 }
 
 const cancelBtnStyle: React.CSSProperties = {
-  background: '#374151',
+  background: borderColor.default,
   border: 'none',
   borderRadius: 6,
-  color: '#d1d5db',
+  color: text.secondary,
   cursor: 'pointer',
   padding: '8px 16px',
   fontSize: 14,
 }
 
 const btn: React.CSSProperties = {
-  background: '#1565c0',
+  background: accent.default,
   border: 'none',
   borderRadius: 4,
-  color: '#fff',
+  color: accent.on,
   cursor: 'pointer',
   marginTop: 16,
   padding: '8px 20px',
@@ -543,7 +544,7 @@ const btn: React.CSSProperties = {
 const kindBtn: React.CSSProperties = {
   border: 'none',
   borderRadius: 4,
-  color: '#fff',
+  color: text.primary,
   cursor: 'pointer',
   padding: '3px 10px',
   fontSize: 12,
@@ -551,13 +552,13 @@ const kindBtn: React.CSSProperties = {
 }
 
 const ipInput: React.CSSProperties = {
-  background: '#1a1a1a',
-  border: '1px solid #444',
+  background: bg.surfaceRaised,
+  border: `1px solid ${borderColor.focus}`,
   borderRadius: 4,
-  color: '#e0e0e0',
+  color: text.secondary,
   fontSize: 12,
   padding: '3px 6px',
   width: 150,
 }
 
-const activeCrumb: React.CSSProperties = { color: '#82b1ff', fontWeight: 600 }
+const activeCrumb: React.CSSProperties = { color: accent.default, fontWeight: 600 }

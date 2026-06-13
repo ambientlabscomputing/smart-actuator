@@ -10,6 +10,7 @@
  *  onClose  – called when the user dismisses a completed / aborted job
  */
 import { useCalibrationJob, TERMINAL } from '../../hooks/useCalibrationJob'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 const STEP_LABELS: Record<string, string[]> = {
   default: ['Start', 'Move to home', 'Range sweep', 'Done'],
@@ -32,17 +33,17 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
   const pct = Math.min(100, Math.round((state.step / totalSteps) * 100))
 
   const statusColor: Record<string, string> = {
-    completed: '#22c55e',
-    aborted: '#f59e0b',
-    faulted: '#ef4444',
+    completed: semantic.ok,
+    aborted: semantic.warn,
+    faulted: semantic.danger,
   }
-  const barColor = statusColor[state.status] ?? '#3b82f6'
+  const barColor = statusColor[state.status] ?? semantic.info
 
   return (
     <div
       style={{
-        background: '#1a1a1a',
-        border: '1px solid #374151',
+        background: bg.surfaceRaised,
+        border: `1px solid ${borderColor.default}`,
         borderRadius: 10,
         padding: '14px 16px',
         fontFamily: 'system-ui, sans-serif',
@@ -58,13 +59,13 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
           marginBottom: 10,
         }}
       >
-        <span style={{ color: '#f3f4f6', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span style={{ color: text.primary, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Calibration
         </span>
         {isTerminal && (
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 16 }}
+            style={{ background: 'none', border: 'none', color: text.faint, cursor: 'pointer', fontSize: 16 }}
             aria-label="Close"
           >
             ×
@@ -76,7 +77,7 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
       <div
         style={{
           height: 4,
-          background: '#374151',
+          background: borderColor.default,
           borderRadius: 2,
           marginBottom: 12,
           overflow: 'hidden',
@@ -108,7 +109,7 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
               fontSize: 9,
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
-              color: i <= state.step ? '#9ca3af' : '#4b5563',
+              color: i <= state.step ? text.dim : text.disabled,
             }}
           >
             {label}
@@ -119,7 +120,7 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
       {/* Prompt */}
       <p
         style={{
-          color: '#e5e7eb',
+          color: text.secondary,
           fontSize: 12,
           margin: '0 0 14px',
           lineHeight: 1.5,
@@ -130,25 +131,25 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
 
       {/* Error */}
       {error && (
-        <p style={{ color: '#f87171', fontSize: 11, margin: '0 0 10px' }}>{error}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, margin: '0 0 10px' }}>{error}</p>
       )}
 
       {/* Result summary */}
       {state.status === 'completed' && Object.keys(state.result).length > 0 && (
         <div
           style={{
-            background: '#052e16',
-            border: '1px solid #166534',
+            background: bg.surfaceRaised,
+            border: `1px solid ${semantic.ok}`,
             borderRadius: 6,
             padding: '8px 10px',
             marginBottom: 12,
           }}
         >
-          <span style={{ color: '#4ade80', fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>
+          <span style={{ color: semantic.ok, fontSize: 10, fontWeight: 600, textTransform: 'uppercase' }}>
             Result
           </span>
           {Object.entries(state.result).map(([k, v]) => (
-            <div key={k} style={{ color: '#86efac', fontSize: 11, fontFamily: 'monospace', marginTop: 2 }}>
+              <div key={k} style={{ color: semantic.ok, fontSize: 11, fontFamily: 'monospace', marginTop: 2 }}>
               {k}: {JSON.stringify(v)}
             </div>
           ))}
@@ -164,8 +165,8 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
             style={{
               flex: 1,
               padding: '7px 0',
-              background: isRunning ? '#1d4ed8' : '#2563eb',
-              color: '#fff',
+              background: isRunning ? accent.hover : accent.default,
+              color: text.primary,
               border: 'none',
               borderRadius: 6,
               cursor: isRunning ? 'default' : 'pointer',
@@ -180,8 +181,8 @@ export function InteractiveJob({ jobId, onClose }: InteractiveJobProps) {
             onClick={() => void abort()}
             style={{
               padding: '7px 14px',
-              background: '#374151',
-              color: '#d1d5db',
+              background: borderColor.default,
+              color: text.secondary,
               border: 'none',
               borderRadius: 6,
               cursor: 'pointer',

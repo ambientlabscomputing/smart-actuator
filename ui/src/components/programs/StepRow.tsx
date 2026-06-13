@@ -8,6 +8,7 @@ import type { ProgramStep, StepKind } from './programAst'
 import type { DHJointValues } from '../../lib/types'
 import { Select } from '../ui/Select'
 import { Button } from '../ui/Button'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 export interface StepRowProps {
   step: ProgramStep
@@ -27,7 +28,7 @@ export interface StepRowProps {
 }
 
 const labelStyle: React.CSSProperties = {
-  color: '#6b7280',
+  color: text.faint,
   fontSize: 11,
   marginRight: 4,
   whiteSpace: 'nowrap',
@@ -35,10 +36,10 @@ const labelStyle: React.CSSProperties = {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#111827',
-  border: '1px solid #374151',
+  background: bg.surface,
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 2,
-  color: '#f3f4f6',
+  color: text.primary,
   fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
   fontFeatureSettings: '"tnum" 1',
   fontVariantNumeric: 'tabular-nums',
@@ -78,15 +79,15 @@ export function StepRow({
         flexDirection: 'column',
         gap: 6,
         padding: '8px 10px',
-        background: '#111827',
-        border: '1px solid #1f2937',
+        background: bg.surface,
+        border: `1px solid ${borderColor.dim}`,
         borderRadius: 2,
         marginBottom: 6,
       }}
     >
       {/* Row 1: step number + kind selector + reorder/remove */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#4b5563', fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace", fontSize: 10, minWidth: 16 }}>{index + 1}</span>
+        <span style={{ color: text.disabled, fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace", fontSize: 10, minWidth: 16 }}>{index + 1}</span>
         <Select
           value={step.kind}
           onChange={(e) => handleKindChange(e.target.value as StepKind)}
@@ -100,7 +101,7 @@ export function StepRow({
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <Button variant="ghost" size="sm" onClick={onMoveUp} disabled={index === 0} title="Move up">↑</Button>
           <Button variant="ghost" size="sm" onClick={onMoveDown} disabled={index === total - 1} title="Move down">↓</Button>
-          <Button variant="ghost" size="sm" onClick={onRemove} style={{ color: '#f87171', borderColor: '#374151' }} title="Remove">✕</Button>
+          <Button variant="ghost" size="sm" onClick={onRemove} style={{ color: semantic.danger, borderColor: borderColor.default }} title="Remove">✕</Button>
         </div>
       </div>
 
@@ -202,7 +203,7 @@ export function StepRow({
             <Button
               variant="ghost"
               size="sm"
-              style={{ alignSelf: 'flex-start', color: '#60a5fa', borderColor: '#374151' }}
+              style={{ alignSelf: 'flex-start', color: accent.default, borderColor: borderColor.default }}
               onClick={() =>
                 onChange({
                   ...step,

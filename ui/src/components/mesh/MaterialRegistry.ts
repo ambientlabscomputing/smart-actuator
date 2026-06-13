@@ -11,6 +11,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { MeshRole } from './recipes'
 import { machineColors, labInstrument, materialDefaults } from '../../design/tokens'
+import { semantic } from '../../design/neutrals'
 
 export type MaterialMap = Record<MeshRole, THREE.MeshStandardMaterial>
 
@@ -51,7 +52,7 @@ export function useMaterials(linkColorIndex: number): MaterialMap {
         color: machineColors.eeActive,
         roughness: materialDefaults.eeRoughness,
         metalness: materialDefaults.eeMetalness,
-        emissive: new THREE.Color('#f59e0b'),
+        emissive: new THREE.Color(semantic.warn),
         emissiveIntensity: 0.9,
         transparent: true,
         opacity: 0.65,

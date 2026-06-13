@@ -83,5 +83,38 @@ export default defineConfig([
       ],
     },
   },
+  // Box 4 (RFD-14): forbid bare hex/rgb/hsl color literals in component code.
+  // All colours must come from src/design/theme.ts or src/design/tokens.ts.
+  //
+  // Exceptions:
+  //   src/design/**      — the token source files themselves
+  //   src/components/canvas/**   — Box 1 environment shader colours (THREE.Color uniforms)
+  //   src/components/mesh/**     — Box 2 procedural mesh colours (THREE.Color instances)
+  //   src/components/AppCanvas.tsx — Box 1 lighting rig colours
+  //   src/components/mesh/MotionEnvelope.tsx — Box 2 arc/tick colours
+  //   src/components/mesh/MaterialRegistry.ts — Box 2 material presets
+  //   src/pages/MeshLab.tsx — dev-only preview page
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/design/**',
+      'src/components/canvas/**',
+      'src/components/mesh/**',
+      'src/components/AppCanvas.tsx',
+      'src/pages/MeshLab.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          // Standalone quoted hex literal: '#rrggbb' or '#rgb'
+          selector: "Literal[value=/^#[0-9a-fA-F]{3,6}$/]",
+          message:
+            "Hex colour literals are forbidden outside src/design/. " +
+            "Import from '@/design' instead (bg, text, accent, semantic, chart, machineColors…).",
+        },
+      ],
+    },
+  },
 ])
 

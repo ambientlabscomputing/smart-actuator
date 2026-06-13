@@ -17,6 +17,7 @@ import { useTeachSession } from '../../hooks/useTeachSession'
 import { useJointState, brainPost } from '../../hooks/useJointState'
 import { useMachineIK } from '../../hooks/useMachineIK'
 import { forwardKinematics } from '../../lib/fk'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 import type { TeachMode, Waypoint } from '../../hooks/useTeachSession'
 import type { DHJointValues } from '../../lib/types'
 
@@ -28,15 +29,15 @@ const col: React.CSSProperties = {
 }
 
 const card: React.CSSProperties = {
-  background: '#111827',
+  background: bg.surface,
   borderRadius: 10,
-  border: '1px solid #1f2937',
+  border: `1px solid ${borderColor.dim}`,
   padding: '16px 20px',
   marginBottom: 12,
 }
 
 const label: React.CSSProperties = {
-  color: '#9ca3af',
+  color: text.dim,
   fontSize: 10,
   fontWeight: 700,
   letterSpacing: '0.08em',
@@ -49,10 +50,10 @@ const btn = (
   disabled?: boolean,
 ): React.CSSProperties => ({
   padding: '10px 20px',
-  background: disabled ? '#374151' : bg,
+  background: disabled ? borderColor.default : bg,
   border: 'none',
   borderRadius: 8,
-  color: disabled ? '#6b7280' : '#fff',
+  color: disabled ? text.faint : text.primary,
   cursor: disabled ? 'not-allowed' : 'pointer',
   fontSize: 13,
   fontWeight: 600,
@@ -61,11 +62,11 @@ const btn = (
 const toggleBtn = (active: boolean, disabled?: boolean): React.CSSProperties => ({
   flex: 1,
   padding: '6px 0',
-  background: active ? '#2563eb' : 'transparent',
+  background: active ? accent.default : 'transparent',
   border: '1px solid',
-  borderColor: active ? '#2563eb' : '#374151',
+  borderColor: active ? accent.default : borderColor.default,
   borderRadius: 6,
-  color: disabled ? '#4b5563' : active ? '#fff' : '#9ca3af',
+  color: disabled ? text.disabled : active ? text.primary : text.dim,
   cursor: disabled ? 'not-allowed' : 'pointer',
   fontSize: 12,
   fontWeight: 600,
@@ -96,7 +97,7 @@ function WaypointRow({
         alignItems: 'center',
         padding: '8px 12px',
         borderRadius: 6,
-        background: '#1a2236',
+        background: bg.surfaceAlt,
         marginBottom: 4,
         gap: 10,
       }}
@@ -106,8 +107,8 @@ function WaypointRow({
           width: 24,
           height: 24,
           borderRadius: '50%',
-          background: '#1e40af',
-          color: '#93c5fd',
+          background: accent.default,
+          color: accent.default,
           fontSize: 11,
           fontWeight: 700,
           display: 'flex',
@@ -119,15 +120,15 @@ function WaypointRow({
         {index + 1}
       </span>
       <div style={{ flex: 1, ...col, gap: 1 }}>
-        <span style={{ color: '#e5e7eb', fontSize: 12, fontWeight: 500 }}>{time}</span>
-        <span style={{ color: '#6b7280', fontSize: 10 }}>{jointCount} joint{jointCount !== 1 ? 's' : ''}</span>
+        <span style={{ color: text.secondary, fontSize: 12, fontWeight: 500 }}>{time}</span>
+        <span style={{ color: text.faint, fontSize: 10 }}>{jointCount} joint{jointCount !== 1 ? 's' : ''}</span>
       </div>
       <button
         onClick={onDelete}
         style={{
           background: 'none',
           border: 'none',
-          color: '#6b7280',
+          color: text.faint,
           cursor: 'pointer',
           fontSize: 14,
           padding: '0 4px',
@@ -163,8 +164,8 @@ function SaveDialog({
         zIndex: 1000,
       }}
     >
-      <div style={{ background: '#111827', borderRadius: 12, padding: 28, width: 340, ...col, gap: 16 }}>
-        <h3 style={{ color: '#f9fafb', margin: 0, fontSize: 16, fontWeight: 700 }}>Save program</h3>
+      <div style={{ background: bg.surface, borderRadius: 12, padding: 28, width: 340, ...col, gap: 16 }}>
+        <h3 style={{ color: text.primary, margin: 0, fontSize: 16, fontWeight: 700 }}>Save program</h3>
         <div style={{ ...col, gap: 6 }}>
           <label style={label}>Program name</label>
           <input
@@ -174,10 +175,10 @@ function SaveDialog({
             onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) onSave(name.trim()) }}
             placeholder="my-program"
             style={{
-              background: '#1f2937',
-              border: '1px solid #374151',
+              background: borderColor.dim,
+              border: `1px solid ${borderColor.default}`,
               borderRadius: 6,
-              color: '#f3f4f6',
+              color: text.primary,
               fontSize: 14,
               padding: '8px 12px',
               outline: 'none',
@@ -185,9 +186,9 @@ function SaveDialog({
           />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button style={btn('#374151')} onClick={onCancel}>Cancel</button>
+          <button style={btn(borderColor.default)} onClick={onCancel}>Cancel</button>
           <button
-            style={btn('#2563eb', !name.trim())}
+            style={btn(accent.default, !name.trim())}
             onClick={() => name.trim() && onSave(name.trim())}
           >
             Save &amp; go to Programs
@@ -225,7 +226,7 @@ function JointPickerOverlay({
         top: 50,
         left: 10,
         background: 'rgba(15, 23, 42, 0.85)',
-        border: '1px solid #1f2937',
+        border: `1px solid ${borderColor.dim}`,
         borderRadius: 8,
         padding: 8,
         minWidth: 200,
@@ -235,7 +236,7 @@ function JointPickerOverlay({
       }}
     >
       <div style={{
-        color: '#9ca3af',
+        color: text.dim,
         fontSize: 9,
         fontWeight: 700,
         letterSpacing: '0.08em',
@@ -261,14 +262,14 @@ function JointPickerOverlay({
             style={{
               padding: '6px 8px',
               borderRadius: 6,
-              background: isPicked ? '#1e3a8a' : 'transparent',
+              background: isPicked ? accent.dim : 'transparent',
               cursor: 'pointer',
               marginBottom: 2,
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
               <span style={{
-                color: isPicked ? '#bfdbfe' : '#e5e7eb',
+                color: isPicked ? accent.default : text.secondary,
                 fontSize: 11,
                 fontWeight: 600,
                 fontFamily: 'monospace',
@@ -276,7 +277,7 @@ function JointPickerOverlay({
                 {isPrismatic ? '↔' : '↻'} {j.name}
               </span>
               <span style={{
-                color: isPicked ? '#93c5fd' : '#9ca3af',
+                color: isPicked ? accent.default : text.dim,
                 fontSize: 10,
                 fontFamily: 'monospace',
               }}>{display}</span>
@@ -290,7 +291,7 @@ function JointPickerOverlay({
                 value={value}
                 onChange={(e) => onChange(i, parseFloat(e.target.value))}
                 onClick={(e) => e.stopPropagation()}
-                style={{ width: '100%', marginTop: 4, accentColor: '#3b82f6' }}
+                style={{ width: '100%', marginTop: 4, accentColor: semantic.info }}
               />
             )}
           </div>
@@ -471,7 +472,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
   )
 
   return (
-    <div style={{ height: '100dvh', background: '#0d1117', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100dvh', background: bg.canvas, display: 'flex', flexDirection: 'column' }}>
       <AppToolbar title="Teach" />
 
       {/* Body: 3D canvas + control panel side-by-side */}
@@ -502,7 +503,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
               left: '50%',
               transform: 'translateX(-50%)',
               background: 'rgba(0,0,0,0.6)',
-              color: '#93c5fd',
+              color: accent.default,
               fontSize: 11,
               fontWeight: 600,
               padding: '4px 12px',
@@ -535,7 +536,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
             display: 'flex',
             flexDirection: 'column',
             gap: 0,
-            borderLeft: '1px solid #1f2937',
+            borderLeft: `1px solid ${borderColor.dim}`,
           }}
         >
           {/* Mode toggle */}
@@ -564,7 +565,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 style={{
-                  ...btn(isRecording ? '#dc2626' : '#059669'),
+                  ...btn(isRecording ? semantic.danger : semantic.ok),
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -578,7 +579,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: isRecording ? '#fca5a5' : '#a7f3d0',
+                    background: isRecording ? semantic.danger : semantic.ok,
                     display: 'inline-block',
                   }}
                 />
@@ -591,7 +592,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
 
               {isActive && (
                 <button
-                  style={btn('#374151')}
+                  style={btn(borderColor.default)}
                   onClick={() => void abort()}
                   title="Discard session"
                 >
@@ -601,7 +602,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
             </div>
 
             {error && (
-              <p style={{ color: '#f87171', fontSize: 12, marginTop: 10, margin: '10px 0 0' }}>
+              <p style={{ color: semantic.danger, fontSize: 12, marginTop: 10, margin: '10px 0 0' }}>
                 {error}
               </p>
             )}
@@ -612,7 +613,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
             <div style={card}>
               <p style={label}>Capture waypoint</p>
               <button
-                style={{ ...btn('#7c3aed'), width: '100%' }}
+                style={{ ...btn(accent.default), width: '100%' }}
                 onClick={() => void capture()}
               >
                 📍 Capture  <span style={{ opacity: 0.6, fontSize: 11 }}>(or Spacebar)</span>
@@ -637,7 +638,7 @@ export function TeachPage({ machineId }: TeachPageProps) {
 
               {canSave && (
                 <button
-                  style={{ ...btn('#2563eb'), width: '100%', marginTop: 12 }}
+                  style={{ ...btn(accent.default), width: '100%', marginTop: 12 }}
                   onClick={() => setShowSave(true)}
                 >
                   Save as Program →
@@ -648,10 +649,10 @@ export function TeachPage({ machineId }: TeachPageProps) {
 
           {/* Saved confirmation */}
           {session?.status === 'saved' && session.program_id && (
-            <div style={{ ...card, borderColor: '#065f46', background: '#022c22' }}>
-              <p style={{ color: '#6ee7b7', fontSize: 13, margin: 0 }}>
+            <div style={{ ...card, borderColor: semantic.ok, background: bg.surfaceRaised }}>
+              <p style={{ color: semantic.ok, fontSize: 13, margin: 0 }}>
                 ✓ Saved! <button
-                  style={{ background: 'none', border: 'none', color: '#34d399', cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
+                  style={{ background: 'none', border: 'none', color: semantic.ok, cursor: 'pointer', fontSize: 13, padding: 0, textDecoration: 'underline' }}
                   onClick={() => navigate('/programs')}
                 >Go to Programs</button>
               </p>

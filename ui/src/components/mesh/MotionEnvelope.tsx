@@ -26,7 +26,7 @@ import * as THREE from 'three'
 const NEON_ARC   = '#7dd3fc'  // sky-blue 300 — smoked arc tint
 const NEON_TICK  = '#38bdf8'  // sky-blue 400 — tick notches
 const NEON_STOP  = '#f0abfc'  // fuchsia 300 — hard-stop pins
-const NEON_PTR   = '#a78bfa'  // violet 400 — current-angle needle
+const NEON_PTR   = '#818cf8'  // violet 400 — current-angle needle
 
 const ARC_SEGS = 80
 

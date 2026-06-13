@@ -82,7 +82,7 @@ export function AppCanvas({
         shadow-normalBias={0.02}
       />
       <directionalLight color="#b8c7d6" position={[-2, -2, 1.5]} intensity={0.35} />
-      <directionalLight color="#ffffff" position={[-1, 3, 3]} intensity={0.5} />
+      <directionalLight color="#fff1e0" position={[-1, 3, 3]} intensity={0.5} />
 
       {/* ── Stage floor on XY plane (Z-up, arm base at Z=0) ─────────── */}
       <StageFloor />

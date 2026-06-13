@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react'
 import { ProgramRunView } from './ProgramRunView'
 import { getToken } from '../../lib/authClient'
+import { bg, text, borderColor, accent, semantic } from '@/design'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -136,15 +137,15 @@ function StepRow({
   onMoveDown,
 }: StepRowProps) {
   const labelStyle: React.CSSProperties = {
-    color: '#9ca3af',
+    color: text.dim,
     fontSize: 11,
     marginRight: 6,
   }
   const inputStyle: React.CSSProperties = {
-    background: '#111827',
-    border: '1px solid #374151',
+    background: bg.surface,
+    border: `1px solid ${borderColor.default}`,
     borderRadius: 4,
-    color: '#f3f4f6',
+    color: text.primary,
     fontSize: 12,
     padding: '3px 6px',
   }
@@ -156,13 +157,13 @@ function StepRow({
         alignItems: 'center',
         gap: 8,
         padding: '6px 8px',
-        background: '#111',
+        background: bg.canvas,
         borderRadius: 6,
         marginBottom: 4,
       }}
     >
       {/* Step number */}
-      <span style={{ color: '#4b5563', fontSize: 10, minWidth: 16 }}>{index + 1}</span>
+      <span style={{ color: text.disabled, fontSize: 10, minWidth: 16 }}>{index + 1}</span>
 
       {/* Kind selector */}
       <select
@@ -236,7 +237,7 @@ function StepRow({
         >
           ↓
         </button>
-        <button onClick={onRemove} style={{ ...btnStyle, color: '#f87171' }} title="Remove">
+        <button onClick={onRemove} style={{ ...btnStyle, color: semantic.danger }} title="Remove">
           ✕
         </button>
       </div>
@@ -246,9 +247,9 @@ function StepRow({
 
 const btnStyle: React.CSSProperties = {
   background: 'transparent',
-  border: '1px solid #374151',
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 4,
-  color: '#9ca3af',
+  color: text.dim,
   cursor: 'pointer',
   fontSize: 12,
   padding: '2px 6px',
@@ -401,10 +402,10 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           disabled={listLoading}
           style={{
             flex: 1,
-            background: '#111827',
-            border: '1px solid #374151',
+            background: bg.surface,
+            border: `1px solid ${borderColor.default}`,
             borderRadius: 6,
-            color: savedPrograms.some(p => p.program_id === programId) ? '#f3f4f6' : '#6b7280',
+            color: savedPrograms.some(p => p.program_id === programId) ? text.primary : text.faint,
             fontSize: 12,
             padding: '4px 8px',
             cursor: 'pointer',
@@ -422,9 +423,9 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           title="New program"
           style={{
             background: 'transparent',
-            border: '1px solid #374151',
+            border: `1px solid ${borderColor.default}`,
             borderRadius: 6,
-            color: '#9ca3af',
+            color: text.dim,
             cursor: 'pointer',
             fontSize: 12,
             padding: '4px 10px',
@@ -438,7 +439,7 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
       {/* Program name */}
       <div style={{ marginBottom: 12 }}>
         <label
-          style={{ color: '#9ca3af', fontSize: 11, display: 'block', marginBottom: 4 }}
+          style={{ color: text.dim, fontSize: 11, display: 'block', marginBottom: 4 }}
         >
           Program name
         </label>
@@ -446,10 +447,10 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           style={{
-            background: '#111827',
-            border: '1px solid #374151',
+            background: bg.surface,
+            border: `1px solid ${borderColor.default}`,
             borderRadius: 6,
-            color: '#f3f4f6',
+            color: text.primary,
             fontSize: 13,
             padding: '5px 10px',
             width: '100%',
@@ -492,8 +493,8 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           disabled={saving}
           style={{
             ...actionBtnStyle,
-            background: '#374151',
-            color: '#d1d5db',
+            background: borderColor.default,
+            color: text.secondary,
             opacity: saving ? 0.6 : 1,
           }}
         >
@@ -504,8 +505,8 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
           disabled={saving || steps.length === 0}
           style={{
             ...actionBtnStyle,
-            background: '#2563eb',
-            color: '#fff',
+            background: accent.default,
+            color: text.primary,
             opacity: saving || steps.length === 0 ? 0.5 : 1,
           }}
         >
@@ -514,10 +515,10 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
       </div>
 
       {saveError && (
-        <p style={{ color: '#f87171', fontSize: 11, marginTop: 8 }}>{saveError}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, marginTop: 8 }}>{saveError}</p>
       )}
       {runError && (
-        <p style={{ color: '#f87171', fontSize: 11, marginTop: 8 }}>{runError}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, marginTop: 8 }}>{runError}</p>
       )}
 
       {/* Live run view */}
@@ -534,9 +535,9 @@ export function ProgramListView({ machineId, joints }: ProgramListViewProps) {
 
 const addBtnStyle: React.CSSProperties = {
   background: 'transparent',
-  border: '1px solid #374151',
+  border: `1px solid ${borderColor.default}`,
   borderRadius: 6,
-  color: '#9ca3af',
+  color: text.dim,
   cursor: 'pointer',
   fontSize: 12,
   padding: '4px 12px',

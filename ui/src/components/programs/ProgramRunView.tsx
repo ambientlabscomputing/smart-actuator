@@ -7,6 +7,7 @@
 import { useProgramRun, PROGRAM_RUN_TERMINAL } from '../../hooks/useProgramRun'
 import type { ProgramStep } from './programAst'
 import { stepLabel } from './programAst'
+import { bg, text, borderColor, semantic } from '@/design'
 
 interface ProgramRunViewProps {
   runId: string | null
@@ -15,10 +16,10 @@ interface ProgramRunViewProps {
 }
 
 const statusColor: Record<string, string> = {
-  completed: '#22c55e',
-  stopped: '#f59e0b',
-  faulted: '#ef4444',
-  interrupted: '#ef4444',
+  completed: semantic.ok,
+  stopped: semantic.warn,
+  faulted: semantic.danger,
+  interrupted: semantic.danger,
 }
 
 export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
@@ -32,13 +33,13 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
   const pct = totalSteps > 0
     ? Math.min(100, Math.round((state.current_step_index / totalSteps) * 100))
     : 0
-  const barColor = statusColor[state.status] ?? '#3b82f6'
+  const barColor = statusColor[state.status] ?? semantic.info
 
   return (
     <div
       style={{
-        background: '#1a1a1a',
-        border: '1px solid #374151',
+        background: bg.surfaceRaised,
+        border: `1px solid ${borderColor.default}`,
         borderRadius: 10,
         padding: '14px 16px',
         fontFamily: 'system-ui, sans-serif',
@@ -56,7 +57,7 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
       >
         <span
           style={{
-            color: '#f3f4f6',
+            color: text.primary,
             fontSize: 12,
             fontWeight: 600,
             textTransform: 'uppercase',
@@ -71,7 +72,7 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
             style={{
               background: 'none',
               border: 'none',
-              color: '#6b7280',
+              color: text.faint,
               cursor: 'pointer',
               fontSize: 16,
             }}
@@ -86,7 +87,7 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
       <div
         style={{
           height: 4,
-          background: '#374151',
+          background: borderColor.default,
           borderRadius: 2,
           marginBottom: 12,
           overflow: 'hidden',
@@ -114,7 +115,7 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
               style={{
                 fontSize: 11,
                 padding: '3px 0',
-                color: done ? '#4ade80' : active ? '#f3f4f6' : '#6b7280',
+                color: done ? semantic.ok : active ? text.primary : text.faint,
                 fontWeight: active ? 600 : 400,
               }}
             >
@@ -126,16 +127,16 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
 
       {/* Status / error */}
       {state.error && (
-        <p style={{ color: '#f87171', fontSize: 11, margin: '0 0 10px' }}>{state.error}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, margin: '0 0 10px' }}>{state.error}</p>
       )}
       {error && (
-        <p style={{ color: '#f87171', fontSize: 11, margin: '0 0 10px' }}>{error}</p>
+        <p style={{ color: semantic.danger, fontSize: 11, margin: '0 0 10px' }}>{error}</p>
       )}
 
       {/* Status label */}
       <p
         style={{
-          color: '#9ca3af',
+          color: text.dim,
           fontSize: 11,
           margin: '0 0 12px',
           textTransform: 'uppercase',
@@ -154,8 +155,8 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
           style={{
             width: '100%',
             padding: '7px 0',
-            background: '#374151',
-            color: '#d1d5db',
+            background: borderColor.default,
+            color: text.secondary,
             border: 'none',
             borderRadius: 6,
             cursor: 'pointer',
