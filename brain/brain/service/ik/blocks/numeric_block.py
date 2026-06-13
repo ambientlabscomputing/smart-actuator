@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 
 def solve_numeric_block(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:

@@ -28,7 +28,7 @@ def _joint_limit_rad(description: "MachineDescription", slot: int) -> float:
         joint = next((j for j in dh.joints if j.slot == slot), None)
         if joint is not None:
             if joint.type == "prismatic":
-                return float(joint.limit_upper)   # metres
+                return float(joint.limit_upper)  # metres
             else:
                 return math.radians(float(joint.limit_upper))  # deg → rad
     # Legacy fallback.
@@ -99,6 +99,7 @@ class MachineService:
                 dh_values = parameters_to_dh_values(dh_schema, easy, dict(description.parameters))
             else:
                 from brain.models.machine import DHChainValues
+
                 dh_values = DHChainValues.from_schema_defaults(dh_schema)
 
             # Keep dh_chain on description
@@ -183,6 +184,7 @@ class MachineService:
             # Backward-compat migration: seed dh_chain from legacy parameters when absent.
             if tmpl and tmpl.dh and machine.description.dh_chain is None:
                 from brain.models.machine import DHChainValues
+
                 if machine.description.parameters:
                     machine.description.dh_chain = parameters_to_dh_values(
                         tmpl.dh, tmpl.easy, dict(machine.description.parameters)
@@ -329,8 +331,7 @@ class MachineService:
         if self._sidecar is None or description.dh_chain is None:
             return
         joint_types = {
-            jv.name: getattr(jv, "type", "revolute")
-            for jv in description.dh_chain.joints
+            jv.name: getattr(jv, "type", "revolute") for jv in description.dh_chain.joints
         }
         try:
             self._sidecar.register_joint_types(description.machine_id, joint_types)
@@ -358,6 +359,7 @@ class MachineService:
     ) -> "Machine":
         """Persist IK solver overrides (force-numeric flag, numeric config)."""
         from brain.models.machine import IKOverrides as _IKOverrides  # noqa: F401
+
         machine = await self.get_machine(machine_id)
         if machine is None:
             raise ValueError(f"Machine {machine_id!r} not found")
@@ -371,6 +373,7 @@ class MachineService:
     ) -> "Machine":
         """Persist a new end-effector frame definition."""
         from brain.models.machine import EndEffectorSpec as _EE  # noqa: F401
+
         machine = await self.get_machine(machine_id)
         if machine is None:
             raise ValueError(f"Machine {machine_id!r} not found")
@@ -451,13 +454,9 @@ class MachineService:
             machine.description.parameters = dh_values_to_parameters(easy, new_dh)
 
             try:
-                machine.expanded_urdf = dh_chain_to_urdf(
-                    dh_schema, new_dh, robot_name=template_id
-                )
+                machine.expanded_urdf = dh_chain_to_urdf(dh_schema, new_dh, robot_name=template_id)
             except Exception:
-                logger.exception(
-                    "DH URDF re-expansion failed for machine {}", machine_id
-                )
+                logger.exception("DH URDF re-expansion failed for machine {}", machine_id)
         else:
             # Legacy path: validate + merge parameters
             if parameters is None:
@@ -503,7 +502,7 @@ class MachineService:
                 )
 
         # Push updated soft limits to any running sims / hardware.
-        bridge: "SidecarBridge | None" = None
+        bridge: SidecarBridge | None = None
         if self._sim_lifecycle is not None:
             bridge = self._sim_lifecycle._sidecar  # type: ignore[attr-defined]
         elif self._hardware_lifecycle is not None:

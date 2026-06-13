@@ -14,8 +14,12 @@ import math
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-from brain.models.machine import DHChainSchema, DHChainValues, DHJointValues, EasyAlias, joint_limit_to_si
-
+from brain.models.machine import (
+    DHChainSchema,
+    DHChainValues,
+    EasyAlias,
+    joint_limit_to_si,
+)
 
 # ── Public: URDF generation ───────────────────────────────────────────────────
 

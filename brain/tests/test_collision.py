@@ -2,55 +2,56 @@
 Tests for collision detection system.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from brain.service.collision.constraints import GroundPlaneConstraint, CollisionResult
+import pytest
+
+from brain.service.collision.constraints import GroundPlaneConstraint
 from brain.service.kinematics_service import KinematicsService
 from brain.service.safety_service import SafetyService
 
 
 class TestCollisionConstraints:
     """Test collision constraint implementations."""
-    
+
     def test_ground_plane_constraint_no_collision(self):
         """Test that ground plane constraint passes when all points are above floor."""
         constraint = GroundPlaneConstraint(floor_z=0.0, margin_m=0.005)
-        
+
         # Points all above the floor
         points = [(0.0, 0.0, 0.01), (1.0, 1.0, 0.02), (-1.0, -1.0, 0.03)]
         result = constraint.check(points)
-        
+
         assert result is None  # No collision detected
-    
+
     def test_ground_plane_constraint_collision(self):
         """Test that ground plane constraint detects when points are below floor."""
         constraint = GroundPlaneConstraint(floor_z=0.0, margin_m=0.005)
-        
+
         # Point below the floor with margin
         points = [(0.0, 0.0, -0.01)]
         result = constraint.check(points)
-        
+
         assert result is not None
         assert result.ok is False
         assert "below floor plane" in result.message
         assert result.point_index == 0
         assert result.position == (0.0, 0.0, -0.01)
-    
+
     def test_ground_plane_constraint_margin(self):
         """Test that ground plane constraint respects margin."""
         constraint = GroundPlaneConstraint(floor_z=0.0, margin_m=0.005)
-        
+
         # Point exactly at floor (should be allowed with 5mm margin)
         points = [(0.0, 0.0, 0.0)]
         result = constraint.check(points)
-        
+
         assert result is None  # Should not collide
-        
+
         # Point just below floor (should collide with 5mm margin)
         points = [(0.0, 0.0, -0.006)]
         result = constraint.check(points)
-        
+
         assert result is not None
         assert result.ok is False
 
@@ -59,7 +60,8 @@ class TestSafetyService:
     """Test safety service collision detection."""
 
     def _make_safety_service(self, mock_kinematics: AsyncMock) -> SafetyService:
-        from brain.utils.config import SafetyConfig, Config
+        from brain.utils.config import Config
+
         cfg = Config()  # all defaults
         return SafetyService(
             repository=MagicMock(),
@@ -213,4 +215,4 @@ class TestSolveClearOfFloor:
             res = await svc.solve_clear_of_floor("m7", target, branch_preference=branch)
             x, y, z = ee_position_with_spec(dh, res["q"], ee)
             resid = math.sqrt((x - 0.347) ** 2 + y**2 + (z - 0.576) ** 2)
-            assert resid < 5e-3, f"{branch} did not reach target (resid={resid*1000:.1f}mm)"
+            assert resid < 5e-3, f"{branch} did not reach target (resid={resid * 1000:.1f}mm)"

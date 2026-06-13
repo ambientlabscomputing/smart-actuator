@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Select
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(BaseModel):
@@ -43,6 +43,7 @@ class BaseListResponse[T: BaseModel](BaseModel):
     query: BaseListRequest | None = Field(
         None, description="Original query parameters used for the request", exclude_if=None
     )
+
 
 def build_query(model: type[SqlBase], list_request: BaseListRequest) -> Select:
     query = Select(model)

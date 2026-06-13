@@ -83,13 +83,9 @@ async def get_session(machine_id: str, svc: Service) -> TeachSessionState:
     response_model=TeachSessionState,
     summary="Start recording (armed → recording)",
 )
-async def start_recording(
-    session_id: str, svc: Service, request: Request
-) -> TeachSessionState:
+async def start_recording(session_id: str, svc: Service, request: Request) -> TeachSessionState:
     try:
-        return await svc.teach.start_recording(
-            session_id, created_by=request.state.user.username
-        )
+        return await svc.teach.start_recording(session_id, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -146,9 +142,7 @@ async def save_session(
     response_model=TeachSessionState,
     summary="Abort a teach session",
 )
-async def abort_session(
-    session_id: str, svc: Service, request: Request
-) -> TeachSessionState:
+async def abort_session(session_id: str, svc: Service, request: Request) -> TeachSessionState:
     try:
         return await svc.teach.abort(session_id, created_by=request.state.user.username)
     except ValueError as exc:

@@ -56,9 +56,9 @@ class TeachService:
         repository: Repository,
         config: Config,
         *,
-        state: "StateService",
-        programs: "ProgramService",
-        observability: "ObservabilityService",
+        state: StateService,
+        programs: ProgramService,
+        observability: ObservabilityService,
     ) -> None:
         self._repository = repository
         self._config = config
@@ -316,9 +316,7 @@ class TeachService:
     @staticmethod
     def _assert_valid_transition(current: TeachStatus, target: TeachStatus) -> None:
         if target not in _VALID_TRANSITIONS.get(current, set()):
-            raise ValueError(
-                f"Invalid teach session state transition: {current!r} → {target!r}"
-            )
+            raise ValueError(f"Invalid teach session state transition: {current!r} → {target!r}")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -363,9 +361,7 @@ def _matrix_to_quat(T: list[float]) -> tuple[float, float, float, float]:
     return (qx, qy, qz, qw)
 
 
-def _waypoints_to_program(
-    waypoints: list[Waypoint], machine_id: str, name: str
-) -> Program:
+def _waypoints_to_program(waypoints: list[Waypoint], machine_id: str, name: str) -> Program:
     """
     Convert a list of Waypoints into a Program AST.
 

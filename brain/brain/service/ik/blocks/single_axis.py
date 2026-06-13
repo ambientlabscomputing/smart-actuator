@@ -13,7 +13,6 @@ and for future use in simpler 1-DOF scenarios.
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,10 +20,10 @@ if TYPE_CHECKING:
 
 
 def solve_revolute(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -39,10 +38,10 @@ def solve_revolute(
 
 
 def solve_prismatic(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:

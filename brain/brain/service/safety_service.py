@@ -54,45 +54,47 @@ class SafetyService:
         # Get machine description to access kinematics
         machine = await self._repository.machine.load_machine(machine_id)
         if not machine or not machine.description.dh_chain:
-            return {"ok": True, "violation_at_s": None, "message": "No machine description available"}
-        
+            return {
+                "ok": True,
+                "violation_at_s": None,
+                "message": "No machine description available",
+            }
+
         # Check each point in the trajectory
         for point in trajectory.points:
             positions = point.positions
             joint_angles = [positions.get(name, 0.0) for name in trajectory.joint_names]
-            
+
             # Sample points along the arm to detect collisions
             try:
                 sampled_points = await self._kinematics.sample_arm_points(
-                    machine_id, 
-                    joint_angles,
-                    per_link_samples=self._link_collision_samples
+                    machine_id, joint_angles, per_link_samples=self._link_collision_samples
                 )
-                
+
                 # Check for collisions with ground plane
                 collision_result = self._collision_constraint.check(sampled_points)
                 if collision_result and not collision_result.ok:
                     return {
                         "ok": False,
                         "violation_at_s": point.time_from_start_s,
-                        "message": collision_result.message
+                        "message": collision_result.message,
                     }
             except Exception as e:
                 logger.warning(f"Failed to check collision for trajectory point: {e}")
                 continue
-        
+
         return {"ok": True, "violation_at_s": None, "message": ""}
-    
+
     async def check_configuration(
         self, machine_id: str, joint_angles: list[float]
     ) -> CollisionResult:
         """
         Check if a single joint configuration would cause a collision.
-        
+
         Args:
             machine_id: ID of the machine
             joint_angles: List of joint angles in radians
-            
+
         Returns:
             CollisionResult describing whether the configuration is safe
         """
@@ -103,13 +105,17 @@ class SafetyService:
                 per_link_samples=self._link_collision_samples,
             )
             result = self._collision_constraint.check(sampled_points)
-            return result if result is not None else CollisionResult(
-                ok=True, constraint=self._collision_constraint
+            return (
+                result
+                if result is not None
+                else CollisionResult(ok=True, constraint=self._collision_constraint)
             )
         except Exception as e:
-            logger.warning("check_configuration: FK sampling failed for machine %s: %s", machine_id, e)
+            logger.warning(
+                "check_configuration: FK sampling failed for machine %s: %s", machine_id, e
+            )
             return CollisionResult(ok=True, constraint=self._collision_constraint)
-    
+
     async def solve_clear_of_floor(
         self,
         machine_id: str,
@@ -158,7 +164,9 @@ class SafetyService:
 
         # --- Default / seed solution (used as the auto baseline) ---
         default_q = await _solve("", _seed)
-        default_eval = await self._evaluate(machine_id, default_q, target_pos) if default_q else None
+        default_eval = (
+            await self._evaluate(machine_id, default_q, target_pos) if default_q else None
+        )
         collided_default = bool(default_eval and not default_eval["ok"])
 
         # --- FAST PATH ---
@@ -205,33 +213,43 @@ class SafetyService:
             if not _seed or len(_seed) != len(q):
                 return False
             import math
+
             return max(abs(a - b) for a, b in zip(q, _seed)) > math.radians(120)
 
         # --- Explicit branch chosen by the user (Up / Down) ---
         if branch_preference in ("elbow_up", "elbow_down"):
             pool = clear or reaching  # prefer clear configs; else best-effort
             if not pool:
-                return {"q": default_q or _seed, "collided_default": collided_default,
-                        "resolved_branch": None, "blocked": True, "requires_reconfig": False}
+                return {
+                    "q": default_q or _seed,
+                    "collided_default": collided_default,
+                    "resolved_branch": None,
+                    "blocked": True,
+                    "requires_reconfig": False,
+                }
             reverse = branch_preference == "elbow_up"  # up → highest off floor
             pool.sort(key=lambda c: (c["min_z"], c["avg_z"]), reverse=reverse)
             chosen = pool[0]
             return {
                 "q": chosen["q"],
                 "collided_default": collided_default,
-                "resolved_branch": None,        # explicit pick, not auto-resolved
+                "resolved_branch": None,  # explicit pick, not auto-resolved
                 "blocked": not chosen["ok"],
                 "requires_reconfig": _reconfig(chosen["q"]),
             }
 
         # --- Auto: keep the default if it clears the floor ---
         if default_eval is not None and default_eval["ok"]:
-            return {"q": default_q, "collided_default": False, "resolved_branch": None,
-                    "blocked": False, "requires_reconfig": False}
+            return {
+                "q": default_q,
+                "collided_default": False,
+                "resolved_branch": None,
+                "blocked": False,
+                "requires_reconfig": False,
+            }
 
         # Default collides — pick the clear config nearest the seed
         if clear:
-            import math
 
             def _dist(c: dict) -> float:
                 if not _seed or len(_seed) != len(c["q"]):
@@ -241,7 +259,11 @@ class SafetyService:
             chosen = min(clear, key=_dist)
             # Label the resolved branch by how it compares to the colliding default
             base_z = default_eval["min_z"] if default_eval else 0.0
-            branch_label = "elbow_up" if chosen["avg_z"] >= (default_eval["avg_z"] if default_eval else 0.0) else "elbow_down"
+            branch_label = (
+                "elbow_up"
+                if chosen["avg_z"] >= (default_eval["avg_z"] if default_eval else 0.0)
+                else "elbow_down"
+            )
             return {
                 "q": chosen["q"],
                 "collided_default": True,
@@ -251,8 +273,13 @@ class SafetyService:
             }
 
         # No reaching configuration clears the floor
-        return {"q": default_q or _seed, "collided_default": True, "resolved_branch": None,
-                "blocked": True, "requires_reconfig": False}
+        return {
+            "q": default_q or _seed,
+            "collided_default": True,
+            "resolved_branch": None,
+            "blocked": True,
+            "requires_reconfig": False,
+        }
 
     async def _evaluate(
         self, machine_id: str, q: list[float] | None, target_pos: tuple[float, float, float]
@@ -319,10 +346,12 @@ class SafetyService:
             seeds.append([max(lo, min(hi, b)) for (lo, hi) in limits])
         # Alternating sign bias (drives elbow up vs down on serial chains).
         for sign in (1, -1):
-            seeds.append([
-                max(lo, min(hi, math.radians(sign * (60 if i % 2 else 20))))
-                for i, (lo, hi) in enumerate(limits)
-            ])
+            seeds.append(
+                [
+                    max(lo, min(hi, math.radians(sign * (60 if i % 2 else 20))))
+                    for i, (lo, hi) in enumerate(limits)
+                ]
+            )
 
         # Deterministic random samples across the joint ranges.
         rng = random.Random(0xC0FFEE)
@@ -376,9 +405,7 @@ class SafetyService:
         logger.warning("E-stop triggered for machine %s", machine_id)
         current = self._lifecycle.get_mode(machine_id)
         if current in (MachineMode.OFFLINE, MachineMode.ESTOPPED):
-            logger.info(
-                "E-stop no-op for machine %s: already in mode %s", machine_id, current
-            )
+            logger.info("E-stop no-op for machine %s: already in mode %s", machine_id, current)
             return
         await self._lifecycle.request_mode(machine_id, MachineMode.ESTOPPED, "estop")
         await self._sidecar.estop()

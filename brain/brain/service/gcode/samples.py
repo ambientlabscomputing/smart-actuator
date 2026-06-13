@@ -20,7 +20,7 @@ SAMPLE_NAMES                   — sorted list of available names
 from __future__ import annotations
 
 import math
-from typing import Callable
+from collections.abc import Callable
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,8 +67,11 @@ def _arc_ccw(x: float, y: float, z: float, i: float, j: float, f: float = 800) -
 
 
 def _square(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 200.0, h: float = 200.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 200.0,
+    h: float = 200.0,
 ) -> str:
     """Square traverse: four corners at work_z, w×h centred at (cx, cy)."""
     hw, hh = w / 2, h / 2
@@ -90,8 +93,11 @@ def _square(
 
 
 def _circle(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 240.0, h: float = 240.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 240.0,
+    h: float = 240.0,
 ) -> str:
     """Full circle: two G3 semicircles at work_z, radius = min(w,h)/2."""
     r = min(w, h) / 2
@@ -108,15 +114,20 @@ def _circle(
 
 
 def _spiral(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 500.0, h: float = 500.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 500.0,
+    h: float = 500.0,
 ) -> str:
     """Archimedean spiral outward using small G1 chords."""
     half = min(w, h) / 2
     r_start = half * 0.2
-    r_end   = half * 0.9
+    r_end = half * 0.9
     safe_z = work_z + max(10.0, half * 0.1)
-    lines = _header(f"Archimedean spiral R={r_start:.0f}\u2192{r_end:.0f} mm @ Z={work_z:.0f}", safe_z)
+    lines = _header(
+        f"Archimedean spiral R={r_start:.0f}\u2192{r_end:.0f} mm @ Z={work_z:.0f}", safe_z
+    )
     turns = 3
     steps = 72  # 5° per step
     total_steps = turns * steps
@@ -132,15 +143,18 @@ def _spiral(
 
 
 def _helix(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 300.0, h: float = 300.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 300.0,
+    h: float = 300.0,
 ) -> str:
     """Helical descent: G2 arcs descending from (work_z + descent) to work_z."""
     r = min(w, h) / 2 * 0.75
     descent = min(h * 0.5, 150.0)
     z_start = work_z + descent
-    safe_z  = z_start + max(10.0, descent * 0.2)
-    passes  = 6
+    safe_z = z_start + max(10.0, descent * 0.2)
+    passes = 6
     dz = descent / passes
     lines = _header(f"Helical descent Z={z_start:.0f}\u2192{work_z:.0f}, R={r:.0f} mm", safe_z)
     lines.append(_rapid(cx + r, cy, z_start))
@@ -155,8 +169,11 @@ def _helix(
 
 
 def _figure_eight(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 400.0, h: float = 200.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 400.0,
+    h: float = 200.0,
 ) -> str:
     """Figure-eight: two tangent circles, CCW then CW."""
     r = min(w / 2, h / 2)
@@ -171,12 +188,15 @@ def _figure_eight(
 
 
 def _zigzag(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 300.0, h: float = 225.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 300.0,
+    h: float = 225.0,
 ) -> str:
     """Raster zigzag: 10 rows across the w×h bounding box."""
     rows = 10
-    x_amp  = w / 2
+    x_amp = w / 2
     y_step = h / max(rows - 1, 1)
     y_start = cy - h / 2
     safe_z = work_z + max(10.0, min(w, h) * 0.1)
@@ -191,11 +211,14 @@ def _zigzag(
 
 
 def _arc_transitions(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 240.0, h: float = 160.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 240.0,
+    h: float = 160.0,
 ) -> str:
     """Rectangle with quarter-circle fillets at each corner."""
-    r = min(w, h) * 0.15          # fillet radius ≈ 15% of shorter side
+    r = min(w, h) * 0.15  # fillet radius ≈ 15% of shorter side
     hw = w / 2 - r
     hh = h / 2 - r
     safe_z = work_z + max(10.0, min(w, h) * 0.12)
@@ -222,15 +245,20 @@ def _arc_transitions(
 
 
 def _star(
-    cx: float = 0.0, cy: float = 0.0,
-    work_z: float = 150.0, w: float = 400.0, h: float = 400.0,
+    cx: float = 0.0,
+    cy: float = 0.0,
+    work_z: float = 150.0,
+    w: float = 400.0,
+    h: float = 400.0,
 ) -> str:
     """Five-pointed star: rapid to each outer tip, feed to each inner valley."""
     r_out = min(w, h) / 2
-    r_in  = r_out * 0.4
+    r_in = r_out * 0.4
     safe_z = work_z + max(10.0, r_out * 0.12)
     n = 5
-    lines = _header(f"Five-pointed star (R_outer={r_out:.0f}, R_inner={r_in:.0f} @ Z={work_z:.0f})", safe_z)
+    lines = _header(
+        f"Five-pointed star (R_outer={r_out:.0f}, R_inner={r_in:.0f} @ Z={work_z:.0f})", safe_z
+    )
     vertices: list[tuple[float, float]] = []
     for k in range(n * 2):
         angle = math.pi / 2 + k * math.pi / n
@@ -249,14 +277,14 @@ def _star(
 
 # Generators are called as fn(cx, cy, work_z, w, h).
 _GENERATORS: dict[str, Callable[..., str]] = {
-    "square":          _square,
-    "circle":          _circle,
-    "spiral":          _spiral,
-    "helix":           _helix,
-    "figure_eight":    _figure_eight,
-    "zigzag":          _zigzag,
+    "square": _square,
+    "circle": _circle,
+    "spiral": _spiral,
+    "helix": _helix,
+    "figure_eight": _figure_eight,
+    "zigzag": _zigzag,
     "arc_transitions": _arc_transitions,
-    "star":            _star,
+    "star": _star,
 }
 
 SAMPLE_NAMES: list[str] = sorted(_GENERATORS)

@@ -7,7 +7,7 @@ Public API:
     IKNoSolution  — target is inside workspace but solver failed to converge.
 """
 
-from brain.service.ik.errors import IKUnreachable, IKNoSolution
-from brain.service.ik.solve import solve, IKCallOptions
+from brain.service.ik.errors import IKNoSolution, IKUnreachable
+from brain.service.ik.solve import IKCallOptions, solve
 
 __all__ = ["solve", "IKCallOptions", "IKUnreachable", "IKNoSolution"]

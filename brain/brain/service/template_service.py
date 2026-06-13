@@ -5,6 +5,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from brain.models.machine import (
+    KNOWN_IK_BLOCK_KINDS,
     DHChainSchema,
     DHFieldSpec,
     DHJointSpec,
@@ -14,7 +15,6 @@ from brain.models.machine import (
     IKNumericConfig,
     IKRedundancyConfig,
     IKSpec,
-    KNOWN_IK_BLOCK_KINDS,
     TemplateMeta,
 )
 from brain.utils.config import Config
@@ -245,9 +245,7 @@ class TemplateService:
 
         redundancy_raw = raw.get("redundancy", {})
         redundancy = IKRedundancyConfig(
-            nullspace_objective=str(
-                redundancy_raw.get("nullspace_objective", "keep_near_seed")
-            ),
+            nullspace_objective=str(redundancy_raw.get("nullspace_objective", "keep_near_seed")),
         )
 
         return IKSpec(decomposition=blocks, numeric=numeric, redundancy=redundancy)

@@ -28,10 +28,10 @@ _EPS = 1e-9
 
 
 def solve_spherical_wrist(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -63,10 +63,10 @@ def solve_spherical_wrist(
     qx, qy, qz, qw = target[3], target[4], target[5], target[6]
 
     # Normalise quaternion
-    qnorm = math.sqrt(qx*qx + qy*qy + qz*qz + qw*qw)
+    qnorm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
     if qnorm < _EPS:
         return None
-    qx, qy, qz, qw = qx/qnorm, qy/qnorm, qz/qnorm, qw/qnorm
+    qx, qy, qz, qw = qx / qnorm, qy / qnorm, qz / qnorm, qw / qnorm
 
     # Convert quaternion → rotation matrix (row-major)
     R = _quat_to_rot(qx, qy, qz, qw)
@@ -100,7 +100,7 @@ def solve_spherical_wrist(
 def _quat_to_rot(qx: float, qy: float, qz: float, qw: float) -> list[list[float]]:
     """Return a 3×3 rotation matrix from a unit quaternion."""
     return [
-        [1 - 2*(qy*qy + qz*qz),   2*(qx*qy - qz*qw),   2*(qx*qz + qy*qw)],
-        [2*(qx*qy + qz*qw),   1 - 2*(qx*qx + qz*qz),   2*(qy*qz - qx*qw)],
-        [2*(qx*qz - qy*qw),       2*(qy*qz + qx*qw),   1 - 2*(qx*qx + qy*qy)],
+        [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+        [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+        [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
     ]

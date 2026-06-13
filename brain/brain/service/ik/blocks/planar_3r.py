@@ -19,7 +19,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from brain.service.ik.blocks.planar_2r import solve_planar_2r, _normalise
+from brain.service.ik.blocks.planar_2r import _normalise, solve_planar_2r
 
 if TYPE_CHECKING:
     from brain.models.machine import DHChainValues, EndEffectorSpec
@@ -28,10 +28,10 @@ _EPS = 1e-9
 
 
 def solve_planar_3r(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -61,7 +61,7 @@ def solve_planar_3r(
         dh,
         [i0, i1],
         inner_target,
-        None,   # no EE offset for the inner chain
+        None,  # no EE offset for the inner chain
         branch_preference,
         current_q,
     )

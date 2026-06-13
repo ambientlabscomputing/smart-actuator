@@ -19,15 +19,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from brain.models.machine import (
         DHChainValues,
+        IKBlockVerification,
         IKSpec,
         IKVerification,
-        IKBlockVerification,
     )
 
 _AXIS_INTERSECT_TOL_M = 5e-3  # 5 mm — wrist axes must intersect within this
 
 
-def verify(dh: "DHChainValues", ik_spec: "IKSpec") -> "IKVerification":
+def verify(dh: DHChainValues, ik_spec: IKSpec) -> IKVerification:
     """
     Verify the IK decomposition against the actual DH chain.
 
@@ -35,7 +35,7 @@ def verify(dh: "DHChainValues", ik_spec: "IKSpec") -> "IKVerification":
     strategy recommendation ("analytic" or "numeric").
     """
     # Import here to avoid circular imports at module load
-    from brain.models.machine import IKVerification, IKBlockVerification
+    from brain.models.machine import IKBlockVerification, IKVerification
 
     blocks = ik_spec.decomposition
     if not blocks:
@@ -93,18 +93,12 @@ def verify(dh: "DHChainValues", ik_spec: "IKSpec") -> "IKVerification":
         )
         strategy = "numeric"
 
-    n_errors   = sum(1 for b in block_reports if b.status == "error")
+    n_errors = sum(1 for b in block_reports if b.status == "error")
     n_warnings = sum(1 for b in block_reports if b.status == "warning")
     if n_errors:
-        summary = (
-            f"{n_errors} block(s) failed geometric verification — "
-            "falling back to numeric IK."
-        )
+        summary = f"{n_errors} block(s) failed geometric verification — falling back to numeric IK."
     elif n_warnings:
-        summary = (
-            f"{n_warnings} block(s) passed with warnings — "
-            "analytic IK will be attempted."
-        )
+        summary = f"{n_warnings} block(s) passed with warnings — analytic IK will be attempted."
     else:
         summary = "All blocks verified — analytic IK available."
 
@@ -118,8 +112,9 @@ def verify(dh: "DHChainValues", ik_spec: "IKSpec") -> "IKVerification":
 
 # ── Per-block geometric checks ────────────────────────────────────────────────
 
+
 def _verify_block(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     kind: str,
     joints: list[int],
 ) -> tuple[str, str]:
@@ -180,7 +175,7 @@ def _verify_block(
 
 
 def _check_parallel_axes(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     i: int,
     j: int,
 ) -> tuple[bool, str]:
@@ -203,7 +198,7 @@ def _check_parallel_axes(
 
 
 def _check_wrist_intersection(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joints: list[int],
 ) -> tuple[bool, str]:
     """
@@ -219,8 +214,8 @@ def _check_wrist_intersection(
     if d1 < _AXIS_INTERSECT_TOL_M and d2 < _AXIS_INTERSECT_TOL_M:
         return True, ""
     return False, (
-        f"Wrist joints {i1} and {i2} have d offsets ({d1*1e3:.1f} mm, {d2*1e3:.1f} mm) "
-        f"exceeding intersection tolerance ({_AXIS_INTERSECT_TOL_M*1e3:.0f} mm). "
+        f"Wrist joints {i1} and {i2} have d offsets ({d1 * 1e3:.1f} mm, {d2 * 1e3:.1f} mm) "
+        f"exceeding intersection tolerance ({_AXIS_INTERSECT_TOL_M * 1e3:.0f} mm). "
         "Axes may not intersect — spherical wrist solution may be inaccurate."
     )
 
@@ -239,7 +234,7 @@ def _check_partition(
 
 
 def _check_prismatic_orthogonal(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joints: list[int],
 ) -> tuple[bool, str]:
     """

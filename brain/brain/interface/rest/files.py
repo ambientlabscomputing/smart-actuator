@@ -22,7 +22,9 @@ async def upload_file(file: UploadFile, svc: Service, request: Request) -> Store
 
 
 @router.get("/files", response_model=StoredFilesResponse)
-async def list_files(svc: Service, location: str | None = None, offset: int = 0, limit: int = 50) -> StoredFilesResponse:
+async def list_files(
+    svc: Service, location: str | None = None, offset: int = 0, limit: int = 50
+) -> StoredFilesResponse:
     """List stored files, optionally filtered by location substring."""
     req = StoredFilesRequest(location=location, offset=offset, limit=limit)
     items, total = await svc.file_service.search_files(req)

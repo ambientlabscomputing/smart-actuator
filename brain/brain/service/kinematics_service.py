@@ -4,12 +4,11 @@ from brain.models.motion import JointTrajectory, Pose
 from brain.models.state import JointState, LinkPose
 from brain.repository.repository import Repository
 from brain.service.dh_fk import (
-    ee_transform,
     ee_position_with_spec,
     geometric_jacobian,
     joint_transforms,
 )
-from brain.service.ik import IKCallOptions, IKNoSolution, IKUnreachable, solve
+from brain.service.ik import IKCallOptions, IKUnreachable, solve
 from brain.utils.config import Config
 from brain.utils.logger import logger
 
@@ -74,14 +73,10 @@ class KinematicsService:
             machine = await self._repository.machine.load_machine(machine_id)
             if machine is None:
                 return None
-            tmpl = await self._templates.get_template(
-                machine.description.template_ref.template_id
-            )
+            tmpl = await self._templates.get_template(machine.description.template_ref.template_id)
             return tmpl.ik if tmpl else None
         except Exception:
-            logger.exception(
-                "KinematicsService: could not load IK spec for machine {}", machine_id
-            )
+            logger.exception("KinematicsService: could not load IK spec for machine {}", machine_id)
             return None
 
     def forward_kinematics(self, machine_id: str, joint_state: list[JointState]) -> list[LinkPose]:
@@ -108,43 +103,40 @@ class KinematicsService:
         return positions
 
     async def sample_arm_points(
-        self, 
-        machine_id: str, 
-        angles_rad: list[float], 
-        per_link_samples: int = 8
+        self, machine_id: str, angles_rad: list[float], per_link_samples: int = 8
     ) -> list[tuple[float, float, float]]:
         """
         Sample points along the arm to detect collisions.
-        
+
         Samples points between each joint origin and the end-effector to catch
         mid-link collisions that might not be detected by just checking joint
         origins and EE.
-        
+
         Args:
             machine_id: ID of the machine
             angles_rad: Joint angles in radians
             per_link_samples: Number of samples per link segment (default 8)
-            
+
         Returns:
             List of (x, y, z) coordinates for all sampled points
         """
         # Get joint origins and EE position
         joint_positions = await self.forward_kinematics_async(machine_id, angles_rad)
-        
+
         if len(joint_positions) < 2:
             return joint_positions
-            
+
         # Sample between each consecutive pair of joint positions
         sampled_points = []
-        
+
         # Add the first joint position
         sampled_points.append(joint_positions[0])
-        
+
         # Sample between consecutive joints
         for i in range(len(joint_positions) - 1):
             start_pos = joint_positions[i]
             end_pos = joint_positions[i + 1]
-            
+
             # Add intermediate samples along the link segment
             for j in range(1, per_link_samples):
                 t = j / per_link_samples
@@ -152,15 +144,13 @@ class KinematicsService:
                 y = start_pos[1] + t * (end_pos[1] - start_pos[1])
                 z = start_pos[2] + t * (end_pos[2] - start_pos[2])
                 sampled_points.append((x, y, z))
-            
+
             # Add the end point of this segment
             sampled_points.append(end_pos)
-        
+
         return sampled_points
 
-    async def joint_limits_rad(
-        self, machine_id: str
-    ) -> list[tuple[float, float]]:
+    async def joint_limits_rad(self, machine_id: str) -> list[tuple[float, float]]:
         """
         Return [(lower, upper), ...] joint limits in radians, in chain order.
         Empty list if the machine has no kinematics.
@@ -174,7 +164,6 @@ class KinematicsService:
             (math.radians(j.limit_lower), math.radians(j.limit_upper))
             for j in machine.description.dh_chain.joints
         ]
-
 
     async def inverse_kinematics(
         self,
@@ -236,9 +225,7 @@ class KinematicsService:
         """
         return []
 
-    async def jacobian_async(
-        self, machine_id: str, angles_rad: list[float]
-    ) -> list[list[float]]:
+    async def jacobian_async(self, machine_id: str, angles_rad: list[float]) -> list[list[float]]:
         """
         Return the 6×n geometric Jacobian for the machine at the given joint angles.
         Rows 0-2: linear velocity; rows 3-5: angular velocity.

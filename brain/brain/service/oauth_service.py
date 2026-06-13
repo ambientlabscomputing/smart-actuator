@@ -152,9 +152,7 @@ class OAuthService:
     # Authentication
     # ------------------------------------------------------------------
 
-    async def authenticate_user(
-        self, username: str, password: str
-    ) -> Result[str, str]:
+    async def authenticate_user(self, username: str, password: str) -> Result[str, str]:
         """Verify credentials and return a signed JWT on success."""
         if not username or not password:
             return Err("Username and password are required")

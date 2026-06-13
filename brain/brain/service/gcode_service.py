@@ -13,10 +13,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from brain.models.gcode import GCodePreview, GCodeTranslationRequest, GCodeTranslationResult, GantrySampleRequest
+from brain.models.gcode import (
+    GantrySampleRequest,
+    GCodePreview,
+    GCodeTranslationRequest,
+    GCodeTranslationResult,
+)
 from brain.service.gcode.parser import parse_gcode
-from brain.service.gcode.translator import make_preview, translate
 from brain.service.gcode.samples import SAMPLE_NAMES, generate_gantry_sample
+from brain.service.gcode.translator import make_preview, translate
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
@@ -111,7 +116,9 @@ class GCodeService:
 
         No file upload is required — the G-code is generated server-side.
         """
-        origin = tuple(request.origin_mm[:3]) if len(request.origin_mm) >= 3 else (150.0, 150.0, 150.0)
+        origin = (
+            tuple(request.origin_mm[:3]) if len(request.origin_mm) >= 3 else (150.0, 150.0, 150.0)
+        )
         text = generate_gantry_sample(
             request.name,
             origin_mm=origin,  # type: ignore[arg-type]

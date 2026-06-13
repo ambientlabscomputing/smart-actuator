@@ -22,15 +22,15 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from brain.service.ik.errors import IKNoSolution, IKUnreachable
+from brain.service.ik.errors import IKNoSolution
 
 if TYPE_CHECKING:
     from brain.models.machine import (
         DHChainValues,
         EndEffectorSpec,
-        IKSpec,
         IKNumericConfig,
         IKOverrides,
+        IKSpec,
         IKVerification,
     )
 
@@ -50,12 +50,12 @@ class IKCallOptions:
 
 
 def solve(
-    dh: "DHChainValues",
-    ik_spec: "IKSpec | None",
+    dh: DHChainValues,
+    ik_spec: IKSpec | None,
     target: list[float],
-    ee: "EndEffectorSpec | None",
-    overrides: "IKOverrides | None",
-    verification: "IKVerification | None",
+    ee: EndEffectorSpec | None,
+    overrides: IKOverrides | None,
+    verification: IKVerification | None,
     *,
     current_q: list[float] | None = None,
     options: IKCallOptions | None = None,
@@ -76,8 +76,8 @@ def solve(
                         (only checked when a hull is passed; omit hull to skip).
         IKNoSolution  — solver could not converge.
     """
-    from brain.service.ik.numeric import solve_numeric
     from brain.service.ik.composer import compose
+    from brain.service.ik.numeric import solve_numeric
 
     opts = options or IKCallOptions()
     n = len(dh.joints)
@@ -115,7 +115,9 @@ def solve(
 
     if analytic_q is None:
         if opts.strategy == "analytic":
-            raise IKNoSolution("Analytic IK returned no solution — decomposition could not solve this pose.")
+            raise IKNoSolution(
+                "Analytic IK returned no solution — decomposition could not solve this pose."
+            )
         return _numeric_fallback(dh, n, target, ee, seed, numeric_cfg)
 
     # Polish step: check residual
@@ -139,10 +141,11 @@ def solve(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _should_use_numeric(
     strategy: str,
-    overrides: "IKOverrides | None",
-    verification: "IKVerification | None",
+    overrides: IKOverrides | None,
+    verification: IKVerification | None,
 ) -> bool:
     if overrides and overrides.force_numeric:
         return True
@@ -157,10 +160,10 @@ def _should_use_numeric(
 
 
 def _build_seed(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     current_q: list[float] | None,
     explicit_seed: list[float],
-    overrides: "IKOverrides | None",
+    overrides: IKOverrides | None,
 ) -> list[float]:
     n = len(dh.joints)
     if explicit_seed:
@@ -172,9 +175,9 @@ def _build_seed(
 
 
 def _effective_numeric_config(
-    ik_spec: "IKSpec | None",
-    overrides: "IKOverrides | None",
-) -> "IKNumericConfig | None":
+    ik_spec: IKSpec | None,
+    overrides: IKOverrides | None,
+) -> IKNumericConfig | None:
     if overrides and overrides.numeric:
         return overrides.numeric
     if ik_spec:
@@ -183,12 +186,12 @@ def _effective_numeric_config(
 
 
 def _numeric_fallback(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     n: int,
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     seed: list[float],
-    config: "IKNumericConfig | None",
+    config: IKNumericConfig | None,
 ) -> list[float]:
     from brain.service.ik.numeric import solve_numeric
 
@@ -199,10 +202,10 @@ def _numeric_fallback(
 
 
 def _position_residual(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     q: list[float],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
 ) -> float:
     from brain.service.dh_fk import ee_position_with_spec
 
@@ -210,12 +213,12 @@ def _position_residual(
     tx = target[0] if len(target) > 0 else 0.0
     ty = target[1] if len(target) > 1 else 0.0
     tz = target[2] if len(target) > 2 else 0.0
-    return math.sqrt((x - tx)**2 + (y - ty)**2 + (z - tz)**2)
+    return math.sqrt((x - tx) ** 2 + (y - ty) ** 2 + (z - tz) ** 2)
 
 
-def _apply_branch_override(ik_spec: "IKSpec", branch: str) -> "IKSpec":
+def _apply_branch_override(ik_spec: IKSpec, branch: str) -> IKSpec:
     """Return a shallow copy of ik_spec with branch_preference overridden on all blocks."""
-    from brain.models.machine import IKSpec, IKBlock
+    from brain.models.machine import IKBlock, IKSpec
 
     new_blocks = [
         IKBlock(
@@ -233,7 +236,7 @@ def _apply_branch_override(ik_spec: "IKSpec", branch: str) -> "IKSpec":
     )
 
 
-def _polish_config(base: "IKNumericConfig | None") -> "IKNumericConfig":
+def _polish_config(base: IKNumericConfig | None) -> IKNumericConfig:
     from brain.models.machine import IKNumericConfig
 
     if base is None:

@@ -197,9 +197,7 @@ class SidecarBridge:
                             if m_id is None:
                                 continue  # unknown actuator — skip
                             joint_name = js.joint_name or js.actuator_id
-                            jtype = self._joint_type_map.get(
-                                (m_id, joint_name), "revolute"
-                            )
+                            jtype = self._joint_type_map.get((m_id, joint_name), "revolute")
                             # The sidecar always sends position in SI units for
                             # the joint type: radians for revolute, metres for
                             # prismatic.  Pass through without conversion.

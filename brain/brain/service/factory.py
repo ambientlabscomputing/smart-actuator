@@ -53,7 +53,9 @@ def new_brain_service(config: Config) -> BrainService:
     actuators = ActuatorService(repository, sidecar, config)
     lifecycle = LifecycleService(repository, config)
     safety = SafetyService(repository, sidecar, kinematics, lifecycle, config, workspace=workspace)
-    motion = MotionService(repository, sidecar, kinematics, config, workspace=workspace, safety=safety)
+    motion = MotionService(
+        repository, sidecar, kinematics, config, workspace=workspace, safety=safety
+    )
     state = StateService(repository, sidecar, kinematics, lifecycle, config)
     programs = ProgramService(
         repository,

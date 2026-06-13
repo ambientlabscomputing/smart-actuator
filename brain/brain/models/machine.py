@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from brain.models.base import SqlBase
 
-
 # ── DH kinematics models ──────────────────────────────────────────────────────
 
 
@@ -33,15 +32,11 @@ class DHJointSpec(BaseModel):
     a: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.0))
     d: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.0))
     alpha: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.0, unit="deg"))
-    theta_offset: DHFieldSpec = Field(
-        default_factory=lambda: DHFieldSpec(default=0.0, unit="deg")
-    )
+    theta_offset: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.0, unit="deg"))
     limit_lower: DHFieldSpec = Field(
         default_factory=lambda: DHFieldSpec(default=-180.0, unit="deg")
     )
-    limit_upper: DHFieldSpec = Field(
-        default_factory=lambda: DHFieldSpec(default=180.0, unit="deg")
-    )
+    limit_upper: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=180.0, unit="deg"))
     mass: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.5, unit="kg"))
 
 
@@ -51,9 +46,7 @@ class DHChainSchema(BaseModel):
     Passed to dh_urdf.py to generate URDF and to the UI for Advanced editing.
     """
 
-    link_radius: DHFieldSpec = Field(
-        default_factory=lambda: DHFieldSpec(default=0.03, unit="m")
-    )
+    link_radius: DHFieldSpec = Field(default_factory=lambda: DHFieldSpec(default=0.03, unit="m"))
     joints: list[DHJointSpec] = Field(default_factory=list)
 
 
@@ -77,6 +70,7 @@ class TaskSpace(str):
     r3  — 3-D position only, no orientation.
     se3 — full 6-DOF pose (position + orientation).
     """
+
     PLANAR_XZ = "planar_xz"
     PLANAR_XY = "planar_xy"
     R3 = "r3"
@@ -94,7 +88,7 @@ class EndEffectorSpec(BaseModel):
 
     parent: str = Field(
         description="Name of the joint whose frame the EE is attached to "
-                    "(usually the last joint in the chain)."
+        "(usually the last joint in the chain)."
     )
     offset_m: list[float] = Field(
         default_factory=lambda: [0.0, 0.0, 0.0],
@@ -112,6 +106,7 @@ class EndEffectorSpec(BaseModel):
 
 class IKBlockKind(str):
     """Closed registry of recognised decomposition block kinds."""
+
     REVOLUTE = "revolute"
     PRISMATIC = "prismatic"
     CARTESIAN_XYZ = "cartesian_xyz"
@@ -122,16 +117,18 @@ class IKBlockKind(str):
     NUMERIC = "numeric"  # escape hatch: this block is solved numerically
 
 
-KNOWN_IK_BLOCK_KINDS: frozenset[str] = frozenset({
-    "revolute",
-    "prismatic",
-    "cartesian_xyz",
-    "planar_2r",
-    "planar_3r",
-    "rrr_anthropomorphic",
-    "spherical_wrist",
-    "numeric",
-})
+KNOWN_IK_BLOCK_KINDS: frozenset[str] = frozenset(
+    {
+        "revolute",
+        "prismatic",
+        "cartesian_xyz",
+        "planar_2r",
+        "planar_3r",
+        "rrr_anthropomorphic",
+        "spherical_wrist",
+        "numeric",
+    }
+)
 
 
 class IKBlock(BaseModel):
@@ -147,12 +144,12 @@ class IKBlock(BaseModel):
     branch_preference: str = Field(
         default="nearest",
         description="elbow_up | elbow_down | nearest — selects the analytic branch "
-                    "when the block has two solutions (e.g. planar_2r).",
+        "when the block has two solutions (e.g. planar_2r).",
     )
     plane: str = Field(
         default="",
         description="For planar blocks: disambiguates which plane the chain lives in "
-                    "(yz_of_parent | xz_of_parent | xy_of_parent). Inferred from DH if empty.",
+        "(yz_of_parent | xz_of_parent | xy_of_parent). Inferred from DH if empty.",
     )
 
 
@@ -186,8 +183,7 @@ class IKSpec(BaseModel):
 
     decomposition: list[IKBlock] = Field(
         default_factory=list,
-        description="Ordered blocks partitioning the joint space. "
-                    "Empty → pure numeric fallback.",
+        description="Ordered blocks partitioning the joint space. Empty → pure numeric fallback.",
     )
     numeric: IKNumericConfig = Field(default_factory=IKNumericConfig)
     redundancy: IKRedundancyConfig = Field(default_factory=IKRedundancyConfig)
@@ -239,10 +235,10 @@ class DHJointValues(BaseModel):
     name: str
     slot: int
     type: str = "revolute"  # "revolute" | "prismatic"
-    axis: str = "z"         # dominant motion axis: "x" | "y" | "z"
+    axis: str = "z"  # dominant motion axis: "x" | "y" | "z"
     a: float = 0.0
     d: float = 0.0
-    alpha: float = 0.0      # stored in degrees; converted to rad by dh_urdf
+    alpha: float = 0.0  # stored in degrees; converted to rad by dh_urdf
     theta_offset: float = 0.0  # degrees
     # For revolute joints: stored in degrees.
     # For prismatic joints: stored in metres.
@@ -417,7 +413,7 @@ class MachineDescription(BaseModel):
     end_effector: EndEffectorSpec | None = Field(
         default=None,
         description="EE frame relative to last joint. Seeded from template on first load; "
-                    "nullable so existing machines migrate lazily.",
+        "nullable so existing machines migrate lazily.",
     )
     ik_overrides: IKOverrides = Field(
         default_factory=IKOverrides,
@@ -433,8 +429,8 @@ class WorkspaceHull(BaseModel):
     a*x + b*y + c*z + d <= 0 for interior points (scipy convention).
     """
 
-    vertices: list[list[float]] = Field(default_factory=list)   # [[x,y,z], ...]
-    faces: list[list[int]] = Field(default_factory=list)        # [[i,j,k], ...]
+    vertices: list[list[float]] = Field(default_factory=list)  # [[x,y,z], ...]
+    faces: list[list[int]] = Field(default_factory=list)  # [[i,j,k], ...]
     equations: list[list[float]] = Field(default_factory=list)  # [[a,b,c,d], ...]
     volume: float = 0.0
     area: float = 0.0
@@ -446,7 +442,7 @@ class WorkspaceResult(BaseModel):
     Persisted as workspace_json alongside the machine in SQLite.
     """
 
-    dh_hash: str = ""                              # SHA-256 of canonical dh_chain JSON
+    dh_hash: str = ""  # SHA-256 of canonical dh_chain JSON
     points: list[tuple[float, float, float]] = Field(default_factory=list)
     hull: WorkspaceHull | None = None
     bounds: dict[str, list[float]] = Field(default_factory=dict)  # {"min": [x,y,z], "max": ...}

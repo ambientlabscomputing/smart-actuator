@@ -6,10 +6,11 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, Self
 
 from pydantic import BaseModel, Field
-from result import Err, Ok, Result
+from result import Ok, Result
 
 if TYPE_CHECKING:
     from brain.models.program import Program
+
 
 class GCodeCommand(StrEnum):
     # supported commands
@@ -28,6 +29,7 @@ class GCodeCommand(StrEnum):
     # M4 = "M4"  # Spindle on (counterclockwise)
     # M5 = "M5"  # Spindle off
 
+
 class BaseGCodeCommand(BaseModel, ABC):
     command: GCodeCommand
 
@@ -36,10 +38,12 @@ class BaseGCodeCommand(BaseModel, ABC):
     def parse_from_line(cls, line: str) -> Result[Self, str]:
         pass
 
+
 class G0Params(BaseModel):
     x: float | None = None
     y: float | None = None
     z: float | None = None
+
 
 class G0(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G0
@@ -60,12 +64,14 @@ class G0(BaseGCodeCommand):
             elif axis == "Z":
                 params.z = value
         return Ok(cls(params=params))
-    
+
+
 class G1Params(BaseModel):
     x: float | None = None
     y: float | None = None
     z: float | None = None
     feed_rate: float | None = None
+
 
 class G1(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G1
@@ -89,6 +95,7 @@ class G1(BaseGCodeCommand):
                 params.feed_rate = value
         return Ok(cls(params=params))
 
+
 class G2Params(BaseModel):
     x: float | None = None
     y: float | None = None
@@ -96,6 +103,7 @@ class G2Params(BaseModel):
     i: float | None = None  # center offset x
     j: float | None = None  # center offset y
     feed_rate: float | None = None
+
 
 class G2(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G2
@@ -121,7 +129,8 @@ class G2(BaseGCodeCommand):
                 params.j = value
             elif axis == "F":
                 params.feed_rate = value
-        return Ok(cls(params=params))       
+        return Ok(cls(params=params))
+
 
 class G3Params(BaseModel):
     x: float | None = None
@@ -130,6 +139,7 @@ class G3Params(BaseModel):
     i: float | None = None  # center offset x
     j: float | None = None  # center offset y
     feed_rate: float | None = None
+
 
 class G3(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G3
@@ -157,12 +167,14 @@ class G3(BaseGCodeCommand):
                 params.feed_rate = value
         return Ok(cls(params=params))
 
+
 class G20(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G20
 
     @classmethod
     def parse_from_line(cls, line: str) -> Result[Self, str]:
         return Ok(cls())
+
 
 class G21(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G21
@@ -171,12 +183,14 @@ class G21(BaseGCodeCommand):
     def parse_from_line(cls, line: str) -> Result[Self, str]:
         return Ok(cls())
 
+
 class G90(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G90
 
     @classmethod
     def parse_from_line(cls, line: str) -> Result[Self, str]:
         return Ok(cls())
+
 
 class G91(BaseGCodeCommand):
     command: GCodeCommand = GCodeCommand.G91
@@ -192,7 +206,9 @@ class GCodeProgram(BaseModel):
     This is not intended to be a full G-code parser, but rather a way to
     represent a limited subset of G-code commands for execution by the Brain.
     """
+
     commands: list[BaseGCodeCommand]
+
 
 CMD_MAPPINGS: dict[GCodeCommand, type[BaseGCodeCommand]] = {
     GCodeCommand.G0: G0,
@@ -204,6 +220,7 @@ CMD_MAPPINGS: dict[GCodeCommand, type[BaseGCodeCommand]] = {
     GCodeCommand.G90: G90,
     GCodeCommand.G91: G91,
 }
+
 
 def get_command_model(cmd: str | GCodeCommand) -> type[BaseGCodeCommand] | None:
     try:
@@ -221,12 +238,14 @@ class GantrySampleRequest(BaseModel):
 
     name: str = Field(description="Sample name — one of the SAMPLE_NAMES values.")
     machine_id: str = Field(description="Machine the program will execute on.")
-    program_name: str = Field(default="Gantry sample", description="Human-readable name for the saved Program.")
+    program_name: str = Field(
+        default="Gantry sample", description="Human-readable name for the saved Program."
+    )
     description: str = Field(default="", description="Optional program description.")
     origin_mm: list[float] = Field(
         default_factory=lambda: [150.0, 150.0, 150.0],
         description="[cx, cy, work_z] — pattern centre (XY) and working Z in mm. "
-                    "Set cx = width_mm/2, cy = height_mm/2 to keep the pattern in the positive quadrant.",
+        "Set cx = width_mm/2, cy = height_mm/2 to keep the pattern in the positive quadrant.",
     )
     width_mm: float = Field(default=200.0, gt=1.0, description="Bounding-box width along X (mm).")
     height_mm: float = Field(default=200.0, gt=1.0, description="Bounding-box height along Y (mm).")
@@ -235,7 +254,9 @@ class GantrySampleRequest(BaseModel):
         description="Tool orientation applied to every pose (x, y, z, w). Default is identity.",
     )
     chord_tolerance_mm: float = Field(default=0.1, gt=0, description="Arc chord tolerance (mm).")
-    arc_plane: Literal["xy", "xz", "yz"] = Field(default="xy", description="Arc interpolation plane.")
+    arc_plane: Literal["xy", "xz", "yz"] = Field(
+        default="xy", description="Arc interpolation plane."
+    )
 
 
 class GCodeTranslationRequest(BaseModel):
@@ -300,6 +321,5 @@ class GCodePreview(BaseModel):
 
 # Deferred rebuild so GCodeTranslationResult.program resolves at import time.
 def _rebuild_translation_result() -> None:
-    from brain.models.program import Program  # noqa: PLC0415
 
     GCodeTranslationResult.model_rebuild()

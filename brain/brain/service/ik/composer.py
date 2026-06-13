@@ -14,7 +14,6 @@ order they appear in the decomposition, or None if any block fails.
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 from brain.service.ik.registry import get_solver
@@ -26,10 +25,10 @@ _WRIST_KINDS = {"spherical_wrist"}
 
 
 def compose(
-    dh: "DHChainValues",
-    ik_spec: "IKSpec",
+    dh: DHChainValues,
+    ik_spec: IKSpec,
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     current_q: list[float],
 ) -> list[float] | None:
     """
@@ -54,10 +53,10 @@ def compose(
 
 
 def _compose_serial(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     blocks,
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     current_q: list[float],
     result: list[float],
 ) -> list[float] | None:
@@ -73,7 +72,7 @@ def _compose_serial(
             target,
             ee,
             block.branch_preference,
-            result,   # use the evolving result as the current pose
+            result,  # use the evolving result as the current pose
         )
         if block_result is None:
             return None
@@ -86,10 +85,10 @@ def _compose_serial(
 
 
 def _compose_position_wrist(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     blocks,
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     current_q: list[float],
     result: list[float],
 ) -> list[float] | None:
@@ -102,7 +101,6 @@ def _compose_position_wrist(
     2. Solve the positioning blocks against p_wc.
     3. Solve the wrist block against the desired orientation.
     """
-    from brain.service.dh_fk import geometric_jacobian
 
     position_blocks = blocks[:-1]
     wrist_block = blocks[-1]
@@ -121,7 +119,7 @@ def _compose_position_wrist(
             dh,
             block.joints,
             wrist_target,
-            None,   # no EE offset for inner positioning blocks
+            None,  # no EE offset for inner positioning blocks
             block.branch_preference,
             result,
         )
@@ -140,7 +138,7 @@ def _compose_position_wrist(
     wrist_result = wrist_solver(
         dh,
         wrist_block.joints,
-        target,   # full [x,y,z,qx,qy,qz,qw]
+        target,  # full [x,y,z,qx,qy,qz,qw]
         ee,
         wrist_block.branch_preference,
         result,

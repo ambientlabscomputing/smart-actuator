@@ -63,8 +63,7 @@ async def move_joint(body: MoveJointBody, svc: Service) -> dict:
                 current_pos = {js.joint_name: js.position for js in current_state.measured}
             # Merge: start from current, override with incoming targets
             full_q = [
-                body.joint_targets.get(name, current_pos.get(name, 0.0))
-                for name in joint_names
+                body.joint_targets.get(name, current_pos.get(name, 0.0)) for name in joint_names
             ]
             collision = await svc.safety.check_configuration(body.machine_id, full_q)
             if not collision.ok:
