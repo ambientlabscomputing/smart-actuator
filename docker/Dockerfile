@@ -18,6 +18,10 @@ RUN npm run build
 
 # ── Rust builder ───────────────────────────────────────────────────────────────
 FROM rust:1.87-bookworm AS rust_builder
+# protobuf-compiler provides protoc, required by prost-build (actuator-proto)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends protobuf-compiler \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY smart-actuator/Cargo.toml smart-actuator/rust-toolchain.toml ./
 COPY smart-actuator/crates ./crates
