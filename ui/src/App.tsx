@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, ProgramRunPanel, WorkspaceMenu } from '@/components'
+import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, MachineCard, ProgramRunPanel, WorkspaceMenu } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
@@ -41,6 +41,8 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
   const [showPrograms, setShowPrograms] = useState(false)
   const [showReachabilityHull, setShowReachabilityHull] = useState(false)
   const [showWorkspaceSamples, setShowWorkspaceSamples] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
+  const [templateName, setTemplateName] = useState<string | null>(null)
 
   // Workspace overlay — lazy-loaded when toggled on; refetched after edits.
   const { data: workspaceData, refetch: refetchWorkspace } = useWorkspace(
@@ -93,6 +95,23 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
     return m ? m.position : 0
   })
   const eePose = dhJoints ? forwardKinematics(dhJoints, anglesRad) : null
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadTemplateName() {
+      try {
+        const m = (await brainGet(`/machine/${encodeURIComponent(machineId)}`)) as {
+          description: { template_ref: { template_id: string } }
+        }
+        const tmpl = (await brainGet(`/templates/${encodeURIComponent(m.description.template_ref.template_id)}`)) as Template
+        if (!cancelled) setTemplateName(tmpl.name)
+      } catch {
+        if (!cancelled) setTemplateName(null)
+      }
+    }
+    void loadTemplateName()
+    return () => { cancelled = true }
+  }, [machineId])
 
   // Spacebar → E-stop
   useEffect(() => {
@@ -277,14 +296,27 @@ function Workspace({ machineId, linkLengths, dhJoints, linkRadius, onDhChange }:
           currentEE={eePose?.ee ?? null}
           currentEEQuat={eePose?.eeQuat ?? null}
           dhJoints={dhJoints ?? undefined}
+          debugActive={showDebug}
+          onToggleDebug={() => setShowDebug((v) => !v)}
+        />
+        <MachineCard
+          machineId={machineId}
+          templateName={templateName}
+          mode={mode}
+          connected={connected}
+          dhJoints={dhJoints}
+          measured={state?.measured ?? []}
+          jointOrigins={eePose?.jointOrigins ?? []}
+          ee={eePose?.ee ?? null}
+          onSelectJoint={setSelectedJoint}
         />
         <JointDataPanel
-          joint={selectedJoint !== null ? (state?.measured[selectedJoint] ?? null) : null}
+          joint={showDebug ? (state?.measured[selectedJoint ?? 0] ?? null) : null}
           // eslint-disable-next-line react-hooks/refs
-          history={selectedJoint !== null ? (historyRef.current.get(selectedJoint) ?? null) : null}
+          history={showDebug ? (historyRef.current.get(selectedJoint ?? 0) ?? null) : null}
           machineId={machineId}
-          jointIndex={selectedJoint}
-          onClose={() => setSelectedJoint(null)}
+          jointIndex={showDebug ? (selectedJoint ?? 0) : null}
+          onClose={() => setShowDebug(false)}
         />
         {showPrograms && (
           <div

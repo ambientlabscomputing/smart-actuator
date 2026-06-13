@@ -142,6 +142,17 @@ export function JointDataPanel({ joint, history, machineId, jointIndex, onClose 
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+        <span
+          style={{
+            color: text.faint,
+            fontSize: 9,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            marginRight: 7,
+          }}
+        >
+          Debug
+        </span>
         <div
           style={{
             width: 10,
