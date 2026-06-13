@@ -217,14 +217,21 @@ const DH_JOINT_FIELDS: Array<{
   key: keyof import('../lib/types').DHJointValues
   label: string
   unit: string
+  group: 'geometry' | 'limits' | 'mass'
 }> = [
-  { key: 'a', label: 'a (link length)', unit: 'm' },
-  { key: 'd', label: 'd (offset)', unit: 'm' },
-  { key: 'alpha', label: 'α (twist)', unit: 'deg' },
-  { key: 'theta_offset', label: 'θ offset', unit: 'deg' },
-  { key: 'limit_lower', label: 'Limit lower', unit: 'deg' },
-  { key: 'limit_upper', label: 'Limit upper', unit: 'deg' },
-  { key: 'mass', label: 'Mass', unit: 'kg' },
+  { key: 'a', label: 'a (link length)', unit: 'm', group: 'geometry' },
+  { key: 'd', label: 'd (offset)', unit: 'm', group: 'geometry' },
+  { key: 'alpha', label: 'α (twist)', unit: 'deg', group: 'geometry' },
+  { key: 'theta_offset', label: 'θ offset', unit: 'deg', group: 'geometry' },
+  { key: 'limit_lower', label: 'Limit lower', unit: 'deg', group: 'limits' },
+  { key: 'limit_upper', label: 'Limit upper', unit: 'deg', group: 'limits' },
+  { key: 'mass', label: 'Mass', unit: 'kg', group: 'mass' },
+]
+
+const JOINT_FIELD_GROUPS: Array<{ id: 'geometry' | 'limits' | 'mass'; label: string }> = [
+  { id: 'geometry', label: 'Geometry' },
+  { id: 'limits', label: 'Limits' },
+  { id: 'mass', label: 'Mass' },
 ]
 
 function AdvancedPanel({
@@ -254,25 +261,34 @@ function AdvancedPanel({
         return (
           <div key={jv.name} style={jointBlockStyle}>
             <div style={advSectionStyle}>Joint {idx}: {jv.name}</div>
-            {DH_JOINT_FIELDS.map(({ key, label, unit }) => {
-              const fieldSpec = js?.[key as keyof DHJointSpec] as import('../lib/types').DHFieldSpec | undefined
-              const editable = fieldSpec?.editable ?? true
-              // Prefer the unit declared in the template schema; fall back to
-              // the hardcoded default. This lets prismatic joints show "m" for
-              // their travel limits while revolute joints show "deg".
-              const displayUnit = fieldSpec?.unit ?? unit
+            {JOINT_FIELD_GROUPS.map((group) => {
+              const fields = DH_JOINT_FIELDS.filter((f) => f.group === group.id)
+              if (fields.length === 0) return null
               return (
-                <AdvancedRow
-                  key={key}
-                  label={label}
-                  unit={displayUnit}
-                  value={jv[key] as number}
-                  spec={fieldSpec}
-                  readOnly={!editable}
-                  onChange={(v) =>
-                    onDhChange(writeDhTarget(dhValues, `joints[${idx}].${key}`, v))
-                  }
-                />
+                <div key={group.id} style={advGroupStyle}>
+                  <div style={advGroupLabelStyle}>{group.label}</div>
+                  {fields.map(({ key, label, unit }) => {
+                    const fieldSpec = js?.[key as keyof DHJointSpec] as import('../lib/types').DHFieldSpec | undefined
+                    const editable = fieldSpec?.editable ?? true
+                    // Prefer the unit declared in the template schema; fall back
+                    // to the hardcoded default. This lets prismatic joints show
+                    // "m" for their travel limits while revolute joints show "deg".
+                    const displayUnit = fieldSpec?.unit ?? unit
+                    return (
+                      <AdvancedRow
+                        key={key}
+                        label={label}
+                        unit={displayUnit}
+                        value={jv[key] as number}
+                        spec={fieldSpec}
+                        readOnly={!editable}
+                        onChange={(v) =>
+                          onDhChange(writeDhTarget(dhValues, `joints[${idx}].${key}`, v))
+                        }
+                      />
+                    )
+                  })}
+                </div>
               )
             })}
           </div>
@@ -343,6 +359,7 @@ function SliderRow({
   onChange: (v: number) => void
 }) {
   const step = (max - min) / 200
+  const pct = max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 0
   return (
     <div style={rowStyle}>
       <div style={rowLabelColStyle}>
@@ -350,15 +367,22 @@ function SliderRow({
         {description && <span style={descStyle}>{description}</span>}
       </div>
       <div style={rowControlColStyle}>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value))}
-          style={rangeStyle}
-        />
+        {/* Hardware fader: a thin track with a chunky thumb. The native range
+            input sits transparent on top to handle pointer + keyboard input. */}
+        <div style={faderTrackStyle}>
+          <div style={faderBaseStyle} />
+          <div style={{ ...faderFillStyle, width: `${(pct * 100).toFixed(2)}%` }} />
+          <div style={{ ...faderThumbStyle, left: `${(pct * 100).toFixed(2)}%` }} />
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            style={faderInputStyle}
+          />
+        </div>
         <div style={readoutRowStyle}>
           <span style={readoutStyle}>{formatValue(value, unit)}</span>
           {unit && <span style={unitStyle}>{unit}</span>}
@@ -484,9 +508,55 @@ const unitStyle: React.CSSProperties = {
   fontSize: 11,
 }
 
-const rangeStyle: React.CSSProperties = {
+// ── Hardware fader ──────────────────────────────────────────────────────────
+// A thin track with a chunky thumb, evoking a physical motor-fader. The native
+// range input sits transparent on top to capture pointer + keyboard input.
+const faderTrackStyle: React.CSSProperties = {
+  position: 'relative',
   width: '100%',
-  accentColor: accent.default,
+  height: 22,
+  display: 'flex',
+  alignItems: 'center',
+}
+
+const faderBaseStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  height: 3,
+  background: borderColor.default,
+  pointerEvents: 'none',
+}
+
+const faderFillStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  height: 3,
+  background: accent.default,
+  pointerEvents: 'none',
+}
+
+const faderThumbStyle: React.CSSProperties = {
+  position: 'absolute',
+  transform: 'translateX(-50%)',
+  width: 10,
+  height: 22,
+  background: accent.default,
+  border: `1px solid ${accent.on}`,
+  borderRadius: 1,
+  pointerEvents: 'none',
+  boxShadow: `0 0 0 1px ${borderColor.default}`,
+}
+
+const faderInputStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  width: '100%',
+  height: '100%',
+  margin: 0,
+  opacity: 0,
+  cursor: 'pointer',
 }
 
 const submitBtnStyle: React.CSSProperties = {
@@ -531,6 +601,21 @@ const jointBlockStyle: React.CSSProperties = {
   gap: 6,
   paddingTop: 8,
   borderTop: `1px solid ${borderColor.dim}`,
+}
+
+const advGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+}
+
+const advGroupLabelStyle: React.CSSProperties = {
+  color: text.dim,
+  fontSize: 10,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginTop: 2,
 }
 
 const advRowStyle: React.CSSProperties = {
