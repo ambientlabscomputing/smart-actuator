@@ -321,5 +321,6 @@ class GCodePreview(BaseModel):
 
 # Deferred rebuild so GCodeTranslationResult.program resolves at import time.
 def _rebuild_translation_result() -> None:
+    from brain.models.program import Program  # noqa: F401 — needed for model_rebuild namespace
 
-    GCodeTranslationResult.model_rebuild()
+    GCodeTranslationResult.model_rebuild(_types_namespace={"Program": Program})

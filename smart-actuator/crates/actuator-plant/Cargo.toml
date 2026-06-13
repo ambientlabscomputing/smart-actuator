@@ -11,3 +11,8 @@ actuator-core = { path = "../actuator-core" }
 tokio = { version = "1", default-features = false, features = ["sync"] }
 async-trait.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+# Test-only runtime; not compiled into the wasm lib build, so it stays
+# wasm-compatible while letting #[tokio::test] drive the async plant API.
+tokio = { version = "1", features = ["rt", "macros"] }

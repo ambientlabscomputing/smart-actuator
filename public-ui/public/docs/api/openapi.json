@@ -1,0 +1,5454 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Jog Actuator API",
+    "description": "Jog Actuator Brain \u2014 REST interface",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/actuators": {
+      "get": {
+        "tags": [
+          "actuators"
+        ],
+        "summary": "List Actuators",
+        "description": "Return all actuators currently visible to the sidecar.",
+        "operationId": "list_actuators_api_v1_actuators_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Actuator"
+                  },
+                  "type": "array",
+                  "title": "Response List Actuators Api V1 Actuators Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actuators/{actuator_id}": {
+      "get": {
+        "tags": [
+          "actuators"
+        ],
+        "summary": "Describe Actuator",
+        "description": "Return details for a single actuator.",
+        "operationId": "describe_actuator_api_v1_actuators__actuator_id__get",
+        "parameters": [
+          {
+            "name": "actuator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Actuator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Actuator"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actuators/{actuator_id}/calibrate": {
+      "post": {
+        "tags": [
+          "actuators"
+        ],
+        "summary": "Calibrate Actuator",
+        "description": "Start a calibration job for the given actuator joint.",
+        "operationId": "calibrate_actuator_api_v1_actuators__actuator_id__calibrate_post",
+        "parameters": [
+          {
+            "name": "actuator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Actuator Id"
+            }
+          },
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          },
+          {
+            "name": "joint_index",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Joint Index"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationJobState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machines/{machine_id}/calibrations": {
+      "post": {
+        "tags": [
+          "calibrations"
+        ],
+        "summary": "Start a calibration job for a joint",
+        "operationId": "start_calibration_api_v1_machines__machine_id__calibrations_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCalibrationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationJobState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "calibrations"
+        ],
+        "summary": "List calibration jobs for a machine",
+        "operationId": "list_calibrations_api_v1_machines__machine_id__calibrations_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalibrationJobState"
+                  },
+                  "title": "Response List Calibrations Api V1 Machines  Machine Id  Calibrations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calibrations/{job_id}": {
+      "get": {
+        "tags": [
+          "calibrations"
+        ],
+        "summary": "Get calibration job state",
+        "operationId": "get_calibration_api_v1_calibrations__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationJobState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calibrations/{job_id}/advance": {
+      "post": {
+        "tags": [
+          "calibrations"
+        ],
+        "summary": "Advance a calibration job to the next step",
+        "operationId": "advance_calibration_api_v1_calibrations__job_id__advance_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationJobState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calibrations/{job_id}/abort": {
+      "post": {
+        "tags": [
+          "calibrations"
+        ],
+        "summary": "Abort a calibration job",
+        "operationId": "abort_calibration_api_v1_calibrations__job_id__abort_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationJobState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Upload File",
+        "description": "Upload a file and persist its metadata. The raw bytes are saved to the configured storage directory.",
+        "operationId": "upload_file_api_v1_files_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_v1_files_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List Files",
+        "description": "List stored files, optionally filtered by location substring.",
+        "operationId": "list_files_api_v1_files_get",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredFilesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get File",
+        "description": "Return metadata for a single stored file.",
+        "operationId": "get_file_api_v1_files__file_id__get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoredFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Delete File",
+        "description": "Delete a stored file from disk and the database.",
+        "operationId": "delete_file_api_v1_files__file_id__delete",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gcode/translate": {
+      "post": {
+        "tags": [
+          "gcode"
+        ],
+        "summary": "Translate a G-code file into a Program",
+        "description": "Parse and translate the G-code file identified by *file_id* into a Program\nAST of MOVE_SE3 nodes.\n\n- **save=true** (default): persists the Program so it can be run via\n  `POST /programs/{program_id}/runs`.\n- **save=false**: returns the translation result without storing it.\n\nPossible error codes:\n- **404** \u2014 file_id not found or missing from disk.\n- **409** \u2014 AST validation failed (malformed program).\n- **422** \u2014 request body validation failed.",
+        "operationId": "translate_gcode_api_v1_gcode_translate_post",
+        "parameters": [
+          {
+            "name": "save",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Persist the resulting Program. Set to false for a dry-run.",
+              "default": true,
+              "title": "Save"
+            },
+            "description": "Persist the resulting Program. Set to false for a dry-run."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GCodeTranslationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GCodeTranslationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gcode/preview": {
+      "post": {
+        "tags": [
+          "gcode"
+        ],
+        "summary": "Preview the translated path without saving",
+        "description": "Translate the G-code file and return a lightweight path preview.\n\nNo Program is persisted.  Poses are capped at 2 000; *truncated* will be\ntrue when the full translation would exceed that limit.\n\nUseful for showing the tool path in the UI before committing to a save.",
+        "operationId": "preview_gcode_api_v1_gcode_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GCodeTranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GCodePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gcode/samples": {
+      "get": {
+        "tags": [
+          "gcode"
+        ],
+        "summary": "List built-in G-code sample names",
+        "description": "Return the sorted list of built-in sample names accepted by POST /gcode/samples.",
+        "operationId": "list_gcode_samples_api_v1_gcode_samples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response List Gcode Samples Api V1 Gcode Samples Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "gcode"
+        ],
+        "summary": "Generate a built-in G-code sample and save it as a Program",
+        "description": "Generate a named built-in G-code sample with configurable origin and\ndimensions, translate it in memory, persist the resulting Program, and\nreturn the translation result.\n\n- **origin_mm** \u2014 ``[cx, cy, work_z]``: pattern centre and working Z in mm.\n  For a gantry where X and Y run 0 \u2192 *width_mm*, set\n  ``cx = width_mm / 2`` and ``cy = height_mm / 2`` so the entire pattern\n  stays in the positive quadrant.\n- **width_mm / height_mm** \u2014 overall bounding box of the pattern.\n\nNo file upload is required \u2014 G-code is generated server-side.",
+        "operationId": "generate_gcode_sample_api_v1_gcode_samples_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GantrySampleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GCodeTranslationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machines": {
+      "get": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "List all machine IDs",
+        "description": "Return the IDs of all persisted machines.",
+        "operationId": "list_machines_api_v1_machines_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response List Machines Api V1 Machines Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}": {
+      "get": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Get machine by ID",
+        "description": "Return the current bound machine description.",
+        "operationId": "get_machine_api_v1_machine__machine_id__get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Machine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Update machine geometry parameters",
+        "description": "Update one or more geometry parameters on an existing machine.\n\nValues are validated against the template schema (min/max).\nActuator bindings are preserved; the URDF is re-expanded automatically.\nSims are NOT restarted \u2014 link length / limit changes are visual in J3.",
+        "operationId": "update_parameters_api_v1_machine__machine_id__patch",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateParametersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Machine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Build machine from description",
+        "description": "Create or replace a machine from a template description.\nThe template is expanded to URDF and persisted immediately.\nActuator slots start unbound \u2014 follow up with POST /machine/{id}/bindings/{slot}.",
+        "operationId": "build_machine_api_v1_machine_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MachineDescription"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Machine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/bindings/{slot}": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Bind a joint slot to a sim or hardware actuator (or unbind)",
+        "description": "Bind slot *slot* of machine *machine_id*.\n\n- `kind=\"sim\"` \u2014 spawn an actuator-sim process, register with Sidecar,\n  return {machine_id, slot, kind, actuator_id, address, pid}.\n- `kind=\"hardware\"` \u2014 register an existing hardware actuator (e.g. ESP32\n  firmware) by its IP and port. Fields: ip (required), port (required),\n  actuator_id (optional, derived if omitted).\n  Returns {machine_id, slot, kind, actuator_id, address}.\n- `kind=\"unbound\"` \u2014 tear down any existing binding for this slot.",
+        "operationId": "bind_slot_api_v1_machine__machine_id__bindings__slot__post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          },
+          {
+            "name": "slot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Slot"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Bind Slot Api V1 Machine  Machine Id  Bindings  Slot  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/bind": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Bind Actuators",
+        "description": "Bind a list of actuator IDs to the machine's joint slots (index = slot).",
+        "operationId": "bind_actuators_api_v1_machine__machine_id__bind_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Actuator Ids"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Bind Actuators Api V1 Machine  Machine Id  Bind Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/home": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Home Machine",
+        "description": "Send the machine to its home configuration.",
+        "operationId": "home_machine_api_v1_machine__machine_id__home_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Home Machine Api V1 Machine  Machine Id  Home Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/workspace": {
+      "get": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Get the machine's pre-computed reachable workspace",
+        "description": "Return the cached reachable end-effector workspace for the machine.\nThe workspace is computed eagerly when the machine is created or edited,\nso this endpoint is a fast read of the persisted result.\nReturns 404 if not yet computed (e.g. legacy machine without dh_chain).",
+        "operationId": "get_workspace_api_v1_machine__machine_id__workspace_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/workspace/recompute": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Force-recompute the machine's reachable workspace",
+        "description": "Recompute the reachable workspace from the machine's current DH chain\nand persist the result.  Useful after direct DB edits or to force a refresh.",
+        "operationId": "recompute_workspace_api_v1_machine__machine_id__workspace_recompute_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/workspace/contains": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Check if a 3-D point is within the machine's reachable workspace",
+        "description": "Return {inside: bool} indicating whether *point* lies within the machine's\nreachable end-effector envelope.  Uses the persisted convex hull.",
+        "operationId": "workspace_contains_api_v1_machine__machine_id__workspace_contains_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContainsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Workspace Contains Api V1 Machine  Machine Id  Workspace Contains Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/ik_overrides": {
+      "put": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Set IK solver overrides (force-numeric, numeric tuning)",
+        "description": "Persist per-machine IK override settings.\nSetting force_numeric=true bypasses analytic solvers entirely.",
+        "operationId": "set_ik_overrides_api_v1_machine__machine_id__ik_overrides_put",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IKOverridesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Machine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/end_effector": {
+      "put": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Update the end-effector frame definition",
+        "description": "Update the EE offset/orientation and task-space declaration.\nChanging the EE frame invalidates the cached workspace and triggers a\nbackground recompute.",
+        "operationId": "set_end_effector_api_v1_machine__machine_id__end_effector_put",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndEffectorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Machine"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machine/{machine_id}/ik/preview": {
+      "post": {
+        "tags": [
+          "machine"
+        ],
+        "summary": "Preview IK solution for a target pose",
+        "description": "Compute joint angles that achieve the requested pose without executing any\nmotion.  Returns the solved configuration, position residual, and the\nstrategy actually used (analytic or numeric).\n\nRaises 404 if the machine is unknown, 422 if the target is outside the\nworkspace, and 409 if the solver cannot find a solution.",
+        "operationId": "ik_preview_api_v1_machine__machine_id__ik_preview_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IKPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IKPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mode": {
+      "get": {
+        "tags": [
+          "mode"
+        ],
+        "summary": "Get Mode",
+        "description": "Return the current operating mode for a machine.",
+        "operationId": "get_mode_api_v1_mode_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Mode Api V1 Mode Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mode"
+        ],
+        "summary": "Set Mode",
+        "description": "Request a mode transition. Raises 400 if the transition is not permitted.",
+        "operationId": "set_mode_api_v1_mode_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Mode Api V1 Mode Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mode/history": {
+      "get": {
+        "tags": [
+          "mode"
+        ],
+        "summary": "Get Mode History",
+        "description": "Return mode-change history for a machine (oldest first).",
+        "operationId": "get_mode_history_api_v1_mode_history_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModeEvent"
+                  },
+                  "title": "Response Get Mode History Api V1 Mode History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/joint": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Move Joint",
+        "description": "Move one or more joints to target angles (radians).",
+        "operationId": "move_joint_api_v1_move_joint_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveJointBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Move Joint Api V1 Move Joint Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/linear": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Move Linear",
+        "description": "Move end-effector in a straight Cartesian line to the target pose.",
+        "operationId": "move_linear_api_v1_move_linear_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovePoseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Move Linear Api V1 Move Linear Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/pose": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Move To Pose",
+        "description": "Move to a Cartesian target pose via a joint-space path.",
+        "operationId": "move_to_pose_api_v1_move_pose_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovePoseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Move To Pose Api V1 Move Pose Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/path": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Follow Path",
+        "description": "Follow a sequence of Cartesian waypoints.",
+        "operationId": "follow_path_api_v1_move_path_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowPathBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Follow Path Api V1 Move Path Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/stop": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Stop",
+        "description": "Abort the current trajectory and decelerate to a stop.",
+        "operationId": "stop_api_v1_move_stop_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Api V1 Move Stop Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/move/estop": {
+      "post": {
+        "tags": [
+          "motion"
+        ],
+        "summary": "Estop",
+        "description": "Emergency stop.  Flips mode to ESTOPPED first (gates further commands),\nthen fans out Abort to all actuators via the sidecar.\nRecovery requires POST /mode {mode: 'idle'}.",
+        "operationId": "estop_api_v1_move_estop_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Estop Api V1 Move Estop Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "List Programs",
+        "description": "Return metadata for all stored programs.",
+        "operationId": "list_programs_api_v1_programs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProgramMeta"
+                  },
+                  "type": "array",
+                  "title": "Response List Programs Api V1 Programs Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Save Program",
+        "description": "Create or replace a program.\n\nValidates AST structure (root SEQUENCE, MOVE/WAIT nodes only).",
+        "operationId": "save_program_api_v1_programs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Program-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Program-Output"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/{program_id}": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Get Program",
+        "description": "Return a single program by ID.",
+        "operationId": "get_program_api_v1_programs__program_id__get",
+        "parameters": [
+          {
+            "name": "program_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Program Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Program-Output"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Delete Program",
+        "description": "Delete a program.",
+        "operationId": "delete_program_api_v1_programs__program_id__delete",
+        "parameters": [
+          {
+            "name": "program_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Program Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/{program_id}/runs": {
+      "post": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Start a program run",
+        "description": "Start executing the named program against the given machine.\nReturns immediately with the initial ProgramRunState (status=running).",
+        "operationId": "start_run_api_v1_programs__program_id__runs_post",
+        "parameters": [
+          {
+            "name": "program_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Program Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRunBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramRunState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "List runs for a program",
+        "operationId": "list_runs_api_v1_programs__program_id__runs_get",
+        "parameters": [
+          {
+            "name": "program_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Program Id"
+            }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Active Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProgramRunState"
+                  },
+                  "title": "Response List Runs Api V1 Programs  Program Id  Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Get a run's current state",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramRunState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/stop": {
+      "post": {
+        "tags": [
+          "programs"
+        ],
+        "summary": "Stop a running program",
+        "operationId": "stop_run_api_v1_runs__run_id__stop_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramRunState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/state": {
+      "get": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Get State",
+        "operationId": "get_state_api_v1_state_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MachineState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/machines/{machine_id}/teach": {
+      "post": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Start a teach session",
+        "description": "Create a new teach session for the given machine.",
+        "operationId": "start_session_api_v1_machines__machine_id__teach_post",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSessionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Get the active teach session",
+        "description": "Return the current (or most recent) teach session for a machine.",
+        "operationId": "get_session_api_v1_machines__machine_id__teach_get",
+        "parameters": [
+          {
+            "name": "machine_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Machine Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teach/sessions/{session_id}/record": {
+      "post": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Start recording (armed \u2192 recording)",
+        "operationId": "start_recording_api_v1_teach_sessions__session_id__record_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teach/sessions/{session_id}/capture": {
+      "post": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Capture current joint state as a waypoint",
+        "operationId": "capture_api_v1_teach_sessions__session_id__capture_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teach/sessions/{session_id}/waypoints/{index}": {
+      "delete": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Delete a captured waypoint by index",
+        "operationId": "delete_waypoint_api_v1_teach_sessions__session_id__waypoints__index__delete",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teach/sessions/{session_id}/save": {
+      "post": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Save waypoints as a Program",
+        "description": "Materialise the recorded waypoints as a Program and return its ID.",
+        "operationId": "save_session_api_v1_teach_sessions__session_id__save_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSessionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Save Session Api V1 Teach Sessions  Session Id  Save Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teach/sessions/{session_id}/abort": {
+      "post": {
+        "tags": [
+          "teach"
+        ],
+        "summary": "Abort a teach session",
+        "operationId": "abort_session_api_v1_teach_sessions__session_id__abort_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeachSessionState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "List available templates",
+        "description": "Return summary metadata for all in-tree templates.",
+        "operationId": "list_templates_api_v1_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateMeta"
+                  },
+                  "type": "array",
+                  "title": "Response List Templates Api V1 Templates Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{template_id}": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get template schema",
+        "description": "Return full schema (parameters + joints) for a single template.",
+        "operationId": "get_template_api_v1_templates__template_id__get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateParamSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Current User",
+        "description": "Get the currently authenticated user.",
+        "operationId": "get_current_user_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/login": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Login",
+        "description": "Authenticate a user and return a Bearer token.",
+        "operationId": "login_api_v1_users_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User",
+        "description": "Get a user by their username.",
+        "operationId": "get_user_api_v1_users__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update User",
+        "description": "Update an existing user.",
+        "operationId": "update_user_api_v1_users__user_id__patch",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete User",
+        "description": "Delete a user by their ID.",
+        "operationId": "delete_user_api_v1_users__user_id__delete",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Search Users",
+        "description": "Search for users based on query parameters.",
+        "operationId": "search_users_api_v1_users__get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of records returned",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of records returned"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Number of records skipped before the returned results",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of records skipped before the returned results"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Field by which to sort the records",
+              "title": "Sort By"
+            },
+            "description": "Field by which to sort the records"
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Direction of sorting: 'asc' or 'desc'",
+              "default": "asc",
+              "title": "Sort Order"
+            },
+            "description": "Direction of sorting: 'asc' or 'desc'"
+          },
+          {
+            "name": "username",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Username"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchUsersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create User",
+        "description": "Create a new user.",
+        "operationId": "create_user_api_v1_users__post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Actuator": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "firmware_version": {
+            "type": "string",
+            "title": "Firmware Version",
+            "default": ""
+          },
+          "health": {
+            "$ref": "#/components/schemas/ActuatorHealth",
+            "default": "unknown"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Actuator"
+      },
+      "ActuatorHealth": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "degraded",
+          "fault",
+          "unknown"
+        ],
+        "title": "ActuatorHealth"
+      },
+      "BaseListRequest": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Maximum number of records returned",
+            "default": 100
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Number of records skipped before the returned results",
+            "default": 0
+          },
+          "sort_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort By",
+            "description": "Field by which to sort the records"
+          },
+          "sort_order": {
+            "type": "string",
+            "title": "Sort Order",
+            "description": "Direction of sorting: 'asc' or 'desc'",
+            "default": "asc"
+          }
+        },
+        "type": "object",
+        "title": "BaseListRequest"
+      },
+      "BindingRequest": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "serial_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Path"
+          },
+          "baud_rate": {
+            "type": "integer",
+            "title": "Baud Rate",
+            "default": 921600
+          },
+          "actuator_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actuator Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "BindingRequest"
+      },
+      "Body_upload_file_api_v1_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_api_v1_files_post"
+      },
+      "CalibrationJobState": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "joint_index": {
+            "type": "integer",
+            "title": "Joint Index"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalibrationJobStatus"
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "last_measurement": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Last Measurement",
+            "default": {}
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "default": {}
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "default": 0
+          },
+          "updated_at": {
+            "type": "integer",
+            "title": "Updated At",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "machine_id",
+          "joint_index",
+          "status",
+          "step",
+          "prompt"
+        ],
+        "title": "CalibrationJobState"
+      },
+      "CalibrationJobStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "waiting_for_home",
+          "running_sweep",
+          "completed",
+          "aborted",
+          "faulted"
+        ],
+        "title": "CalibrationJobStatus"
+      },
+      "ContainsRequest": {
+        "properties": {
+          "point": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Point"
+          }
+        },
+        "type": "object",
+        "required": [
+          "point"
+        ],
+        "title": "ContainsRequest"
+      },
+      "DHChainSchema": {
+        "properties": {
+          "link_radius": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "joints": {
+            "items": {
+              "$ref": "#/components/schemas/DHJointSpec"
+            },
+            "type": "array",
+            "title": "Joints"
+          }
+        },
+        "type": "object",
+        "title": "DHChainSchema",
+        "description": "Full DH chain schema parsed from a template's dh: block.\nPassed to dh_urdf.py to generate URDF and to the UI for Advanced editing."
+      },
+      "DHChainValues": {
+        "properties": {
+          "link_radius": {
+            "type": "number",
+            "title": "Link Radius",
+            "default": 0.03
+          },
+          "joints": {
+            "items": {
+              "$ref": "#/components/schemas/DHJointValues"
+            },
+            "type": "array",
+            "title": "Joints"
+          }
+        },
+        "type": "object",
+        "title": "DHChainValues",
+        "description": "The per-machine DH chain values stored in MachineDescription.dh_chain.\nThese are the source of truth; the legacy parameters dict is derived from them."
+      },
+      "DHFieldSpec": {
+        "properties": {
+          "default": {
+            "type": "number",
+            "title": "Default"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": ""
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "default"
+        ],
+        "title": "DHFieldSpec",
+        "description": "Descriptor for a single numeric DH field as declared in template.yaml."
+      },
+      "DHJointSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slot": {
+            "type": "integer",
+            "title": "Slot"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "revolute"
+          },
+          "axis": {
+            "type": "string",
+            "title": "Axis",
+            "default": "z"
+          },
+          "a": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "d": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "alpha": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "theta_offset": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "limit_lower": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "limit_upper": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          },
+          "mass": {
+            "$ref": "#/components/schemas/DHFieldSpec"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "slot"
+        ],
+        "title": "DHJointSpec",
+        "description": "Schema for one joint row in the template's dh.joints[] list.\nAll numeric DH fields are specs; name/slot/type/axis are plain values."
+      },
+      "DHJointValues": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slot": {
+            "type": "integer",
+            "title": "Slot"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "revolute"
+          },
+          "axis": {
+            "type": "string",
+            "title": "Axis",
+            "default": "z"
+          },
+          "a": {
+            "type": "number",
+            "title": "A",
+            "default": 0.0
+          },
+          "d": {
+            "type": "number",
+            "title": "D",
+            "default": 0.0
+          },
+          "alpha": {
+            "type": "number",
+            "title": "Alpha",
+            "default": 0.0
+          },
+          "theta_offset": {
+            "type": "number",
+            "title": "Theta Offset",
+            "default": 0.0
+          },
+          "limit_lower": {
+            "type": "number",
+            "title": "Limit Lower",
+            "default": -180.0
+          },
+          "limit_upper": {
+            "type": "number",
+            "title": "Limit Upper",
+            "default": 180.0
+          },
+          "mass": {
+            "type": "number",
+            "title": "Mass",
+            "default": 0.5
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "slot"
+        ],
+        "title": "DHJointValues",
+        "description": "Stored per-machine values for one joint in the DH chain."
+      },
+      "EasyAlias": {
+        "properties": {
+          "legacy_param": {
+            "type": "string",
+            "title": "Legacy Param"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "type": "object",
+        "required": [
+          "legacy_param",
+          "label",
+          "target"
+        ],
+        "title": "EasyAlias",
+        "description": "One entry in the template's easy: list \u2014 a friendly alias onto a DH field."
+      },
+      "EndEffectorRequest": {
+        "properties": {
+          "parent": {
+            "type": "string",
+            "title": "Parent",
+            "default": ""
+          },
+          "offset_m": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Offset M",
+            "default": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "orientation_offset_deg": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Offset Deg",
+            "default": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "task_space": {
+            "type": "string",
+            "title": "Task Space",
+            "default": "r3"
+          }
+        },
+        "type": "object",
+        "title": "EndEffectorRequest"
+      },
+      "EndEffectorSpec": {
+        "properties": {
+          "parent": {
+            "type": "string",
+            "title": "Parent",
+            "description": "Name of the joint whose frame the EE is attached to (usually the last joint in the chain)."
+          },
+          "offset_m": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Offset M",
+            "description": "Translation [x, y, z] in metres from the parent joint origin to the EE."
+          },
+          "orientation_offset_deg": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Offset Deg",
+            "description": "Intrinsic RPY rotation (degrees) from parent joint frame to EE frame."
+          },
+          "task_space": {
+            "type": "string",
+            "title": "Task Space",
+            "description": "planar_xz | planar_xy | r3 | se3 \u2014 dimensionality of the IK task.",
+            "default": "se3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parent"
+        ],
+        "title": "EndEffectorSpec",
+        "description": "Top-level template/machine concept describing where the end-effector\nframe is relative to the last joint in the DH chain.\n\nSeeded from the template's end_effector: block; persisted on the machine\nso users can tweak the tool offset without forking the template."
+      },
+      "FollowPathBody": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "waypoints": {
+            "items": {
+              "$ref": "#/components/schemas/Pose"
+            },
+            "type": "array",
+            "title": "Waypoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "waypoints"
+        ],
+        "title": "FollowPathBody"
+      },
+      "GCodePreview": {
+        "properties": {
+          "positions": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Positions",
+            "description": "[x, y, z] in mm for each sampled waypoint (may be truncated)."
+          },
+          "motion_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motion Types",
+            "description": "'rapid' | 'feed' | 'arc' for each waypoint, parallel to positions."
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "description": "True when pose_count > the preview cap and positions has been shortened.",
+            "default": false
+          },
+          "pose_count": {
+            "type": "integer",
+            "title": "Pose Count",
+            "description": "Total pose count before any truncation."
+          }
+        },
+        "type": "object",
+        "required": [
+          "positions",
+          "motion_types",
+          "pose_count"
+        ],
+        "title": "GCodePreview",
+        "description": "Lightweight preview of the translated path \u2014 no full Program AST."
+      },
+      "GCodeTranslationRequest": {
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "title": "File Id",
+            "description": "ID of the uploaded G-code StoredFile to translate."
+          },
+          "program_id": {
+            "type": "string",
+            "title": "Program Id",
+            "description": "UUID to use for the resulting Program. Defaults to a new random UUID."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Human-readable name for the resulting Program."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Optional description for the Program.",
+            "default": ""
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id",
+            "description": "Machine the program will be executed on."
+          },
+          "orientation_quat": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Quat",
+            "description": "Tool orientation applied to every MOVE_SE3 pose (x, y, z, w). Default is identity."
+          },
+          "start_position": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Start Position",
+            "description": "Initial cursor position in mm (x, y, z) before the first G-code move."
+          },
+          "chord_tolerance_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Chord Tolerance Mm",
+            "description": "Maximum chord deviation when sampling G2/G3 arcs (mm). Smaller = more points.",
+            "default": 0.1
+          },
+          "arc_plane": {
+            "type": "string",
+            "enum": [
+              "xy",
+              "xz",
+              "yz"
+            ],
+            "title": "Arc Plane",
+            "description": "Active plane for G2/G3 circular interpolation.",
+            "default": "xy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "name",
+          "machine_id"
+        ],
+        "title": "GCodeTranslationRequest"
+      },
+      "GCodeTranslationResult": {
+        "properties": {
+          "program": {
+            "$ref": "#/components/schemas/Program-Output"
+          },
+          "pose_count": {
+            "type": "integer",
+            "title": "Pose Count",
+            "description": "Number of MOVE_SE3 nodes in the program."
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Non-fatal notices produced during translation (unit changes, unrecognised commands, etc.)."
+          },
+          "dropped_lines": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Dropped Lines",
+            "description": "(1-based line number, error message) for lines that could not be parsed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "program",
+          "pose_count"
+        ],
+        "title": "GCodeTranslationResult",
+        "description": "Returned by the translate endpoint. program is ready to persist and run."
+      },
+      "GantrySampleRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Sample name \u2014 one of the SAMPLE_NAMES values."
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id",
+            "description": "Machine the program will execute on."
+          },
+          "program_name": {
+            "type": "string",
+            "title": "Program Name",
+            "description": "Human-readable name for the saved Program.",
+            "default": "Gantry sample"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Optional program description.",
+            "default": ""
+          },
+          "origin_mm": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Origin Mm",
+            "description": "[cx, cy, work_z] \u2014 pattern centre (XY) and working Z in mm. Set cx = width_mm/2, cy = height_mm/2 to keep the pattern in the positive quadrant."
+          },
+          "width_mm": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Width Mm",
+            "description": "Bounding-box width along X (mm).",
+            "default": 200.0
+          },
+          "height_mm": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Height Mm",
+            "description": "Bounding-box height along Y (mm).",
+            "default": 200.0
+          },
+          "orientation_quat": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Quat",
+            "description": "Tool orientation applied to every pose (x, y, z, w). Default is identity."
+          },
+          "chord_tolerance_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Chord Tolerance Mm",
+            "description": "Arc chord tolerance (mm).",
+            "default": 0.1
+          },
+          "arc_plane": {
+            "type": "string",
+            "enum": [
+              "xy",
+              "xz",
+              "yz"
+            ],
+            "title": "Arc Plane",
+            "description": "Arc interpolation plane.",
+            "default": "xy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "machine_id"
+        ],
+        "title": "GantrySampleRequest",
+        "description": "Request body for ``POST /gcode/samples``."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IKBlock": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "Solver family for this block \u2014 must be a key in KNOWN_IK_BLOCK_KINDS."
+          },
+          "joints": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Joints",
+            "description": "Ordered list of joint *slot* indices that belong to this block."
+          },
+          "branch_preference": {
+            "type": "string",
+            "title": "Branch Preference",
+            "description": "elbow_up | elbow_down | nearest \u2014 selects the analytic branch when the block has two solutions (e.g. planar_2r).",
+            "default": "nearest"
+          },
+          "plane": {
+            "type": "string",
+            "title": "Plane",
+            "description": "For planar blocks: disambiguates which plane the chain lives in (yz_of_parent | xz_of_parent | xy_of_parent). Inferred from DH if empty.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "joints"
+        ],
+        "title": "IKBlock",
+        "description": "One block in a decomposition \u2014 a contiguous slice of joints and a solver hint."
+      },
+      "IKBlockVerification": {
+        "properties": {
+          "block_index": {
+            "type": "integer",
+            "title": "Block Index"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "joints": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Joints"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "ok | warning | error"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "block_index",
+          "kind",
+          "joints",
+          "status"
+        ],
+        "title": "IKBlockVerification",
+        "description": "Per-block result from the build-time geometric verifier."
+      },
+      "IKNumericConfig": {
+        "properties": {
+          "max_iters": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Max Iters",
+            "default": 150
+          },
+          "pos_tol_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pos Tol M",
+            "default": 0.0001
+          },
+          "rot_tol_rad": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Rot Tol Rad",
+            "default": 0.001
+          },
+          "damping": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Damping",
+            "default": 0.01
+          },
+          "seed": {
+            "type": "string",
+            "title": "Seed",
+            "description": "current_q | zero | sampled \u2014 initial joint-state guess for the solver.",
+            "default": "current_q"
+          }
+        },
+        "type": "object",
+        "title": "IKNumericConfig",
+        "description": "Settings for the Jacobian (damped least squares) numeric fallback solver."
+      },
+      "IKOverrides": {
+        "properties": {
+          "force_numeric": {
+            "type": "boolean",
+            "title": "Force Numeric",
+            "description": "When true, always use the Jacobian numeric solver regardless of decomposition.",
+            "default": false
+          },
+          "numeric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IKNumericConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override numeric solver settings. None \u2192 use template defaults."
+          }
+        },
+        "type": "object",
+        "title": "IKOverrides",
+        "description": "Machine-level user overrides for IK behaviour.\nPersisted on MachineDescription; survives template updates."
+      },
+      "IKOverridesRequest": {
+        "properties": {
+          "force_numeric": {
+            "type": "boolean",
+            "title": "Force Numeric",
+            "default": false
+          },
+          "numeric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IKNumericConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "IKOverridesRequest"
+      },
+      "IKPreviewRequest": {
+        "properties": {
+          "target_pose": {
+            "$ref": "#/components/schemas/Pose"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy",
+            "default": "auto"
+          },
+          "branch_preference": {
+            "type": "string",
+            "title": "Branch Preference",
+            "default": ""
+          },
+          "seed": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Seed",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_pose"
+        ],
+        "title": "IKPreviewRequest"
+      },
+      "IKPreviewResponse": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "solved_q": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Solved Q"
+          },
+          "residual_m": {
+            "type": "number",
+            "title": "Residual M"
+          },
+          "strategy_used": {
+            "type": "string",
+            "title": "Strategy Used"
+          },
+          "elapsed_ms": {
+            "type": "number",
+            "title": "Elapsed Ms"
+          },
+          "collision_blocked": {
+            "type": "boolean",
+            "title": "Collision Blocked",
+            "default": false
+          },
+          "collision_resolved": {
+            "type": "boolean",
+            "title": "Collision Resolved",
+            "default": false
+          },
+          "resolved_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Branch"
+          },
+          "requires_reconfig": {
+            "type": "boolean",
+            "title": "Requires Reconfig",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "solved_q",
+          "residual_m",
+          "strategy_used",
+          "elapsed_ms"
+        ],
+        "title": "IKPreviewResponse"
+      },
+      "IKRedundancyConfig": {
+        "properties": {
+          "nullspace_objective": {
+            "type": "string",
+            "title": "Nullspace Objective",
+            "description": "keep_near_seed | center_limits | none.",
+            "default": "keep_near_seed"
+          }
+        },
+        "type": "object",
+        "title": "IKRedundancyConfig",
+        "description": "Policy for nullspace-DOF use when the mechanism has more DOF than the task requires."
+      },
+      "IKSpec": {
+        "properties": {
+          "decomposition": {
+            "items": {
+              "$ref": "#/components/schemas/IKBlock"
+            },
+            "type": "array",
+            "title": "Decomposition",
+            "description": "Ordered blocks partitioning the joint space. Empty \u2192 pure numeric fallback."
+          },
+          "numeric": {
+            "$ref": "#/components/schemas/IKNumericConfig"
+          },
+          "redundancy": {
+            "$ref": "#/components/schemas/IKRedundancyConfig"
+          }
+        },
+        "type": "object",
+        "title": "IKSpec",
+        "description": "Parsed representation of the template's ik: block.\nBoth fields are optional; omitting decomposition means numeric-only."
+      },
+      "IKVerification": {
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "title": "Strategy",
+            "description": "analytic | numeric \u2014 the strategy that will be used at runtime."
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/IKBlockVerification"
+            },
+            "type": "array",
+            "title": "Blocks"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "verified_at": {
+            "type": "string",
+            "title": "Verified At",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy"
+        ],
+        "title": "IKVerification",
+        "description": "Full verifier report produced at machine-build time.\nPersisted on the Machine so the UI can show it without recomputing."
+      },
+      "JointState": {
+        "properties": {
+          "joint_name": {
+            "type": "string",
+            "title": "Joint Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "revolute"
+          },
+          "position": {
+            "type": "number",
+            "title": "Position",
+            "default": 0.0
+          },
+          "velocity": {
+            "type": "number",
+            "title": "Velocity",
+            "default": 0.0
+          },
+          "current_a": {
+            "type": "number",
+            "title": "Current A",
+            "default": 0.0
+          },
+          "temperature_c": {
+            "type": "number",
+            "title": "Temperature C",
+            "default": 0.0
+          },
+          "fault": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fault"
+          }
+        },
+        "type": "object",
+        "required": [
+          "joint_name"
+        ],
+        "title": "JointState"
+      },
+      "LinkPose": {
+        "properties": {
+          "link_name": {
+            "type": "string",
+            "title": "Link Name"
+          },
+          "position": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Position"
+          },
+          "orientation_quat": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Quat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "link_name"
+        ],
+        "title": "LinkPose"
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "LoginResponse"
+      },
+      "Machine": {
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/MachineDescription"
+          },
+          "expanded_urdf": {
+            "type": "string",
+            "title": "Expanded Urdf",
+            "default": ""
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ik_verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IKVerification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Build-time geometric verifier report for the IK decomposition."
+          },
+          "reach_volume_cache": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Reach Volume Cache"
+          },
+          "collision_bounds_cache": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Collision Bounds Cache"
+          },
+          "joint_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Joint Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "Machine",
+        "description": "The runtime representation of a bound machine: the description plus\nthe expanded URDF and bind-time computed caches."
+      },
+      "MachineDescription": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "template_ref": {
+            "$ref": "#/components/schemas/TemplateRef"
+          },
+          "dh_chain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DHChainValues"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "DH chain values (source of truth). Seeded from parameters when absent."
+          },
+          "parameters": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Parameters",
+            "description": "Derived legacy projection via easy aliases; kept in sync automatically."
+          },
+          "actuator_bindings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actuator Bindings",
+            "description": "Actuator IDs in joint-slot order; index i \u2192 joint slot i"
+          },
+          "end_effector": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndEffectorSpec"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "EE frame relative to last joint. Seeded from template on first load; nullable so existing machines migrate lazily."
+          },
+          "ik_overrides": {
+            "$ref": "#/components/schemas/IKOverrides",
+            "description": "Machine-level user overrides for IK strategy and numeric tunables."
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "template_ref"
+        ],
+        "title": "MachineDescription",
+        "description": "The minimal user-authored description of a machine: which template,\nwhat parameter values, and which actuators are bound to which joints.\nThis is the source of truth persisted across restarts, not the expanded URDF.\n\ndh_chain is the canonical kinematics representation (source of truth).\nparameters is a derived projection kept in sync for backward-compat consumers.\nend_effector is seeded from the template and can be overridden per-machine.\nik_overrides persists user-level IK settings (e.g. force_numeric)."
+      },
+      "MachineMode": {
+        "type": "string",
+        "enum": [
+          "offline",
+          "idle",
+          "manual",
+          "run",
+          "fault",
+          "estopped"
+        ],
+        "title": "MachineMode"
+      },
+      "MachineState": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/MachineMode",
+            "default": "offline"
+          },
+          "measured": {
+            "items": {
+              "$ref": "#/components/schemas/JointState"
+            },
+            "type": "array",
+            "title": "Measured",
+            "description": "Raw joint states from the sidecar"
+          },
+          "modeled": {
+            "items": {
+              "$ref": "#/components/schemas/LinkPose"
+            },
+            "type": "array",
+            "title": "Modeled",
+            "description": "Forward-kinematic link poses computed by the Brain"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id"
+        ],
+        "title": "MachineState"
+      },
+      "ModeEvent": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "previous_mode": {
+            "$ref": "#/components/schemas/MachineMode"
+          },
+          "new_mode": {
+            "$ref": "#/components/schemas/MachineMode"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "previous_mode",
+          "new_mode"
+        ],
+        "title": "ModeEvent"
+      },
+      "ModeRequest": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/MachineMode"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ModeRequest"
+      },
+      "MoveJointBody": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "joint_targets": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Joint Targets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "joint_targets"
+        ],
+        "title": "MoveJointBody"
+      },
+      "MovePoseBody": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/Pose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id",
+          "pose"
+        ],
+        "title": "MovePoseBody"
+      },
+      "NodeKind": {
+        "type": "string",
+        "enum": [
+          "sequence",
+          "conditional",
+          "loop",
+          "move",
+          "move_se3",
+          "wait",
+          "sensor_read",
+          "mode_transition",
+          "sub_program"
+        ],
+        "title": "NodeKind"
+      },
+      "PatchUser": {
+        "properties": {
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "title": "PatchUser"
+      },
+      "Pose": {
+        "properties": {
+          "position": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Position"
+          },
+          "orientation_quat": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Orientation Quat"
+          }
+        },
+        "type": "object",
+        "title": "Pose"
+      },
+      "Program-Input": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/ProgramMeta"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id",
+            "description": "Machine description this program is typed against"
+          },
+          "root": {
+            "$ref": "#/components/schemas/ProgramNode-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "meta",
+          "machine_id",
+          "root"
+        ],
+        "title": "Program",
+        "description": "A named, persistable program expressed as an AST.\nThe Web UI block editor is a view over this AST; external agents drive\nthe Brain via gRPC rather than by emitting the AST directly."
+      },
+      "Program-Output": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/ProgramMeta"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id",
+            "description": "Machine description this program is typed against"
+          },
+          "root": {
+            "$ref": "#/components/schemas/ProgramNode-Output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "meta",
+          "machine_id",
+          "root"
+        ],
+        "title": "Program",
+        "description": "A named, persistable program expressed as an AST.\nThe Web UI block editor is a view over this AST; external agents drive\nthe Brain via gRPC rather than by emitting the AST directly."
+      },
+      "ProgramMeta": {
+        "properties": {
+          "program_id": {
+            "type": "string",
+            "title": "Program Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "program_id",
+          "name"
+        ],
+        "title": "ProgramMeta"
+      },
+      "ProgramNode-Input": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/NodeKind"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/ProgramNode-Input"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Node-kind-specific parameters.\n  MOVE: {joint_name: str, target: float}  (radians for revolute, metres for prismatic)\n  MOVE_SE3: {position: [x, y, z], orientation_quat: [x, y, z, w]}\n  WAIT: {duration_s: float}"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "ProgramNode"
+      },
+      "ProgramNode-Output": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/NodeKind"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/ProgramNode-Output"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Node-kind-specific parameters.\n  MOVE: {joint_name: str, target: float}  (radians for revolute, metres for prismatic)\n  MOVE_SE3: {position: [x, y, z], orientation_quat: [x, y, z, w]}\n  WAIT: {duration_s: float}"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "ProgramNode"
+      },
+      "ProgramRunState": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "program_id": {
+            "type": "string",
+            "title": "Program Id"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProgramRunStatus"
+          },
+          "current_step_index": {
+            "type": "integer",
+            "title": "Current Step Index",
+            "default": 0
+          },
+          "total_steps": {
+            "type": "integer",
+            "title": "Total Steps",
+            "default": 0
+          },
+          "current_node_id": {
+            "type": "string",
+            "title": "Current Node Id",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "default": 0
+          },
+          "updated_at": {
+            "type": "integer",
+            "title": "Updated At",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "program_id",
+          "machine_id",
+          "status"
+        ],
+        "title": "ProgramRunState",
+        "description": "Runtime state of a single program execution (mirrors CalibrationJobState)."
+      },
+      "ProgramRunStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "stopped",
+          "completed",
+          "faulted",
+          "interrupted"
+        ],
+        "title": "ProgramRunStatus"
+      },
+      "SaveSessionBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SaveSessionBody"
+      },
+      "SearchUsersResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "List of records"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of records matching the query"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of records in the current response"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BaseListRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original query parameters used for the request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "total",
+          "count"
+        ],
+        "title": "SearchUsersResponse"
+      },
+      "StartCalibrationRequest": {
+        "properties": {
+          "joint_index": {
+            "type": "integer",
+            "title": "Joint Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "joint_index"
+        ],
+        "title": "StartCalibrationRequest"
+      },
+      "StartRunBody": {
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "machine_id"
+        ],
+        "title": "StartRunBody"
+      },
+      "StartSessionBody": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/TeachMode",
+            "default": "drag"
+          }
+        },
+        "type": "object",
+        "title": "StartSessionBody"
+      },
+      "StoredFile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier for the record"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By",
+            "description": "Username of the creator"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp of record creation"
+          },
+          "updated_by": {
+            "type": "string",
+            "title": "Updated By",
+            "description": "Username of the last updater"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Timestamp of last update"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location",
+            "description": "File path or URI where the file is stored"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "description": "Size of the file in bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_by",
+          "updated_by",
+          "location",
+          "size_bytes"
+        ],
+        "title": "StoredFile",
+        "description": "A file stored in the database, such as a calibration file or program file."
+      },
+      "StoredFilesResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/StoredFile"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "List of records"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of records matching the query"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of records in the current response"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BaseListRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original query parameters used for the request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "total",
+          "count"
+        ],
+        "title": "StoredFilesResponse"
+      },
+      "TeachMode": {
+        "type": "string",
+        "enum": [
+          "live",
+          "drag"
+        ],
+        "title": "TeachMode"
+      },
+      "TeachSessionState": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "machine_id": {
+            "type": "string",
+            "title": "Machine Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/TeachMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TeachStatus"
+          },
+          "waypoints": {
+            "items": {
+              "$ref": "#/components/schemas/Waypoint"
+            },
+            "type": "array",
+            "title": "Waypoints"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By",
+            "default": ""
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "program_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Program Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "machine_id",
+          "mode",
+          "status"
+        ],
+        "title": "TeachSessionState"
+      },
+      "TeachStatus": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "armed",
+          "recording",
+          "saved",
+          "aborted"
+        ],
+        "title": "TeachStatus"
+      },
+      "TemplateMeta": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "publisher": {
+            "type": "string",
+            "title": "Publisher"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "brain_compatibility": {
+            "type": "string",
+            "title": "Brain Compatibility",
+            "default": ""
+          },
+          "firmware_compatibility": {
+            "type": "string",
+            "title": "Firmware Compatibility",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "summary",
+          "version",
+          "publisher",
+          "source"
+        ],
+        "title": "TemplateMeta",
+        "description": "Summary information about a template from the catalogue."
+      },
+      "TemplateParamSchema": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "publisher": {
+            "type": "string",
+            "title": "Publisher"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "brain_compatibility": {
+            "type": "string",
+            "title": "Brain Compatibility",
+            "default": ""
+          },
+          "firmware_compatibility": {
+            "type": "string",
+            "title": "Firmware Compatibility",
+            "default": ""
+          },
+          "parameters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Parameters",
+            "default": []
+          },
+          "joints": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Joints",
+            "default": []
+          },
+          "dh": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DHChainSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "easy": {
+            "items": {
+              "$ref": "#/components/schemas/EasyAlias"
+            },
+            "type": "array",
+            "title": "Easy",
+            "default": []
+          },
+          "end_effector": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndEffectorSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ik": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IKSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "summary",
+          "version",
+          "publisher",
+          "source"
+        ],
+        "title": "TemplateParamSchema",
+        "description": "TemplateMeta extended with the full parameter schema list for the UI wizard."
+      },
+      "TemplateRef": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "Git tag, branch, or SHA \u2014 floating or pinned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "template_id",
+          "version",
+          "content_hash",
+          "ref"
+        ],
+        "title": "TemplateRef",
+        "description": "Identifies a specific template version in a git-hosted catalogue."
+      },
+      "UpdateParametersRequest": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parameters",
+            "default": {}
+          },
+          "dh_chain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DHChainValues"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "UpdateParametersRequest"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier for the record"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By",
+            "description": "Username of the creator"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp of record creation"
+          },
+          "updated_by": {
+            "type": "string",
+            "title": "Updated By",
+            "description": "Username of the last updater"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Timestamp of last update"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "last_login": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_by",
+          "updated_by",
+          "username",
+          "name"
+        ],
+        "title": "User"
+      },
+      "UserCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "name",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Waypoint": {
+        "properties": {
+          "joint_positions": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Joint Positions"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "EE world-frame position [x, y, z] (metres) at capture time."
+          },
+          "orientation_quat": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orientation Quat",
+            "description": "EE world-frame orientation as quaternion [x, y, z, w]."
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "velocity": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "joint_positions"
+        ],
+        "title": "Waypoint",
+        "description": "A single captured pose.\n\n``joint_positions`` maps joint_name \u2192 position in SI units (radians for\nrevolute, metres for prismatic).\n\n``position`` and ``orientation_quat`` are the SE(3) end-effector pose\ncomputed via FK at capture time. When present, the waypoint is replayed\nas a MOVE_SE3 (Cartesian) node, which lets the runtime solve IK fresh\nagainst the current machine state instead of replaying recorded joint\nangles verbatim. Joint angles are still kept for diagnostics + as a\nfallback when no DH chain is available.\n\n``velocity`` is reserved for future LFD work and is always None in v1."
+      },
+      "WorkspaceHull": {
+        "properties": {
+          "vertices": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Vertices"
+          },
+          "faces": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Faces"
+          },
+          "equations": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Equations"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "default": 0.0
+          },
+          "area": {
+            "type": "number",
+            "title": "Area",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "WorkspaceHull",
+        "description": "Convex hull of the reachable end-effector workspace.\nVertices and faces use a compressed index (faces index into vertices list).\nequations is a list of hyperplane coefficients [a, b, c, d] where\na*x + b*y + c*z + d <= 0 for interior points (scipy convention)."
+      },
+      "WorkspaceResult": {
+        "properties": {
+          "dh_hash": {
+            "type": "string",
+            "title": "Dh Hash",
+            "default": ""
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "hull": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceHull"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bounds": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Bounds"
+          },
+          "stats": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Stats"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "WorkspaceResult",
+        "description": "Computed reachable workspace for a machine's end-effector.\nPersisted as workspace_json alongside the machine in SQLite."
+      }
+    }
+  }
+}
