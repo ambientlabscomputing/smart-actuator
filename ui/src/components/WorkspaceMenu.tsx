@@ -25,6 +25,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import BlurOnIcon from '@mui/icons-material/BlurOn'
 import OpenWithIcon from '@mui/icons-material/OpenWith'
 import GrainIcon from '@mui/icons-material/Grain'
+import BugReportIcon from '@mui/icons-material/BugReport'
 
 import { CartesianJogPanel } from './CartesianJogPanel'
 import type { DHJointValues } from '../lib/types'
@@ -64,6 +65,8 @@ interface WorkspaceMenuProps {
   showWorkspaceSamples?: boolean
   onToggleReachability?: () => void
   onToggleWorkspaceSamples?: () => void
+  debugActive?: boolean
+  onToggleDebug?: () => void
   // ── Cartesian jog (optional; only shown when machineId is provided) ─────
   machineId?: string | null
   /** Joint names in chain order, e.g. ['shoulder', 'elbow']. */
@@ -93,6 +96,8 @@ export function WorkspaceMenu({
   showWorkspaceSamples,
   onToggleReachability,
   onToggleWorkspaceSamples,
+  debugActive,
+  onToggleDebug,
   machineId,
   jointNamesOrdered,
   currentQRad,
@@ -287,6 +292,21 @@ export function WorkspaceMenu({
               size="small"
             >
               <GrainIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {onToggleDebug && (
+          <Tooltip title={debugActive ? 'Hide debug panel' : 'Show debug panel'} placement="right">
+            <IconButton
+              onClick={onToggleDebug}
+              style={{
+                ...toolBtn(debugActive ? accent.default : text.dim),
+                background: debugActive ? accent.dim : 'transparent',
+              }}
+              size="small"
+            >
+              <BugReportIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}
