@@ -6,6 +6,8 @@ import { quatToEulerDeg, quatFromEulerDeg } from '../../lib/fk'
 import { emptyStep } from './programAst'
 import type { ProgramStep, StepKind } from './programAst'
 import type { DHJointValues } from '../../lib/types'
+import { Select } from '../ui/Select'
+import { Button } from '../ui/Button'
 
 export interface StepRowProps {
   step: ProgramStep
@@ -25,29 +27,25 @@ export interface StepRowProps {
 }
 
 const labelStyle: React.CSSProperties = {
-  color: '#9ca3af',
+  color: '#6b7280',
   fontSize: 11,
   marginRight: 4,
   whiteSpace: 'nowrap',
+  fontFamily: "'Inter', system-ui, sans-serif",
 }
 
 const inputStyle: React.CSSProperties = {
   background: '#111827',
   border: '1px solid #374151',
-  borderRadius: 4,
+  borderRadius: 2,
   color: '#f3f4f6',
+  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  fontFeatureSettings: '"tnum" 1',
+  fontVariantNumeric: 'tabular-nums',
   fontSize: 12,
   padding: '3px 6px',
-}
-
-const btnStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid #374151',
-  borderRadius: 4,
-  color: '#9ca3af',
-  cursor: 'pointer',
-  fontSize: 12,
-  padding: '2px 6px',
+  textAlign: 'right',
+  outline: 'none',
 }
 
 export function StepRow({
@@ -80,27 +78,29 @@ export function StepRow({
         flexDirection: 'column',
         gap: 6,
         padding: '8px 10px',
-        background: '#111',
-        borderRadius: 6,
+        background: '#111827',
+        border: '1px solid #1f2937',
+        borderRadius: 2,
         marginBottom: 6,
       }}
     >
       {/* Row 1: step number + kind selector + reorder/remove */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#4b5563', fontSize: 10, minWidth: 16 }}>{index + 1}</span>
-        <select
+        <span style={{ color: '#4b5563', fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace", fontSize: 10, minWidth: 16 }}>{index + 1}</span>
+        <Select
           value={step.kind}
           onChange={(e) => handleKindChange(e.target.value as StepKind)}
-          style={{ ...inputStyle, cursor: 'pointer' }}
+          mono={false}
+          style={{ cursor: 'pointer' }}
         >
           <option value="move">MoveJoint</option>
           <option value="move_se3">MovePose (SE3)</option>
           <option value="wait">Wait</option>
-        </select>
+        </Select>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          <button onClick={onMoveUp} disabled={index === 0} style={btnStyle} title="Move up">↑</button>
-          <button onClick={onMoveDown} disabled={index === total - 1} style={btnStyle} title="Move down">↓</button>
-          <button onClick={onRemove} style={{ ...btnStyle, color: '#f87171' }} title="Remove">✕</button>
+          <Button variant="ghost" size="sm" onClick={onMoveUp} disabled={index === 0} title="Move up">↑</Button>
+          <Button variant="ghost" size="sm" onClick={onMoveDown} disabled={index === total - 1} title="Move down">↓</Button>
+          <Button variant="ghost" size="sm" onClick={onRemove} style={{ color: '#f87171', borderColor: '#374151' }} title="Remove">✕</Button>
         </div>
       </div>
 
@@ -108,16 +108,17 @@ export function StepRow({
       {step.kind === 'move' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={labelStyle}>Joint</span>
-          <select
+          <Select
             value={step.joint_name ?? ''}
             onChange={(e) => onChange({ ...step, joint_name: e.target.value })}
-            style={{ ...inputStyle, cursor: 'pointer' }}
+            mono={false}
+            style={{ cursor: 'pointer' }}
           >
             {joints.length === 0 && <option value="">—</option>}
             {joints.map((j) => (
               <option key={j} value={j}>{j}</option>
             ))}
-          </select>
+          </Select>
           {(() => {
             const isPrismatic = dhJoints?.find((j) => j.name === (step.joint_name ?? ''))?.type === 'prismatic'
             if (isPrismatic) {
@@ -198,7 +199,10 @@ export function StepRow({
           </div>
           {/* Snap to current EE */}
           {currentEE && currentEEQuat && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              style={{ alignSelf: 'flex-start', color: '#60a5fa', borderColor: '#374151' }}
               onClick={() =>
                 onChange({
                   ...step,
@@ -206,19 +210,9 @@ export function StepRow({
                   orientation_quat: [...currentEEQuat] as [number, number, number, number],
                 })
               }
-              style={{
-                alignSelf: 'flex-start',
-                background: 'transparent',
-                border: '1px solid #4b5563',
-                borderRadius: 4,
-                color: '#60a5fa',
-                cursor: 'pointer',
-                fontSize: 11,
-                padding: '3px 10px',
-              }}
             >
               Snap to current EE
-            </button>
+            </Button>
           )}
         </>
       )}

@@ -58,7 +58,7 @@ const JOG_STEP_MM = 5
 // ── Shared icon button style ──────────────────────────────────────────────────
 
 function toolBtn(color?: string): React.CSSProperties {
-  return { color: color ?? '#9ca3af', padding: 7 }
+  return { color: color ?? '#6b7280', padding: 5 }
 }
 
 // ── WorkspaceMenu ─────────────────────────────────────────────────────────────
@@ -148,17 +148,17 @@ export function WorkspaceMenu({
           top: 16,
           left: 16,
           zIndex: 20,
-          background: 'rgba(13, 13, 13, 0.88)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(13, 13, 13, 0.92)',
+          backdropFilter: 'blur(6px)',
           border: '1px solid #1f2937',
-          borderRadius: 10,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+          borderRadius: 3,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '6px 0',
+          padding: '4px 0',
           gap: 0,
-          minWidth: 44,
+          minWidth: 40,
           userSelect: 'none',
         }}
       >
@@ -329,17 +329,17 @@ export function WorkspaceMenu({
           paper: {
             sx: {
               background: 'rgba(13,13,13,0.96)',
-              border: '1px solid #1f2937',
-              borderRadius: '10px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+              border: '1px solid #374151',
+              borderRadius: '3px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
               padding: '10px 12px',
               minWidth: 220,
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(6px)',
             },
           },
         }}
       >
-        <div style={{ color: '#6b7280', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#6b7280', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
           Jog  ·  joints
         </div>
 
@@ -371,7 +371,7 @@ export function WorkspaceMenu({
                 style={{
                   color: '#9ca3af',
                   fontSize: 11,
-                  fontFamily: 'monospace',
+                  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
                   minWidth: 72,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -400,9 +400,11 @@ export function WorkspaceMenu({
                 style={{
                   color: '#e5e7eb',
                   fontSize: 12,
-                  fontFamily: 'monospace',
+                  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+                  fontFeatureSettings: '"tnum" 1',
+                  fontVariantNumeric: 'tabular-nums',
                   minWidth: 52,
-                  textAlign: 'center',
+                  textAlign: 'right',
                 }}
               >
                 {displayVal}{unit}
@@ -438,11 +440,11 @@ export function WorkspaceMenu({
           paper: {
             sx: {
               background: 'rgba(13,13,13,0.96)',
-              border: '1px solid #1f2937',
-              borderRadius: '10px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+              border: '1px solid #374151',
+              borderRadius: '3px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
               padding: '10px 12px',
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(6px)',
             },
           },
         }}

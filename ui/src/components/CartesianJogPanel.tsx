@@ -13,12 +13,15 @@
  * (e.g. planar 2-DOF arms that can't satisfy orientation constraints).
  */
 import React, { useEffect, useState } from 'react'
-import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import type { IKPreviewResponse } from '../lib/types'
 import { useMachineIK } from '../hooks/useMachineIK'
 import { brainPost } from '../hooks/useJointState'
 import { quatFromAxisAngle, quatMultiply, quatToEulerDeg } from '../lib/fk'
+import { SectionLabel } from './ui/SectionLabel'
+import { Select } from './ui/Select'
+import { Stepper } from './ui/Stepper'
+import { Button } from './ui/Button'
 
 interface CartesianJogPanelProps {
   machineId: string
@@ -144,62 +147,44 @@ export function CartesianJogPanel({
   const euler = quatToEulerDeg(targetQuat)
 
   return (
-    <div style={{ minWidth: 280 }}>
-      <div style={headerStyle}>Cartesian jog</div>
+    <div style={{ minWidth: 290 }}>
+      <SectionLabel gutterBottom>Cartesian jog</SectionLabel>
 
       {/* ── Translation ──────────────────────────────────────────────────── */}
-      <div style={sectionLabelStyle}>Translation</div>
+      <SectionLabel style={{ marginBottom: 4, marginTop: 4 }}>Translation</SectionLabel>
       <div style={rowStyle}>
         <span style={labelStyle}>Step</span>
-        <select
+        <Select
           value={step}
           onChange={(e) => setStep(parseFloat(e.target.value))}
-          style={selectStyle}
+          style={{ marginLeft: 'auto' }}
         >
           {STEP_OPTIONS_M.map((s) => (
             <option key={s} value={s}>
               {s >= 0.01 ? `${(s * 100).toFixed(0)} cm` : `${(s * 1000).toFixed(0)} mm`}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {(['X', 'Y', 'Z'] as const).map((axisName, i) => (
         <div key={axisName} style={rowStyle}>
           <span style={axisLabelStyle}>{axisName}</span>
-          <span style={valStyle}>{targetPos[i].toFixed(4)} m</span>
-          <Tooltip title={`−${axisName}`}>
-            <span>
-              <IconButton
-                onClick={() => jog(i as 0 | 1 | 2, -1)}
-                disabled={disabled || busy}
-                size="small"
-                style={btnStyle}
-              >
-                −
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={`+${axisName}`}>
-            <span>
-              <IconButton
-                onClick={() => jog(i as 0 | 1 | 2, 1)}
-                disabled={disabled || busy}
-                size="small"
-                style={btnStyle}
-              >
-                +
-              </IconButton>
-            </span>
-          </Tooltip>
+          <Stepper
+            label={`Jog ${axisName}`}
+            value={`${targetPos[i].toFixed(4)} m`}
+            onDecrement={() => jog(i as 0 | 1 | 2, -1)}
+            onIncrement={() => jog(i as 0 | 1 | 2, 1)}
+            disabled={disabled || busy}
+          />
         </div>
       ))}
 
       {/* ── Rotation (only when task_space supports orientation control) ── */}
       {isSE3 && (
         <>
-          <div style={{ ...sectionLabelStyle, marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Rotation
+          <div style={{ ...rowStyle, marginTop: 10 }}>
+            <SectionLabel>Rotation</SectionLabel>
             <Tooltip title={frame === 'tool' ? 'Rotating in tool frame — click for world frame' : 'Rotating in world frame — click for tool frame'}>
               <button
                 onClick={() => setFrame((f) => f === 'tool' ? 'world' : 'tool')}
@@ -212,43 +197,27 @@ export function CartesianJogPanel({
 
           <div style={rowStyle}>
             <span style={labelStyle}>Step</span>
-            <select
+            <Select
               value={rotStep}
               onChange={(e) => setRotStep(parseFloat(e.target.value))}
-              style={selectStyle}
+              style={{ marginLeft: 'auto' }}
             >
               {STEP_OPTIONS_DEG.map((s) => (
                 <option key={s} value={s}>{s}°</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {(['Rx', 'Ry', 'Rz'] as const).map((axisName, i) => (
             <div key={axisName} style={rowStyle}>
               <span style={{ ...axisLabelStyle, color: '#d1d5db' }}>{axisName}</span>
-              <span style={{ ...valStyle, color: '#9ca3af' }}>
-                {euler[i].toFixed(1)}°
-              </span>
-              <span>
-                <IconButton
-                  onClick={() => rotJog(i as 0 | 1 | 2, -1)}
-                  disabled={disabled || busy}
-                  size="small"
-                  style={{ ...btnStyle, color: '#9ca3af' }}
-                >
-                  −
-                </IconButton>
-              </span>
-              <span>
-                <IconButton
-                  onClick={() => rotJog(i as 0 | 1 | 2, 1)}
-                  disabled={disabled || busy}
-                  size="small"
-                  style={{ ...btnStyle, color: '#9ca3af' }}
-                >
-                  +
-                </IconButton>
-              </span>
+              <Stepper
+                label={`Jog ${axisName}`}
+                value={`${euler[i].toFixed(1)}°`}
+                onDecrement={() => rotJog(i as 0 | 1 | 2, -1)}
+                onIncrement={() => rotJog(i as 0 | 1 | 2, 1)}
+                disabled={disabled || busy}
+              />
             </div>
           ))}
         </>
@@ -271,9 +240,9 @@ export function CartesianJogPanel({
 
       {/* ── Re-anchor ────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={resetToCurrent} disabled={!currentEE} style={resetBtnStyle}>
+        <Button variant="secondary" size="sm" onClick={resetToCurrent} disabled={!currentEE}>
           Re-anchor
-        </button>
+        </Button>
       </div>
 
       {/* ── Status ───────────────────────────────────────────────────────── */}
@@ -298,92 +267,40 @@ export function CartesianJogPanel({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const headerStyle: React.CSSProperties = {
-  color: '#6b7280',
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  marginBottom: 8,
-}
-
-const sectionLabelStyle: React.CSSProperties = {
-  color: '#6b7280',
-  fontSize: 10,
-  fontWeight: 600,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-  marginBottom: 4,
-}
-
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
-  padding: '3px 0',
+  gap: 8,
+  padding: '4px 0',
 }
 
 const labelStyle: React.CSSProperties = {
-  color: '#9ca3af',
+  color: '#6b7280',
   fontSize: 11,
-  fontFamily: 'monospace',
+  fontFamily: "'Inter', system-ui, sans-serif",
   minWidth: 36,
 }
 
 const axisLabelStyle: React.CSSProperties = {
-  color: '#d1d5db',
-  fontSize: 12,
-  fontWeight: 700,
-  fontFamily: 'monospace',
-  minWidth: 22,
-}
-
-const valStyle: React.CSSProperties = {
-  color: '#9ca3af',
-  fontSize: 11,
-  fontFamily: 'monospace',
-  flex: 1,
-  textAlign: 'right',
-}
-
-const selectStyle: React.CSSProperties = {
-  background: '#1f2937',
   color: '#e5e7eb',
-  border: '1px solid #374151',
-  borderRadius: 4,
-  padding: '2px 4px',
   fontSize: 11,
-  marginLeft: 'auto',
-}
-
-const btnStyle: React.CSSProperties = {
-  color: '#9ca3af',
-  padding: 2,
-  width: 26,
-  height: 26,
-  fontSize: 16,
-  fontWeight: 700,
-}
-
-const resetBtnStyle: React.CSSProperties = {
-  background: '#374151',
-  color: '#d1d5db',
-  border: 'none',
-  borderRadius: 4,
-  padding: '4px 10px',
-  fontSize: 11,
-  cursor: 'pointer',
+  fontWeight: 600,
+  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  fontFeatureSettings: '"tnum" 1',
+  minWidth: 24,
+  flexShrink: 0,
 }
 
 function frameToggleStyle(isActive: boolean): React.CSSProperties {
   return {
-    background: isActive ? 'rgba(251,191,36,0.18)' : '#1f2937',
-    color: isActive ? '#fbbf24' : '#9ca3af',
+    background: isActive ? 'rgba(251,191,36,0.15)' : 'transparent',
+    color: isActive ? '#fbbf24' : '#6b7280',
     border: `1px solid ${isActive ? '#fbbf24' : '#374151'}`,
-    borderRadius: 4,
+    borderRadius: 2,
     padding: '1px 6px',
     fontSize: 10,
     fontWeight: 600,
+    fontFamily: "'Inter', system-ui, sans-serif",
     cursor: 'pointer',
     letterSpacing: '0.05em',
   }
@@ -392,15 +309,17 @@ function frameToggleStyle(isActive: boolean): React.CSSProperties {
 const statusStyle: React.CSSProperties = {
   marginTop: 8,
   padding: '6px 8px',
-  background: '#0d1117',
-  borderRadius: 4,
+  background: '#0d0d0d',
+  border: '1px solid #1f2937',
+  borderRadius: 2,
   fontSize: 11,
-  color: '#9ca3af',
+  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  color: '#6b7280',
   lineHeight: 1.6,
 }
 
 const errorStyle: React.CSSProperties = {
-  marginTop: 8,
+  marginTop: 6,
   color: '#f87171',
   fontSize: 11,
 }
@@ -413,12 +332,13 @@ const collisionResolvedStyle: React.CSSProperties = {
 
 function branchBtnStyle(isActive: boolean): React.CSSProperties {
   return {
-    background: isActive ? 'rgba(99,102,241,0.25)' : '#1f2937',
+    background: isActive ? 'rgba(99,102,241,0.18)' : 'transparent',
     color: isActive ? '#818cf8' : '#6b7280',
     border: `1px solid ${isActive ? '#818cf8' : '#374151'}`,
-    borderRadius: 4,
+    borderRadius: 2,
     padding: '2px 7px',
     fontSize: 10,
+    fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 600,
     cursor: 'pointer',
     letterSpacing: '0.04em',
