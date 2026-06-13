@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ActuatorDemo } from './components/ActuatorDemo'
+import { BuildMachineSection } from './components/BuildMachineSection'
+import { ProgramBehaviorSection } from './components/ProgramBehaviorSection'
 import { color, font, space } from './design/tokens'
 import './index.css'
 
@@ -169,16 +171,6 @@ function App() {
 }
 
 function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const cardStyle: React.CSSProperties = {
-    background: color.surface,
-    border: `1px solid ${color.border}`,
-    borderRadius: 12,
-    padding: `${space.lg}px ${space.xl}px`,
-    flex: '1 1 220px',
-    textAlign: 'left',
-    maxWidth: 320,
-  }
-
   return (
     <>
       <section style={{
@@ -215,7 +207,7 @@ function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
         }}>
-          Build real motion systems with open actuator intelligence.
+          One actuator runtime. Firmware, simulation, and browser - same code.
         </h1>
         <p style={{
           fontSize: 'clamp(15px, 2vw, 19px)',
@@ -224,8 +216,9 @@ function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
           margin: 0,
           lineHeight: 1.65,
         }}>
-          jog actuator combines firmware, simulation, control services, and a
-          browser-native actuator demo powered by the same Rust physics core.
+          The same Rust control stack runs on embedded hardware, in native
+          simulation, and in your browser. One codebase, one runtime, deployed
+          everywhere.
         </p>
         <div style={{ display: 'flex', gap: space.md, flexWrap: 'wrap', justifyContent: 'center', marginTop: space.sm }}>
           <a
@@ -269,6 +262,10 @@ function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
         <ActuatorDemo />
       </section>
 
+      <BuildMachineSection />
+
+      <ProgramBehaviorSection />
+
       <section style={{
         borderTop: `1px solid ${color.border}`,
         padding: `${space.xxl}px ${space.xl}px`,
@@ -277,24 +274,57 @@ function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
         alignItems: 'center',
         gap: space.xl,
       }}>
-        <h2 style={{ margin: 0, fontSize: 'clamp(22px, 3vw, 32px)' }}>Architecture at a glance</h2>
-        <div style={{ display: 'flex', gap: space.lg, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
-          <div style={cardStyle}>
+        <div style={{ textAlign: 'center', maxWidth: 760 }}>
+          <h2 style={{ margin: 0, fontSize: 'clamp(24px, 3.4vw, 38px)', letterSpacing: '-0.02em' }}>
+            Deploy everywhere.
+          </h2>
+          <p style={{ margin: `${space.md}px 0 0`, color: color.textSecondary, fontSize: 16, lineHeight: 1.7 }}>
+            One runtime. Browser. Simulation. Hardware.
+          </p>
+          <p style={{ margin: `${space.sm}px 0 0`, color: color.textSecondary, fontSize: 14, lineHeight: 1.7 }}>
+            Design in the browser. Test in simulation. Run on real hardware.
+          </p>
+        </div>
+        <div style={{
+          width: 'min(980px, 100%)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: space.lg,
+        }}>
+          <div style={{
+            background: color.surface,
+            border: `1px solid ${color.border}`,
+            borderRadius: 12,
+            padding: `${space.lg}px ${space.xl}px`,
+            textAlign: 'left',
+          }}>
             <div style={{ color: color.accent, fontSize: 12, marginBottom: space.sm }}>Firmware + Control</div>
             <div style={{ color: color.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
-              Rust-based actuator core, safety gates, and trajectory execution designed for real hardware constraints.
+              Rust actuator core, safety gates, and trajectories designed for real machine constraints.
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={{ color: color.accent, fontSize: 12, marginBottom: space.sm }}>Simulation + Brain</div>
+          <div style={{
+            background: color.surface,
+            border: `1px solid ${color.border}`,
+            borderRadius: 12,
+            padding: `${space.lg}px ${space.xl}px`,
+            textAlign: 'left',
+          }}>
+            <div style={{ color: color.accent, fontSize: 12, marginBottom: space.sm }}>Shared Runtime</div>
             <div style={{ color: color.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
-              Shared physics model across simulator and WebAssembly demo, with orchestration interfaces ready for larger systems.
+              The same control stack powers browser demos, native simulation, and deployed hardware.
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={{ color: color.accent, fontSize: 12, marginBottom: space.sm }}>Open Integration Surface</div>
+          <div style={{
+            background: color.surface,
+            border: `1px solid ${color.border}`,
+            borderRadius: 12,
+            padding: `${space.lg}px ${space.xl}px`,
+            textAlign: 'left',
+          }}>
+            <div style={{ color: color.accent, fontSize: 12, marginBottom: space.sm }}>Open Docs + APIs</div>
             <div style={{ color: color.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
-              Public docs and API references are being productized so teams can integrate quickly with confidence.
+              REST references, crate docs, and architecture RFDs are generated from source on every release.
             </div>
           </div>
         </div>
@@ -348,7 +378,7 @@ function GetStartedPage() {
       <div style={panel}>
         <div style={{ color: color.accent, fontSize: 12, marginBottom: 4 }}>Path 1: Public demo only</div>
         <div style={{ color: color.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
-          Fastest way to understand the actuator model behavior and control modes.
+          The browser demo runs the actual Rust firmware — no setup, no install required.
         </div>
         <div style={code}>open https://jogactuators.com</div>
       </div>

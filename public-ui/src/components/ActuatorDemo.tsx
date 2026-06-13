@@ -79,11 +79,13 @@ export function ActuatorDemo() {
           fontSize: 15,
           color: color.textSecondary,
           margin: 0,
-          maxWidth: 560,
+          maxWidth: 680,
         }}>
-          The real Rust physics engine — compiled to WebAssembly — running at
-          1 kHz in a Web Worker. Drag the motor to jog, tune gains, inject
-          disturbances, run trajectories.
+          You are not looking at a video or animation. You are running an
+          actuator. The same Rust control stack that drives the physical
+          hardware is compiled to WebAssembly and executing in your browser at
+          1 kHz. Drag the motor to jog, tune gains, inject disturbances, run
+          trajectories.
         </p>
       </div>
 
