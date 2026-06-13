@@ -1,0 +1,13 @@
+[package]
+name = "actuator-plant"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+actuator-core = { path = "../actuator-core" }
+# Same constraint as actuator-core: direct decl with only sync, so this crate
+# stays wasm-compatible (no signals/process/fs from tokio::full).
+tokio = { version = "1", default-features = false, features = ["sync"] }
+async-trait.workspace = true
+tracing.workspace = true

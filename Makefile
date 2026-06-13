@@ -17,6 +17,30 @@ install-brain:
 install-ui:
 	@cd ui && npm install
 
+## install-public-ui: Install public UI dependencies
+install-public-ui:
+	@cd public-ui && npm install
+
+## wasm-build: Compile the actuator-wasm crate to WebAssembly (output: smart-actuator/pkg-wasm/)
+wasm-build:
+	@wasm-pack build smart-actuator/crates/actuator-wasm --target web --out-dir ../../../pkg-wasm
+
+## public-ui-dev: Build WASM then start the public UI dev server (hot reload)
+public-ui-dev: wasm-build
+	@cd public-ui && npm install && npx vite
+
+## public-ui-build: Build WASM then produce a production public UI bundle (output: public-ui/dist/)
+public-ui-build: wasm-build
+	@cd public-ui && npm install && npx tsc -b && npx vite build
+
+## public-ui-preview: Build WASM + production bundle, then serve it locally for inspection
+public-ui-preview: public-ui-build
+	@cd public-ui && npx vite preview
+
+## deploy-public-ui: Build WASM + production bundle and deploy to Cloudflare Pages (jogactuators.com)
+deploy-public-ui: public-ui-build
+	@cd public-ui && wrangler pages deploy dist --project-name jog-actuators-com --branch main
+
 ## run: Start the full stack (sidecar + brain + ui — Brain spawns sims) via overmind/foreman
 run: stop build
 	@if command -v overmind >/dev/null 2>&1; then \
@@ -57,8 +81,24 @@ docker-build:
 	docker build -f docker/Dockerfile -t $(IMAGE_REPO):$(IMAGE_TAG) .
 
 ## docker-push: Push the image to the registry (run docker-build first)
-docker-push:
+docker-push: docker-ghcr-login
 	docker push $(IMAGE_REPO):$(IMAGE_TAG)
 
+## docker-run: Run the Docker image locally, mapping ports 50051 (gRPC) and 8080 (UI) and mounting /tmp for the sidecar socket. Useful for testing the production image locally.
+#   make docker-run IMAGE_REPO=ghcr.io/ambientlabscomputing/smart-actuator IMAGE_TAG=latest
+docker-run: docker-ghcr-login
+	docker run --rm -p 50051:50051 -p 80:80 $(IMAGE_REPO):$(IMAGE_TAG)
+
+## docker-pull: Pull the image from the registry (run docker-build first)
+docker-pull: docker-ghcr-login
+	docker pull $(IMAGE_REPO):$(IMAGE_TAG)
+
+## docker-run-
+
 ## docker-release: Build then push the image in one step
-docker-release: docker-build docker-push
+docker-release: docker-ghcr-login docker-build docker-push
+
+## docker-ghcr-login: Log into GitHub Container Registry (ghcr.io) using the GitHub CLI (gh). This is needed before pushing to ghcr.io.
+docker-ghcr-login:
+	@gh auth token | docker login ghcr.io -u $$(gh api user --jq .login) --password-stdin
+	@echo "Logged into ghcr.io as $$(gh api user --jq .login)"

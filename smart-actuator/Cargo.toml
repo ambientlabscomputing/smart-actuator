@@ -3,13 +3,15 @@ resolver = "2"
 members = [
     "crates/actuator-proto",
     "crates/actuator-core",
+    "crates/actuator-plant",
     "crates/actuator-sim",
     "crates/controller-sidecar",
 ]
 # actuator-firmware targets xtensa-esp32-espidf and requires the esp toolchain
-# installed by espup. Excluded so that `cargo build --workspace` on a host
-# machine does not attempt to compile it with the stable toolchain.
-exclude = ["crates/actuator-firmware"]
+# installed by espup. actuator-wasm targets wasm32 and is built via wasm-pack.
+# Both are excluded so `cargo build --workspace` on a host machine succeeds
+# without those toolchains installed.
+exclude = ["crates/actuator-firmware", "crates/actuator-wasm"]
 
 [workspace.package]
 edition = "2021"
