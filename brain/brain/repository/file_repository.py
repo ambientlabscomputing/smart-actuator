@@ -1,12 +1,25 @@
-from brain.models.stored_file import StoredFile, SqlStoredFile, UploadFileRequest, StoredFilesRequest
-from brain.repository.session_decorator import with_session
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
 from brain.models.base import build_query
+from brain.models.stored_file import (
+    SqlStoredFile,
+    StoredFile,
+    StoredFilesRequest,
+    UploadFileRequest,
+)
+from brain.repository.session_decorator import with_session
+
 
 class FileRepository:
     @with_session
-    async def create_file(self, upload_file_request: UploadFileRequest, *, created_by: str, session: AsyncSession | None = None) -> StoredFile:
+    async def create_file(
+        self,
+        upload_file_request: UploadFileRequest,
+        *,
+        created_by: str,
+        session: AsyncSession | None = None,
+    ) -> StoredFile:
         if not session:
             raise ValueError("Session is required for create_file")
         sql_file = SqlStoredFile(
@@ -21,7 +34,9 @@ class FileRepository:
         return StoredFile.model_validate(sql_file)
 
     @with_session
-    async def get_file(self, file_id: int, session: AsyncSession | None = None) -> StoredFile | None:
+    async def get_file(
+        self, file_id: int, session: AsyncSession | None = None
+    ) -> StoredFile | None:
         if not session:
             raise ValueError("Session is required for get_file")
         sql_file = await session.get(SqlStoredFile, file_id)
@@ -30,7 +45,9 @@ class FileRepository:
         return StoredFile.model_validate(sql_file)
 
     @with_session
-    async def search_files(self, stored_files_request: StoredFilesRequest, session: AsyncSession | None = None) -> tuple[list[StoredFile], int]:
+    async def search_files(
+        self, stored_files_request: StoredFilesRequest, session: AsyncSession | None = None
+    ) -> tuple[list[StoredFile], int]:
         if not session:
             raise ValueError("Session is required for search_files")
         query = build_query(SqlStoredFile, stored_files_request)
@@ -40,7 +57,9 @@ class FileRepository:
         sql_files = result.scalars().all()
         total_query = select(func.count()).select_from(SqlStoredFile)
         if stored_files_request.location:
-            total_query = total_query.where(SqlStoredFile.location.ilike(f"%{stored_files_request.location}%"))
+            total_query = total_query.where(
+                SqlStoredFile.location.ilike(f"%{stored_files_request.location}%")
+            )
         total_result = await session.execute(total_query)
         total_count = total_result.scalar_one()
         return [StoredFile.model_validate(sql_file) for sql_file in sql_files], total_count

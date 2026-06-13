@@ -10,7 +10,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from brain.interface.rest.deps import get_service
-from brain.models.gcode import GCodePreview, GCodeTranslationRequest, GCodeTranslationResult, GantrySampleRequest
+from brain.models.gcode import (
+    GantrySampleRequest,
+    GCodePreview,
+    GCodeTranslationRequest,
+    GCodeTranslationResult,
+)
 from brain.service.service import BrainService
 
 router = APIRouter(tags=["gcode"])
@@ -28,7 +33,9 @@ async def translate_gcode(
     body: GCodeTranslationRequest,
     svc: Service,
     request: Request,
-    save: bool = Query(default=True, description="Persist the resulting Program. Set to false for a dry-run."),
+    save: bool = Query(
+        default=True, description="Persist the resulting Program. Set to false for a dry-run."
+    ),
 ) -> GCodeTranslationResult:
     """
     Parse and translate the G-code file identified by *file_id* into a Program
@@ -45,9 +52,7 @@ async def translate_gcode(
     """
     try:
         if save:
-            return await svc.gcode.translate_and_save(
-                body, created_by=request.state.user.username
-            )
+            return await svc.gcode.translate_and_save(body, created_by=request.state.user.username)
         return await svc.gcode.translate_file(body)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -79,6 +84,7 @@ async def preview_gcode(
 
 
 # ── Sample generation ─────────────────────────────────────────────────────────
+
 
 @router.get(
     "/gcode/samples",

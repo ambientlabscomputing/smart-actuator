@@ -29,7 +29,7 @@ from brain.service.dh_fk import ee_position_with_spec
 from brain.utils.logger import logger
 
 if TYPE_CHECKING:
-    from brain.models.machine import DHChainValues, DHChainSchema, EndEffectorSpec
+    from brain.models.machine import DHChainSchema, DHChainValues, EndEffectorSpec
     from brain.repository.repository import Repository
     from brain.service.kinematics_service import KinematicsService
     from brain.service.template_service import TemplateService
@@ -53,10 +53,10 @@ class WorkspaceService:
 
     def __init__(
         self,
-        repository: "Repository",
-        kinematics: "KinematicsService",
-        templates: "TemplateService",
-        config: "Config",
+        repository: Repository,
+        kinematics: KinematicsService,
+        templates: TemplateService,
+        config: Config,
         *,
         sample_budget: int = _DEFAULT_BUDGET,
     ) -> None:
@@ -90,7 +90,9 @@ class WorkspaceService:
         try:
             return await self.recompute(machine_id, created_by="auto")
         except Exception:
-            logger.exception("Auto-recompute of workspace failed for {} — returning stale", machine_id)
+            logger.exception(
+                "Auto-recompute of workspace failed for {} — returning stale", machine_id
+            )
             return cached
 
     async def recompute(self, machine_id: str, *, created_by: str = "system") -> WorkspaceResult:
@@ -128,9 +130,9 @@ class WorkspaceService:
     async def compute_for_machine_object(
         self,
         machine_id: str,
-        dh: "DHChainValues",
-        schema: "DHChainSchema | None",
-        ee: "EndEffectorSpec | None" = None,
+        dh: DHChainValues,
+        schema: DHChainSchema | None,
+        ee: EndEffectorSpec | None = None,
     ) -> WorkspaceResult:
         """
         Compute and persist workspace directly from a DHChainValues object
@@ -153,9 +155,7 @@ class WorkspaceService:
             try:
                 result = await self.recompute(machine_id)
             except Exception:
-                logger.exception(
-                    "Lazy workspace compute failed for machine {}", machine_id
-                )
+                logger.exception("Lazy workspace compute failed for machine {}", machine_id)
                 return False
             if result is None or result.hull is None:
                 return False
@@ -190,9 +190,9 @@ class WorkspaceService:
 
     def _compute(
         self,
-        dh: "DHChainValues",
-        schema: "DHChainSchema | None",
-        ee: "EndEffectorSpec | None" = None,
+        dh: DHChainValues,
+        schema: DHChainSchema | None,
+        ee: EndEffectorSpec | None = None,
     ) -> WorkspaceResult:
         """
         Sample the joint space uniformly, compute FK for each sample, build
@@ -210,6 +210,7 @@ class WorkspaceService:
         # prismatic 0.3 m limit collapses to 0.005 "rad", producing a hull
         # only ~5 mm on a side.
         from brain.models.machine import joint_limit_to_si
+
         grids: list[list[float]] = []
         for jv in dh.joints:
             lo = joint_limit_to_si(jv, jv.limit_lower)
@@ -257,9 +258,13 @@ class WorkspaceService:
         hull_result = _build_hull(points)
 
         # Stats
-        dists = [math.sqrt(x**2 + y**2 + z**2) for x, y, z in
-                 [(p[0], p[1], p[2]) for p in
-                  [(v[0], v[1], v[2]) for v in (hull_result.vertices if hull_result else [])]]]
+        dists = [
+            math.sqrt(x**2 + y**2 + z**2)
+            for x, y, z in [
+                (p[0], p[1], p[2])
+                for p in [(v[0], v[1], v[2]) for v in (hull_result.vertices if hull_result else [])]
+            ]
+        ]
         reach_max = max(dists) if dists else 0.0
         reach_min = min(dists) if dists else 0.0
 
@@ -294,11 +299,12 @@ class WorkspaceService:
 
 # ── Geometry helpers ──────────────────────────────────────────────────────────
 
-def _build_hull(points: list[tuple[float, float, float]]) -> "WorkspaceHull | None":
+
+def _build_hull(points: list[tuple[float, float, float]]) -> WorkspaceHull | None:
     """Build a ConvexHull and return a WorkspaceHull.  Returns None on failure."""
     try:
-        from scipy.spatial import ConvexHull  # type: ignore[import-untyped]
         import numpy as np  # type: ignore[import-untyped]
+        from scipy.spatial import ConvexHull  # type: ignore[import-untyped]
     except ImportError:
         logger.warning("scipy not installed — workspace hull will be empty")
         return None
@@ -341,7 +347,7 @@ def _point_in_hull(
     return True
 
 
-def _hash_dh(dh: "DHChainValues", ee: "EndEffectorSpec | None" = None) -> str:
+def _hash_dh(dh: DHChainValues, ee: EndEffectorSpec | None = None) -> str:
     payload = json.dumps(
         {
             "algo": _ALGO_VERSION,
@@ -354,7 +360,7 @@ def _hash_dh(dh: "DHChainValues", ee: "EndEffectorSpec | None" = None) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _empty_result(dh: "DHChainValues", ee: "EndEffectorSpec | None" = None) -> WorkspaceResult:
+def _empty_result(dh: DHChainValues, ee: EndEffectorSpec | None = None) -> WorkspaceResult:
     return WorkspaceResult(
         dh_hash=_hash_dh(dh, ee),
         points=[],

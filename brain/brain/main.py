@@ -15,6 +15,7 @@ from brain.service import init_brain_service
 def main() -> None:
     pass
 
+
 @main.command()
 def cfggen() -> None:
     """Generate a default config file."""
@@ -28,10 +29,7 @@ def cfggen() -> None:
     "-n",
     "names",
     multiple=True,
-    help=(
-        "Sample name(s) to generate.  May be repeated.  "
-        "Omit to generate ALL samples."
-    ),
+    help=("Sample name(s) to generate.  May be repeated.  Omit to generate ALL samples."),
 )
 @click.option(
     "--output-dir",
@@ -76,8 +74,7 @@ def gcode_samples(
     unknown = [n for n in targets if n not in SAMPLE_NAMES]
     if unknown:
         raise click.BadParameter(
-            f"Unknown sample(s): {', '.join(unknown)}.  "
-            f"Use --list to see available names.",
+            f"Unknown sample(s): {', '.join(unknown)}.  Use --list to see available names.",
             param_hint="--name",
         )
 

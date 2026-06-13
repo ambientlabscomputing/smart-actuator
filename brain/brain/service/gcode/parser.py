@@ -11,23 +11,23 @@ from brain.utils.logger import logger
 
 # ── Preprocessing ─────────────────────────────────────────────────────────────
 
-_PAREN_RE = re.compile(r'\([^)]*\)')
+_PAREN_RE = re.compile(r"\([^)]*\)")
 
 
 def _preprocess_line(line: str) -> str:
     """Strip parenthetical and semicolon comments, and leading N<int> line numbers."""
     # Remove (parenthetical comments) first
-    line = _PAREN_RE.sub('', line)
+    line = _PAREN_RE.sub("", line)
     # Remove ; inline comments
-    idx = line.find(';')
+    idx = line.find(";")
     if idx >= 0:
         line = line[:idx]
     line = line.strip()
     # Strip leading line-number token (N10, N010, …)
     if line:
         parts = line.split()
-        if parts and parts[0][0].upper() == 'N' and parts[0][1:].isdigit():
-            line = ' '.join(parts[1:])
+        if parts and parts[0][0].upper() == "N" and parts[0][1:].isdigit():
+            line = " ".join(parts[1:])
     return line
 
 

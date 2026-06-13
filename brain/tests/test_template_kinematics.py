@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from brain.models.machine import DHChainValues
-from brain.service.dh_fk import ee_position, ee_position_with_spec, joint_transforms
+from brain.service.dh_fk import ee_position_with_spec, joint_transforms
 from brain.service.ik.solve import IKCallOptions, solve
 from brain.service.template_service import TemplateService
 from brain.utils.config import Config
@@ -78,18 +78,37 @@ TEMPLATE_CASES = [
         "six_dof_anthro_spherical_wrist",
         [
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [math.radians(20), math.radians(-30), math.radians(20),
-             math.radians(15), math.radians(-25), math.radians(10)],
-            [math.radians(-30), math.radians(20), math.radians(-15),
-             math.radians(-10), math.radians(20), math.radians(-5)],
+            [
+                math.radians(20),
+                math.radians(-30),
+                math.radians(20),
+                math.radians(15),
+                math.radians(-25),
+                math.radians(10),
+            ],
+            [
+                math.radians(-30),
+                math.radians(20),
+                math.radians(-15),
+                math.radians(-10),
+                math.radians(20),
+                math.radians(-5),
+            ],
         ],
     ),
     (
         "seven_dof_dlr",
         [
             [0.0] * 7,
-            [math.radians(15), math.radians(-10), math.radians(20),
-             math.radians(-25), math.radians(15), math.radians(-10), math.radians(5)],
+            [
+                math.radians(15),
+                math.radians(-10),
+                math.radians(20),
+                math.radians(-25),
+                math.radians(15),
+                math.radians(-10),
+                math.radians(5),
+            ],
         ],
     ),
 ]
@@ -220,7 +239,7 @@ GANTRY_TEMPLATE = "cnc_3axis_gantry"
 @pytest.mark.parametrize(
     "q_m, expected_tcp_m",
     [
-        ([0.0, 0.0, 0.0], None),               # zero pose — just check non-degenerate
+        ([0.0, 0.0, 0.0], None),  # zero pose — just check non-degenerate
         ([0.10, 0.20, 0.05], [0.10, 0.20, 0.05]),  # canonical XYZ move
         ([0.25, 0.15, 0.08], [0.25, 0.15, 0.08]),
     ],
@@ -232,12 +251,11 @@ def test_gantry_fk(q_m: list[float], expected_tcp_m: list[float] | None) -> None
     if expected_tcp_m is not None:
         for axis, (got, want) in enumerate(zip(tcp, expected_tcp_m)):
             assert abs(got - want) < POS_TOL_M, (
-                f"gantry FK axis {axis}: got {got:.4f} m, want {want:.4f} m "
-                f"(q={q_m})"
+                f"gantry FK axis {axis}: got {got:.4f} m, want {want:.4f} m (q={q_m})"
             )
     else:
         # Just confirm the EE is in a sane location (non-zero reach).
-        reach = math.sqrt(sum(v ** 2 for v in tcp))
+        reach = math.sqrt(sum(v**2 for v in tcp))
         # At zero pose, all joints at base, EE should be near origin (or offset).
         # Gantry zero: TCP at base frame origin — reach can be 0 if no EE offset.
         assert reach >= 0.0  # trivially true; proves no crash
@@ -284,9 +302,7 @@ def test_gantry_verifier_ok() -> None:
     result = verify(dh, ik_spec)
     assert result.blocks, "verifier returned no block results"
     for block_result in result.blocks:
-        assert block_result.status in ("ok", "warning"), (
-            f"verifier returned error: {block_result}"
-        )
+        assert block_result.status in ("ok", "warning"), f"verifier returned error: {block_result}"
 
 
 def test_gantry_verifier_rejects_parallel_axes() -> None:
@@ -294,21 +310,47 @@ def test_gantry_verifier_rejects_parallel_axes() -> None:
     If two prismatic joints share the same axis, cartesian_xyz should warn/reject.
     Build a degenerate DH (X, X, Z) and verify the verifier catches it.
     """
-    from brain.models.machine import DHChainValues, DHJointValues
-    from brain.models.machine import IKSpec, IKBlock
+    from brain.models.machine import DHChainValues, DHJointValues, IKBlock, IKSpec
     from brain.service.ik.verifier import verify
 
     # Build a DH chain with 3 prismatic joints but two sharing the X axis.
     joints = [
-        DHJointValues(name="j0", slot=0, a=0, alpha=0, d=0, theta_offset=0,
-                      type="prismatic", axis="x",
-                      limit_lower=0, limit_upper=0.3),
-        DHJointValues(name="j1", slot=1, a=0, alpha=0, d=0, theta_offset=0,
-                      type="prismatic", axis="x",  # same as j0 — degenerate!
-                      limit_lower=0, limit_upper=0.3),
-        DHJointValues(name="j2", slot=2, a=0, alpha=0, d=0, theta_offset=0,
-                      type="prismatic", axis="z",
-                      limit_lower=0, limit_upper=0.1),
+        DHJointValues(
+            name="j0",
+            slot=0,
+            a=0,
+            alpha=0,
+            d=0,
+            theta_offset=0,
+            type="prismatic",
+            axis="x",
+            limit_lower=0,
+            limit_upper=0.3,
+        ),
+        DHJointValues(
+            name="j1",
+            slot=1,
+            a=0,
+            alpha=0,
+            d=0,
+            theta_offset=0,
+            type="prismatic",
+            axis="x",  # same as j0 — degenerate!
+            limit_lower=0,
+            limit_upper=0.3,
+        ),
+        DHJointValues(
+            name="j2",
+            slot=2,
+            a=0,
+            alpha=0,
+            d=0,
+            theta_offset=0,
+            type="prismatic",
+            axis="z",
+            limit_lower=0,
+            limit_upper=0.1,
+        ),
     ]
     dh = DHChainValues(joints=joints)
     ik_spec = IKSpec(
@@ -321,4 +363,3 @@ def test_gantry_verifier_rejects_parallel_axes() -> None:
     assert "warning" in statuses or "error" in statuses, (
         f"verifier should flag parallel axes but returned: {result.blocks}"
     )
-

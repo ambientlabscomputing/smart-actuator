@@ -33,17 +33,17 @@ class MoveCommand(BaseModel):
     ik_strategy: str = Field(
         default="auto",
         description="auto | analytic | numeric — selects IK solver for this move. "
-                    "auto (default) defers to the machine's configured strategy.",
+        "auto (default) defers to the machine's configured strategy.",
     )
     branch_preference: str = Field(
         default="",
         description="elbow_up | elbow_down | nearest — overrides the template's "
-                    "branch_preference for this move only. Empty → use template default.",
+        "branch_preference for this move only. Empty → use template default.",
     )
     ik_seed: list[float] = Field(
         default_factory=list,
         description="Explicit seed joint angles (rad) for the numeric solver. "
-                    "Empty → use machine's configured seed policy.",
+        "Empty → use machine's configured seed policy.",
     )
 
 

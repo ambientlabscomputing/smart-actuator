@@ -29,10 +29,10 @@ _EPS = 1e-9
 
 
 def solve_rrr_anthropomorphic(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -71,7 +71,7 @@ def solve_rrr_anthropomorphic(
         dh,
         [i_shoulder, i_elbow],
         planar_target,
-        None,   # EE offset already folded into the target by the composer
+        None,  # EE offset already folded into the target by the composer
         branch_preference,
         current_q,
     )

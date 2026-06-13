@@ -4,6 +4,8 @@ from brain import Config
 from brain.repository.repository import Repository
 from brain.service.actuator_service import ActuatorService
 from brain.service.calibration_service import CalibrationService
+from brain.service.file_service import FileService
+from brain.service.gcode_service import GCodeService
 from brain.service.hardware_lifecycle_service import HardwareLifecycleService
 from brain.service.kinematics_service import KinematicsService
 from brain.service.lifecycle_service import LifecycleService
@@ -16,8 +18,6 @@ from brain.service.safety_service import SafetyService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.service.sim_lifecycle_service import SimLifecycleService
 from brain.service.state_service import StateService
-from brain.service.file_service import FileService
-from brain.service.gcode_service import GCodeService
 from brain.service.teach_service import TeachService
 from brain.service.template_service import TemplateService
 from brain.service.user_service import UserService
@@ -132,9 +132,7 @@ class BrainService(Service):
                     try:
                         await self.workspace.recompute(mid)
                     except Exception:
-                        logger.exception(
-                            "Workspace recompute failed for {} — continuing", mid
-                        )
+                        logger.exception("Workspace recompute failed for {} — continuing", mid)
         except Exception:
             logger.exception("Joint-type re-registration on startup failed — continuing")
 

@@ -186,7 +186,9 @@ class SimLifecycleService:
                         )
                     except Exception:
                         logger.exception(
-                            "SimLifecycle: failed to auto-spawn machine={} slot={}", machine_id, slot
+                            "SimLifecycle: failed to auto-spawn machine={} slot={}",
+                            machine_id,
+                            slot,
                         )
             except Exception:
                 logger.exception(

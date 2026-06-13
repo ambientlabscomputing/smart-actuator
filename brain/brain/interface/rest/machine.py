@@ -9,7 +9,6 @@ from brain.models.machine import (
     EndEffectorSpec,
     IKNumericConfig,
     IKOverrides,
-    IKVerification,
     Machine,
     MachineDescription,
     WorkspaceResult,
@@ -193,7 +192,7 @@ async def get_workspace(machine_id: str, svc: Service) -> WorkspaceResult:
         raise HTTPException(
             status_code=404,
             detail=f"Workspace not yet computed for machine {machine_id!r}. "
-                   "POST /machine/{id}/workspace/recompute to generate it.",
+            "POST /machine/{id}/workspace/recompute to generate it.",
         )
     return result
 
@@ -209,9 +208,7 @@ async def recompute_workspace(machine_id: str, svc: Service, request: Request) -
     and persist the result.  Useful after direct DB edits or to force a refresh.
     """
     try:
-        return await svc.workspace.recompute(
-            machine_id, created_by=request.state.user.username
-        )
+        return await svc.workspace.recompute(machine_id, created_by=request.state.user.username)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -224,18 +221,14 @@ class ContainsRequest(BaseModel):
     "/{machine_id}/workspace/contains",
     summary="Check if a 3-D point is within the machine's reachable workspace",
 )
-async def workspace_contains(
-    machine_id: str, body: ContainsRequest, svc: Service
-) -> dict:
+async def workspace_contains(machine_id: str, body: ContainsRequest, svc: Service) -> dict:
     """
     Return {inside: bool} indicating whether *point* lies within the machine's
     reachable end-effector envelope.  Uses the persisted convex hull.
     """
     if len(body.point) != 3:
         raise HTTPException(status_code=422, detail="point must be [x, y, z] (3 floats)")
-    inside = await svc.workspace.contains(
-        machine_id, (body.point[0], body.point[1], body.point[2])
-    )
+    inside = await svc.workspace.contains(machine_id, (body.point[0], body.point[1], body.point[2]))
     return {"machine_id": machine_id, "point": body.point, "inside": inside}
 
 
@@ -290,7 +283,9 @@ async def set_ik_overrides(
     if machine is None:
         raise HTTPException(status_code=404, detail=f"Machine {machine_id!r} not found")
     overrides = IKOverrides(force_numeric=body.force_numeric, numeric=body.numeric)
-    return await svc.machine.set_ik_overrides(machine_id, overrides, updated_by=request.state.user.username)
+    return await svc.machine.set_ik_overrides(
+        machine_id, overrides, updated_by=request.state.user.username
+    )
 
 
 @router.put(
@@ -315,7 +310,9 @@ async def set_end_effector(
         orientation_offset_deg=body.orientation_offset_deg,
         task_space=body.task_space,
     )
-    updated = await svc.machine.set_end_effector(machine_id, ee, updated_by=request.state.user.username)
+    updated = await svc.machine.set_end_effector(
+        machine_id, ee, updated_by=request.state.user.username
+    )
     # Invalidate workspace so it recomputes on next access
     await svc.workspace.invalidate(machine_id)
     return updated
@@ -326,9 +323,7 @@ async def set_end_effector(
     response_model=IKPreviewResponse,
     summary="Preview IK solution for a target pose",
 )
-async def ik_preview(
-    machine_id: str, body: IKPreviewRequest, svc: Service
-) -> IKPreviewResponse:
+async def ik_preview(machine_id: str, body: IKPreviewRequest, svc: Service) -> IKPreviewResponse:
     """
     Compute joint angles that achieve the requested pose without executing any
     motion.  Returns the solved configuration, position residual, and the
@@ -365,24 +360,26 @@ async def ik_preview(
     ee = machine.description.end_effector
     residual_m = 0.0
     if dh and solved_q:
-        from brain.service.dh_fk import ee_position_with_spec
         import math
+
+        from brain.service.dh_fk import ee_position_with_spec
+
         x, y, z = ee_position_with_spec(dh, solved_q, ee)
         pos = body.target_pose.position
-        residual_m = math.sqrt(
-            (x - pos[0])**2 + (y - pos[1])**2 + (z - pos[2])**2
-        )
+        residual_m = math.sqrt((x - pos[0]) ** 2 + (y - pos[1]) ** 2 + (z - pos[2]) ** 2)
 
-    strategy_used = "numeric" if (
-        machine.description.ik_overrides and machine.description.ik_overrides.force_numeric
-    ) else body.strategy
+    strategy_used = (
+        "numeric"
+        if (machine.description.ik_overrides and machine.description.ik_overrides.force_numeric)
+        else body.strategy
+    )
 
     # Check for collisions with floor — always run this so we can resolve branch if needed
     collision_blocked = False
     collision_resolved = False
     resolved_branch = None
     requires_reconfig = False
-    
+
     try:
         result = await svc.safety.solve_clear_of_floor(
             machine_id,
@@ -413,5 +410,5 @@ async def ik_preview(
         collision_blocked=collision_blocked,
         collision_resolved=collision_resolved,
         resolved_branch=resolved_branch,
-        requires_reconfig=requires_reconfig
+        requires_reconfig=requires_reconfig,
     )

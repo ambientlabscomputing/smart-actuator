@@ -32,13 +32,13 @@ _DEFAULT_DAMPING = 0.01
 
 
 def solve_numeric(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
-    target: list[float],       # [x, y, z] or [x, y, z, qx, qy, qz, qw]
-    ee: "EndEffectorSpec | None",
+    target: list[float],  # [x, y, z] or [x, y, z, qx, qy, qz, qw]
+    ee: EndEffectorSpec | None,
     *,
     seed: list[float] | None = None,
-    config: "IKNumericConfig | None" = None,
+    config: IKNumericConfig | None = None,
 ) -> list[float] | None:
     """
     Iterate damped Jacobian IK for the joints in *joint_indices*.
@@ -51,12 +51,12 @@ def solve_numeric(
     Returns the solved angles (rad) for *joint_indices* in order, or None
     if it failed to converge.
     """
-    from brain.service.dh_fk import geometric_jacobian, ee_transform
+    from brain.service.dh_fk import ee_transform, geometric_jacobian
 
-    max_iters  = config.max_iters  if config else _DEFAULT_MAX_ITERS
-    pos_tol    = config.pos_tol_m  if config else _DEFAULT_POS_TOL
-    rot_tol    = config.rot_tol_rad if config else _DEFAULT_ROT_TOL
-    damping    = config.damping    if config else _DEFAULT_DAMPING
+    max_iters = config.max_iters if config else _DEFAULT_MAX_ITERS
+    pos_tol = config.pos_tol_m if config else _DEFAULT_POS_TOL
+    rot_tol = config.rot_tol_rad if config else _DEFAULT_ROT_TOL
+    damping = config.damping if config else _DEFAULT_DAMPING
 
     n = len(dh.joints)
     nk = len(joint_indices)
@@ -78,7 +78,7 @@ def solve_numeric(
     q_target = None
     if use_orientation and len(target) >= 7:
         q_target = [float(target[k]) for k in range(3, 7)]
-        qn = math.sqrt(sum(x*x for x in q_target))
+        qn = math.sqrt(sum(x * x for x in q_target))
         if qn > 1e-9:
             q_target = [x / qn for x in q_target]
 
@@ -106,8 +106,8 @@ def solve_numeric(
         e = _build_error(e_p, e_r, active_rows)
 
         # Convergence check
-        pos_err = math.sqrt(sum(x*x for x in e_p))
-        rot_err = math.sqrt(sum(x*x for x in e_r)) if q_target else 0.0
+        pos_err = math.sqrt(sum(x * x for x in e_p))
+        rot_err = math.sqrt(sum(x * x for x in e_r)) if q_target else 0.0
         if pos_err < pos_tol and rot_err < rot_tol:
             return [full_q[joint_indices[k]] for k in range(nk)]
 
@@ -134,7 +134,8 @@ def solve_numeric(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _build_full_q(dh: "DHChainValues", joint_indices: list[int], q: list[float]) -> list[float]:
+
+def _build_full_q(dh: DHChainValues, joint_indices: list[int], q: list[float]) -> list[float]:
     """Map block-local q values into a full-chain angle list."""
     full = [0.0] * len(dh.joints)
     for k, idx in enumerate(joint_indices):
@@ -146,17 +147,17 @@ def _build_full_q(dh: "DHChainValues", joint_indices: list[int], q: list[float])
 def _active_rows(task_space: str) -> list[int]:
     """Return which Jacobian rows to use for the given task space."""
     if task_space == "planar_xz":
-        return [0, 2]        # x, z position only
+        return [0, 2]  # x, z position only
     if task_space == "planar_xy":
-        return [0, 1]        # x, y position only
+        return [0, 1]  # x, y position only
     if task_space == "r3":
-        return [0, 1, 2]     # full 3-D position
+        return [0, 1, 2]  # full 3-D position
     # se3 — all 6 rows
     return [0, 1, 2, 3, 4, 5]
 
 
 def _build_error(e_p: list[float], e_r: list[float], rows: list[int]) -> list[float]:
-    full = e_p + e_r   # 6-element error
+    full = e_p + e_r  # 6-element error
     return [full[r] for r in rows]
 
 
@@ -229,9 +230,9 @@ def _gauss_solve(A: list[list[float]], b: list[float], n: int) -> list[float]:
 
 def _quat_to_rot(qx: float, qy: float, qz: float, qw: float) -> list[list[float]]:
     return [
-        [1 - 2*(qy*qy + qz*qz),   2*(qx*qy - qz*qw),   2*(qx*qz + qy*qw)],
-        [2*(qx*qy + qz*qw),   1 - 2*(qx*qx + qz*qz),   2*(qy*qz - qx*qw)],
-        [2*(qx*qz - qy*qw),       2*(qy*qz + qx*qw),   1 - 2*(qx*qx + qy*qy)],
+        [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+        [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+        [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
     ]
 
 
@@ -240,10 +241,7 @@ def _transpose_3x3(R: list[list[float]]) -> list[list[float]]:
 
 
 def _mat_mul_3x3(A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
-    return [
-        [sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)]
-        for i in range(3)
-    ]
+    return [[sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
 
 
 def _rot_to_axis_angle(R: list[list[float]]) -> list[float]:

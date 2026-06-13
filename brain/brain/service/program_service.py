@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 # ─── Constants ────────────────────────────────────────────────────────────────
 
 _TOLERANCE_RAD = 0.035  # ≈ 2° — matches J2 exit criterion
-_TOLERANCE_M   = 0.001  # 1 mm — convergence tolerance for prismatic joints
+_TOLERANCE_M = 0.001  # 1 mm — convergence tolerance for prismatic joints
 _STEP_TIMEOUT_S = 10.0  # per-MOVE step convergence timeout
 _WAIT_POLL_S = 0.1  # sleep chunk for cooperative stop during WAIT
 
@@ -90,9 +90,7 @@ def _validate_steps(steps: list[ProgramNode]) -> None:
                 f"Step {i}: unsupported node kind {node.kind!r} — accepts MOVE, MOVE_SE3, and WAIT"
             )
         if node.kind == NodeKind.MOVE:
-            has_target = (
-                "target" in node.attributes or "target_rad" in node.attributes
-            )
+            has_target = "target" in node.attributes or "target_rad" in node.attributes
             if "joint_name" not in node.attributes or not has_target:
                 raise ValueError(
                     f"Step {i} (MOVE): missing required attributes 'joint_name' and/or 'target'"
@@ -101,9 +99,7 @@ def _validate_steps(steps: list[ProgramNode]) -> None:
             pos = node.attributes.get("position")
             quat = node.attributes.get("orientation_quat")
             if not isinstance(pos, list) or len(pos) != 3:
-                raise ValueError(
-                    f"Step {i} (MOVE_SE3): 'position' must be a list of 3 floats"
-                )
+                raise ValueError(f"Step {i} (MOVE_SE3): 'position' must be a list of 3 floats")
             if not isinstance(quat, list) or len(quat) != 4:
                 raise ValueError(
                     f"Step {i} (MOVE_SE3): 'orientation_quat' must be a list of 4 floats [x,y,z,w]"
@@ -333,7 +329,11 @@ class ProgramService:
     ) -> None:
         joint_name: str = node.attributes["joint_name"]
         # Support both 'target' (current) and 'target_rad' (legacy) attribute names.
-        raw = node.attributes.get("target") if "target" in node.attributes else node.attributes.get("target_rad")
+        raw = (
+            node.attributes.get("target")
+            if "target" in node.attributes
+            else node.attributes.get("target_rad")
+        )
         target_si: float = float(raw)
 
         # Determine the joint type so we use the right convergence tolerance.

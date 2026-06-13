@@ -7,7 +7,7 @@ from brain.models.motion import (
     Pose,
 )
 from brain.repository.repository import Repository
-from brain.service.ik import IKCallOptions, IKNoSolution, IKUnreachable
+from brain.service.ik import IKCallOptions
 from brain.service.kinematics_service import KinematicsService
 from brain.service.sidecar_bridge import SidecarBridge
 from brain.utils.config import Config
@@ -55,7 +55,8 @@ class MotionService:
 
         # Reach guard: reject Cartesian move targets outside the reachable workspace.
         if self._workspace is not None and command.primitive in (
-            MovePrimitive.MOVE_L, MovePrimitive.MOVE_TO_POSE
+            MovePrimitive.MOVE_L,
+            MovePrimitive.MOVE_TO_POSE,
         ):
             poses_to_check: list[Pose] = []
             if command.target_pose is not None:
@@ -105,9 +106,7 @@ class MotionService:
             machine_id, pose, current_q=current_q, options=opts
         )
 
-    async def _plan_move_to_pose(
-        self, machine_id: str, command: MoveCommand
-    ) -> JointTrajectory:
+    async def _plan_move_to_pose(self, machine_id: str, command: MoveCommand) -> JointTrajectory:
         """
         MOVE_TO_POSE: run IK for the target, then generate a joint-space
         trajectory by linear interpolation from current configuration.
@@ -131,9 +130,7 @@ class MotionService:
             points.append(JointTrajectoryPoint(positions=positions, time_from_start_s=t * duration))
         return JointTrajectory(machine_id=machine_id, joint_names=joint_names, points=points)
 
-    async def _plan_move_l(
-        self, machine_id: str, command: MoveCommand
-    ) -> JointTrajectory:
+    async def _plan_move_l(self, machine_id: str, command: MoveCommand) -> JointTrajectory:
         """
         MOVE_L: run IK at N intermediate Cartesian poses along a straight-line
         segment, then stitch the resulting joint waypoints into a trajectory.
@@ -164,16 +161,16 @@ class MotionService:
             q = await self._ik_for_pose(machine_id, interp_pose, command, current_q=current_q)
             current_q = q
             positions = {name: q[k] for k, name in enumerate(joint_names) if k < len(q)}
-            points.append(JointTrajectoryPoint(
-                positions=positions,
-                time_from_start_s=t * duration,
-            ))
+            points.append(
+                JointTrajectoryPoint(
+                    positions=positions,
+                    time_from_start_s=t * duration,
+                )
+            )
 
         return JointTrajectory(machine_id=machine_id, joint_names=joint_names, points=points)
 
-    async def _plan_follow_path(
-        self, machine_id: str, command: MoveCommand
-    ) -> JointTrajectory:
+    async def _plan_follow_path(self, machine_id: str, command: MoveCommand) -> JointTrajectory:
         """
         FOLLOW_PATH: run IK at each waypoint and concatenate the resulting
         joint-space knots, distributing duration evenly.
@@ -192,10 +189,12 @@ class MotionService:
             q = await self._ik_for_pose(machine_id, wp, command, current_q=current_q)
             current_q = q
             positions = {name: q[k] for k, name in enumerate(joint_names) if k < len(q)}
-            points.append(JointTrajectoryPoint(
-                positions=positions,
-                time_from_start_s=(i + 1) * dt,
-            ))
+            points.append(
+                JointTrajectoryPoint(
+                    positions=positions,
+                    time_from_start_s=(i + 1) * dt,
+                )
+            )
 
         return JointTrajectory(machine_id=machine_id, joint_names=joint_names, points=points)
 

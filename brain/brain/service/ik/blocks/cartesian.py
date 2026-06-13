@@ -21,21 +21,20 @@ Returns None if:
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from brain.models.machine import DHChainValues, EndEffectorSpec
 
-_ORTHO_TOL = 0.05       # sin threshold for "not orthogonal" (~3°)
-_PARALLEL_TOL = 0.05    # |dot| threshold for "not parallel" to world axis
+_ORTHO_TOL = 0.05  # sin threshold for "not orthogonal" (~3°)
+_PARALLEL_TOL = 0.05  # |dot| threshold for "not parallel" to world axis
 
 
 def solve_cartesian_xyz(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -89,9 +88,9 @@ def solve_cartesian_xyz(
         else:
             prev_T = transforms[slot - 1]
             if axis_label == "x":
-                axis = (prev_T[0], prev_T[4], prev_T[8])   # X column
+                axis = (prev_T[0], prev_T[4], prev_T[8])  # X column
             elif axis_label == "y":
-                axis = (prev_T[1], prev_T[5], prev_T[9])   # Y column
+                axis = (prev_T[1], prev_T[5], prev_T[9])  # Y column
             else:
                 axis = (prev_T[2], prev_T[6], prev_T[10])  # Z column
             origin = (prev_T[3], prev_T[7], prev_T[11])

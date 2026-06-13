@@ -69,9 +69,7 @@ class TeachRepository:
         return [row.to_state() for row in result.scalars().all()]
 
     @with_session
-    async def delete_session(
-        self, session_id: str, *, session: AsyncSession | None = None
-    ) -> None:
+    async def delete_session(self, session_id: str, *, session: AsyncSession | None = None) -> None:
         assert session is not None
         result = await session.execute(
             select(SqlTeachSession).where(SqlTeachSession.session_id == session_id)

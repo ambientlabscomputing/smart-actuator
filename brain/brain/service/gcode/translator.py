@@ -310,7 +310,9 @@ def translate(
 # ── Preview helper ────────────────────────────────────────────────────────────
 
 
-def make_preview(result: GCodeTranslationResult, max_poses: int = _MAX_PREVIEW_POSES) -> GCodePreview:
+def make_preview(
+    result: GCodeTranslationResult, max_poses: int = _MAX_PREVIEW_POSES
+) -> GCodePreview:
     """Extract a lightweight path preview from a translation result."""
     steps = result.program.root.children
     truncated = len(steps) > max_poses

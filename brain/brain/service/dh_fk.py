@@ -30,11 +30,9 @@ if TYPE_CHECKING:
 # ── 4×4 homogeneous matrix as a flat 16-element list (row-major) ──────────────
 # Index convention:  m[row*4 + col]
 
+
 def _identity() -> list[float]:
-    return [1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1]
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 
 def _mat_mul(a: list[float], b: list[float]) -> list[float]:
@@ -52,48 +50,34 @@ def _mat_mul(a: list[float], b: list[float]) -> list[float]:
 def _rz(angle_rad: float) -> list[float]:
     """Rotation about Z."""
     c, s = math.cos(angle_rad), math.sin(angle_rad)
-    return [c, -s, 0, 0,
-            s,  c, 0, 0,
-            0,  0, 1, 0,
-            0,  0, 0, 1]
+    return [c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 
 def _rx(angle_rad: float) -> list[float]:
     """Rotation about X."""
     c, s = math.cos(angle_rad), math.sin(angle_rad)
-    return [1, 0,  0, 0,
-            0, c, -s, 0,
-            0, s,  c, 0,
-            0, 0,  0, 1]
+    return [1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]
 
 
 def _tz(dist: float) -> list[float]:
     """Translation along Z."""
-    return [1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, dist,
-            0, 0, 0, 1]
+    return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, dist, 0, 0, 0, 1]
 
 
 def _ty(dist: float) -> list[float]:
     """Translation along Y."""
-    return [1, 0, 0, 0,
-            0, 1, 0, dist,
-            0, 0, 1, 0,
-            0, 0, 0, 1]
+    return [1, 0, 0, 0, 0, 1, 0, dist, 0, 0, 1, 0, 0, 0, 0, 1]
 
 
 def _tx(dist: float) -> list[float]:
     """Translation along X."""
-    return [1, 0, 0, dist,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1]
+    return [1, 0, 0, dist, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def joint_transforms(values: "DHChainValues", angles_rad: list[float]) -> list[list[float]]:
+
+def joint_transforms(values: DHChainValues, angles_rad: list[float]) -> list[list[float]]:
     """
     Compute the world-frame transform for each joint origin (not the EE).
 
@@ -121,7 +105,7 @@ def joint_transforms(values: "DHChainValues", angles_rad: list[float]) -> list[l
                 T = _mat_mul(T, _tx(jv.a + q_i))  # joint var adds to a (X slot)
                 T = _mat_mul(T, _tz(jv.d))
             elif axis_label == "y":
-                T = _mat_mul(T, _ty(q_i))          # joint var translates along Y
+                T = _mat_mul(T, _ty(q_i))  # joint var translates along Y
                 T = _mat_mul(T, _tx(jv.a))
                 T = _mat_mul(T, _tz(jv.d))
             else:  # "z" (default)
@@ -141,7 +125,7 @@ def joint_transforms(values: "DHChainValues", angles_rad: list[float]) -> list[l
     return transforms
 
 
-def ee_position(values: "DHChainValues", angles_rad: list[float]) -> tuple[float, float, float]:
+def ee_position(values: DHChainValues, angles_rad: list[float]) -> tuple[float, float, float]:
     """
     Return the (x, y, z) world position of the end-effector.
 
@@ -156,7 +140,7 @@ def ee_position(values: "DHChainValues", angles_rad: list[float]) -> tuple[float
     return (T[3], T[7], T[11])  # row-major: (0,3), (1,3), (2,3)
 
 
-def reach_extent(values: "DHChainValues") -> tuple[float, float]:
+def reach_extent(values: DHChainValues) -> tuple[float, float]:
     """
     Analytic approximate reach bounds for a serial revolute chain
     (ignores inter-joint coupling but useful for fast pre-checks).
@@ -177,7 +161,8 @@ def reach_extent(values: "DHChainValues") -> tuple[float, float]:
 
 # ── End-effector helpers ──────────────────────────────────────────────────────
 
-def _ee_offset_matrix(ee: "EndEffectorSpec") -> list[float]:
+
+def _ee_offset_matrix(ee: EndEffectorSpec) -> list[float]:
     """
     Build the 4×4 homogeneous matrix for the EE offset from the parent joint
     frame.  Applies translation (offset_m) then intrinsic RPY rotation
@@ -186,27 +171,43 @@ def _ee_offset_matrix(ee: "EndEffectorSpec") -> list[float]:
     tx = ee.offset_m[0] if len(ee.offset_m) > 0 else 0.0
     ty = ee.offset_m[1] if len(ee.offset_m) > 1 else 0.0
     tz = ee.offset_m[2] if len(ee.offset_m) > 2 else 0.0
-    roll_r  = math.radians(ee.orientation_offset_deg[0] if ee.orientation_offset_deg else 0.0)
-    pitch_r = math.radians(ee.orientation_offset_deg[1] if len(ee.orientation_offset_deg) > 1 else 0.0)
-    yaw_r   = math.radians(ee.orientation_offset_deg[2] if len(ee.orientation_offset_deg) > 2 else 0.0)
+    roll_r = math.radians(ee.orientation_offset_deg[0] if ee.orientation_offset_deg else 0.0)
+    pitch_r = math.radians(
+        ee.orientation_offset_deg[1] if len(ee.orientation_offset_deg) > 1 else 0.0
+    )
+    yaw_r = math.radians(
+        ee.orientation_offset_deg[2] if len(ee.orientation_offset_deg) > 2 else 0.0
+    )
 
-    cr, sr = math.cos(roll_r),  math.sin(roll_r)
+    cr, sr = math.cos(roll_r), math.sin(roll_r)
     cp, sp = math.cos(pitch_r), math.sin(pitch_r)
-    cy, sy = math.cos(yaw_r),   math.sin(yaw_r)
+    cy, sy = math.cos(yaw_r), math.sin(yaw_r)
 
     # Combined translation + intrinsic RPY rotation (Rz·Ry·Rx order):
     return [
-        cy*cp,              cy*sp*sr - sy*cr,   cy*sp*cr + sy*sr,   tx,
-        sy*cp,              sy*sp*sr + cy*cr,   sy*sp*cr - cy*sr,   ty,
-        -sp,                cp*sr,              cp*cr,              tz,
-        0.0,                0.0,                0.0,                1.0,
+        cy * cp,
+        cy * sp * sr - sy * cr,
+        cy * sp * cr + sy * sr,
+        tx,
+        sy * cp,
+        sy * sp * sr + cy * cr,
+        sy * sp * cr - cy * sr,
+        ty,
+        -sp,
+        cp * sr,
+        cp * cr,
+        tz,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
     ]
 
 
 def ee_transform(
-    values: "DHChainValues",
+    values: DHChainValues,
     angles_rad: list[float],
-    ee: "EndEffectorSpec | None" = None,
+    ee: EndEffectorSpec | None = None,
 ) -> list[float]:
     """
     Compute the 4×4 world-frame homogeneous transform of the end-effector.
@@ -226,9 +227,9 @@ def ee_transform(
 
 
 def ee_position_with_spec(
-    values: "DHChainValues",
+    values: DHChainValues,
     angles_rad: list[float],
-    ee: "EndEffectorSpec | None" = None,
+    ee: EndEffectorSpec | None = None,
 ) -> tuple[float, float, float]:
     """Return the (x, y, z) world position of the EE, honouring the EE offset."""
     T = ee_transform(values, angles_rad, ee)
@@ -237,10 +238,11 @@ def ee_position_with_spec(
 
 # ── Analytic Jacobian ─────────────────────────────────────────────────────────
 
+
 def geometric_jacobian(
-    values: "DHChainValues",
+    values: DHChainValues,
     angles_rad: list[float],
-    ee: "EndEffectorSpec | None" = None,
+    ee: EndEffectorSpec | None = None,
 ) -> list[list[float]]:
     """
     Compute the 6×n geometric Jacobian for the chain at the given joint angles.
@@ -263,11 +265,9 @@ def geometric_jacobian(
     p_ee = [T_ee[3], T_ee[7], T_ee[11]]
 
     # Frame −1 is the world frame
-    frames: list[tuple[list[float], list[float]]] = [
-        ([0.0, 0.0, 1.0], [0.0, 0.0, 0.0])
-    ]
+    frames: list[tuple[list[float], list[float]]] = [([0.0, 0.0, 1.0], [0.0, 0.0, 0.0])]
     for T in transforms:
-        z = [T[2], T[6], T[10]]   # third column of rotation (row-major)
+        z = [T[2], T[6], T[10]]  # third column of rotation (row-major)
         p = [T[3], T[7], T[11]]
         frames.append((z, p))
 
@@ -282,7 +282,7 @@ def geometric_jacobian(
             jv_col = z_prev
             jw_col = [0.0, 0.0, 0.0]
         for r in range(3):
-            J[r][i]     = jv_col[r]
+            J[r][i] = jv_col[r]
             J[r + 3][i] = jw_col[r]
 
     return J

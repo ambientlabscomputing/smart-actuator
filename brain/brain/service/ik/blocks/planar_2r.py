@@ -33,10 +33,10 @@ _EPS = 1e-9
 
 
 def solve_planar_2r(
-    dh: "DHChainValues",
+    dh: DHChainValues,
     joint_indices: list[int],
     target: list[float],
-    ee: "EndEffectorSpec | None",
+    ee: EndEffectorSpec | None,
     branch_preference: str,
     current_q: list[float],
 ) -> list[float] | None:
@@ -83,8 +83,8 @@ def solve_planar_2r(
     sin_t1_pos = math.sqrt(max(0.0, 1.0 - cos_t1 * cos_t1))
 
     # Two candidate solutions
-    t1_up   =  math.atan2( sin_t1_pos, cos_t1)
-    t1_down =  math.atan2(-sin_t1_pos, cos_t1)
+    t1_up = math.atan2(sin_t1_pos, cos_t1)
+    t1_down = math.atan2(-sin_t1_pos, cos_t1)
 
     def _solve_t0(t1: float) -> float:
         s1 = math.sin(t1)
@@ -119,7 +119,7 @@ def solve_planar_2r(
     if branch_preference == "elbow_up":
         candidates.sort(key=lambda c: -c[1])  # prefer positive θ₁
     elif branch_preference == "elbow_down":
-        candidates.sort(key=lambda c: c[1])   # prefer negative θ₁
+        candidates.sort(key=lambda c: c[1])  # prefer negative θ₁
     else:  # nearest
         candidates.sort(key=lambda c: abs(c[1] - q1_current))
 
