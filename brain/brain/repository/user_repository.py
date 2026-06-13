@@ -26,6 +26,9 @@ class UserRepository:
         session.add(sql_user)
         await session.commit()
         await session.refresh(sql_user)
+        # Invalidate the per-username caches so callers see the new row immediately
+        self.get_user_by_username.cache_invalidate(user_create.username)
+        self.get_user.cache_invalidate(user_create.username)
         return User.model_validate(sql_user)
 
     @alru_cache(maxsize=128, ttl=300)

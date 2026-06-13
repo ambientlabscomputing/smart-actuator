@@ -29,27 +29,22 @@ COPY smart-actuator/proto ./proto
 RUN cargo build --release --bin controller-sidecar --bin actuator-sim
 
 # ── Final image ────────────────────────────────────────────────────────────────
-FROM debian:bookworm-slim
+# Use the same Python base as the builder — all system .so files (libsqlite3,
+# libssl, libffi, etc.) are already present so there are no missing shared libs.
+FROM python:3.13-slim-bookworm
 
-# Runtime deps: Python C-extension libs, OpenMP (scipy/numpy), nginx for UI
+# Extra runtime deps: nginx (serves UI + proxies /api), OpenMP (scipy/numpy)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      libssl3 \
-      libffi8 \
       libgomp1 \
-      libbz2-1.0 \
       nginx \
       ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Python 3.13 interpreter + all installed packages from the builder
-COPY --from=python_builder /usr/local/lib/python3.13        /usr/local/lib/python3.13
-COPY --from=python_builder /usr/local/lib/libpython3.13.so.1.0 /usr/local/lib/libpython3.13.so.1.0
-COPY --from=python_builder /usr/local/bin/python3.13        /usr/local/bin/python3.13
-COPY --from=python_builder /usr/local/bin/brain             /usr/local/bin/brain
-RUN ln -sf /usr/local/bin/python3.13 /usr/local/bin/python3 \
- && ln -sf /usr/local/bin/python3.13 /usr/local/bin/python \
- && ldconfig
+# Install the pre-built brain wheel from the builder
+COPY --from=python_builder /dist /dist
+RUN pip install --no-cache-dir /dist/*.whl \
+ && rm -rf /dist
 
 WORKDIR /app
 
