@@ -1,0 +1,54 @@
+name: Deploy Public UI to Cloudflare Pages
+
+on:
+  push:
+    tags:
+      # Bare semver only, no leading v (example: 1.2.3)
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CLOUDFLARE_PAGES_PROJECT: jog-actuators-com
+
+jobs:
+  deploy:
+    name: Build and Deploy Public UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22
+
+      - name: Setup Rust (with wasm target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM and static site
+        run: make public-ui-build
+
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler@4
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler pages deploy public-ui/dist \
+            --project-name "${CLOUDFLARE_PAGES_PROJECT}" \
+            --branch main
