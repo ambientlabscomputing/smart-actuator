@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CmdCommand"],"fn":["execute","parse_mode","print_cmd","refusal_name"]};

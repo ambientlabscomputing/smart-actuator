@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAGIC","MAGIC_BYTES","MAX_PAYLOAD"],"enum":["MethodId","WireError","WireStatus"],"fn":["read_exact_alloc","read_request_sync","read_response_sync","skip_to_magic_sync","write_error_sync","write_request_sync","write_response_sync"],"mod":["async_wire"],"type":["WireResult"]};

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Root README</title>
+<style>body{font-family:ui-sans-serif,system-ui;background:#09070f;color:#f3f4f6;margin:0;padding:24px;line-height:1.5}a{color:#c084fc}pre{white-space:pre-wrap;word-break:break-word;background:#12101b;border:1px solid #2a2640;border-radius:10px;padding:16px}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}</style>
+</head><body>
+<p><a href="../index.html">Back to docs index</a></p>
+<h1>Root README</h1>
+<p>Source: <code>README.md</code></p>
+<pre># Smart Actuator
+
+The Ambient Labs Smart Actuator is a motor for the new generation of makers providing a wide variety of data and control interfaces.
+
+## Repository Conventions
+
+- We practice document-driven development. See [RFC 3](https://datatracker.ietf.org/doc/html/rfc3). Specifically:
+
+    ```
+    The content of a NWG note may be any thought, suggestion, etc. related to
+    the HOST software or other aspect of the network.  Notes are encouraged to
+    be timely rather than polished.  Philosophical positions without examples
+    or other specifics, specific suggestions or implementation techniques
+    without introductory or background explication, and explicit questions
+    without any attempted answers are all acceptable.  The minimum length for
+    a NWG note is one sentence.
+
+    These standards (or lack of them) are stated explicitly for two reasons.
+    First, there is a tendency to view a written statement as ipso facto
+    authoritative, and we hope to promote the exchange and discussion of
+    considerably less than authoritative ideas.  Second, there is a natural
+    hesitancy to publish something unpolished, and we hope to ease this
+    inhibition.
+    ```
+
+    See also [RFD Guidelines](#rfd-guidelines)
+
+- For documentation, always write diagrams as `mermaid` diagrams. Rules to avoid broken diagrams:
+  - Never use `&lt;br/&gt;` inside node labels — it prevents rendering
+  - Never use `...` (ellipsis) in node labels — it breaks the lexer; use descriptive text like `Actuator N` instead
+  - Never use the `[[...]]` subroutine shape — it is not supported in all renderers; use `[...]` or `([...])` instead
+- We use Makefiles heavily to maintain ergonomics across languages and subprojects
+
+### RFD Guidelines
+
+We use Request for Discussion (RFD) instead of Request for Comment(RFC) to avoid confusion with the IETF's actual RFC's
+
+The purpose is to ensure that we are thinking through our architectural decisions, and if the future allows, perhaps so that fellow engineers can discuss via PRs.
+
+## Repository Layout
+
+```
+.
+├── ui/                   # Web UI — TypeScript + React (future)
+├── controller/           # Controller Brain — Python (future)
+├── smart-actuator/       # Rust Cargo workspace
+│   ├── proto/            # gRPC service definitions (source of truth)
+│   ├── crates/
+│   │   ├── actuator-proto/       # Generated gRPC types
+│   │   ├── actuator-core/        # State machine, control modes, safety
+│   │   ├── actuator-sim/         # Simulator binary (drop-in for real firmware)
+│   │   ├── actuator-firmware/    # Real hardware firmware (stub)
+│   │   └── controller-sidecar/   # Host-side gRPC pool + watchdog (stub)
+│   └── Makefile
+└── RFDs/                 # Architecture documents
+```
+
+See [RFD-3](RFDs/RFD-3.md) for the full architecture rationale.
+
+### Running the simulator
+
+```bash
+cd smart-actuator
+make run
+```
+
+## RFD Table of Contents
+
+- [RFD-1: The Smart Actuator, foundational RFD](RFDs/RFD-1.md)
+- [RFD-2: Actuator Simulator](RFDs/RFD-2.md)
+- [RFD-3: Proposed Architecture](RFDs/RFD-3.md)
+- [RFD-4: The Smart Actuator Brain](RFDs/RFD-4.md)
+- [RFD-5: Template Marketplace and Discovery](RFDs/RFD-5.md)
+- [RFD-6: Shared-World Physics for the Actuator Simulator](RFDs/RFD-6.md)
+- [RFD-7: UI and the Product Story](RFDs/RFD-7.md)
+- [RFD-8: Development Journeys](RFDs/RFD-8.md)
+- [RFD-9: Actuator Contract](RFDs/RFD-9.md)
+- [RFD-10: The Testbench Actuator](RFDs/RFD-10.md)
+- [RFD-11: The Smart Actuator AST](RFDs/RFD-11.md)
+- [RFD-12: Prismatic Joints and the Cartesian Gantry Template](RFDs/RFD-12.md)
+- [RFD-13: Teach Mode — Record-and-Replay and Drag-to-Pose](RFDs/RFD-13.md)
+- [RFD-14: Aesthetic Pass — A Teenage Engineering–Inspired UI](RFDs/RFD-14.md)
+</pre>
+</body></html>

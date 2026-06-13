@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ControlMode","ExecutorState","RefusalReason"],"struct":["CommandResponse","CurrentResponse","PositionResponse","SafetyConfig","TemperatureResponse","TrackingErrorReport","TrajectoryPoint","TrajectorySegment","VelocityResponse"]};

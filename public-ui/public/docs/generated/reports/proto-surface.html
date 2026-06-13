@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proto Surface Scan</title>
+<style>body{font-family:ui-sans-serif,system-ui;background:#09070f;color:#f3f4f6;margin:0;padding:24px;line-height:1.5}a{color:#c084fc}pre{white-space:pre-wrap;word-break:break-word;background:#12101b;border:1px solid #2a2640;border-radius:10px;padding:16px}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}</style>
+</head><body>
+<p><a href="../index.html">Back to docs index</a></p>
+<h1>Proto Surface Scan</h1>
+<pre>/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:9:service SidecarService {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:44:message CommandResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:50:message ActuatorRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:56:message ListActuatorsRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:58:message ActuatorInfo {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:66:message ListActuatorsResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:72:message GetJointStatesRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:74:message StreamJointStatesRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:76:message JointState {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:86:message JointStateBatch {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:93:message TrajectoryPoint {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:100:message ActuatorTrajectorySegment {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:107:message SendTrajectoryRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:113:message EStopRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:115:message SendCommandRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:120:message SetActuatorSoftLimitsRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:128:message CalibrateActuatorRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:132:message CalibrateActuatorResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:140:message HeartbeatRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:144:message HeartbeatResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:151:message RegisterPeerRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/sidecar.proto:158:message DeregisterPeerRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:12:service BrainService {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:58:message CommandResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:63:message MachineRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:67:message ProgramRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:73:message ListActuatorsRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:75:message ListActuatorsResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:79:message ActuatorInfo {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:87:message DescribeActuatorRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:91:message DescribeActuatorResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:95:message CalibrateActuatorRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:100:message CalibrateActuatorResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:105:message SetActuatorLimitRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:113:message ListMachinesRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:115:message ListMachinesResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:119:message GetMachineRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:123:message GetMachineResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:131:message BuildMachineRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:138:message BindActuatorsRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:145:message GetModeResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:150:message SetModeRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:156:message ModeEvent {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:164:message GetModeHistoryResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:170:message JointTarget {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:175:message Pose {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:180:message MoveJointRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:186:message MovePoseRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:192:message FollowPathRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:200:message ListProgramsRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:202:message ProgramMeta {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:208:message ListProgramsResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:212:message GetProgramRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:216:message GetProgramResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:221:message SaveProgramRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:225:message RunProgramRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:232:message JointStateProto {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:240:message GetStateResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/brain.proto:246:message StateUpdate {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:13:service SimulatorBackdoor {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:31:message BackdoorEmpty {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:33:message BackdoorResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:38:message PlantStateRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:47:message ExternalTorqueRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:52:message AmbientTempRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:62:message FaultInjectionRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:66:message StepSimRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator_sim.proto:70:message PlantTruth {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:8:service ActuatorService {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:61:message SetPositionRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:64:message SetVelocityRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:67:message SetTorqueRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:72:message ReadRequest {}
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:74:message CommandResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:80:message PositionResponse    { double angle       = 1; }  // radians
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:81:message VelocityResponse    { double velocity    = 1; }  // rad/s
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:82:message CurrentResponse     { double current     = 1; }  // amperes
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:86:message SetSoftLimitsRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:90:message SetCurrentLimitRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:93:message SetTemperatureLimitRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:96:message SetControlModeRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:99:message TemperatureResponse { double temperature = 1; }  // degrees Celsius
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:103:message TrajectoryPoint {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:109:message TrajectorySegmentRequest {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:114:message TrackingErrorResponse {
+/Users/jose/ambient_labs/smart-actuator/smart-actuator/proto/actuator.proto:119:message ClockResponse {
+</pre>
+</body></html>

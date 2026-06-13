@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["now_ns"],"mod":["sidecar_proto"],"struct":["SidecarServicer"]};
