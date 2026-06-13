@@ -47,7 +47,7 @@ function SideNav({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      style={{ width: 260, height: '100%', background: '#111827', display: 'flex', flexDirection: 'column' }}
+      style={{ width: 240, height: '100%', background: '#111827', display: 'flex', flexDirection: 'column', borderRight: '1px solid #1f2937' }}
       role="presentation"
     >
       {/* Brand */}
@@ -56,12 +56,12 @@ function SideNav({ onClose }: { onClose: () => void }) {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          padding: '20px 20px 16px',
+          padding: '16px 16px 14px',
           borderBottom: '1px solid #1f2937',
         }}
       >
-        <SmartToyOutlinedIcon style={{ color: '#3b82f6', fontSize: 22 }} />
-        <span style={{ color: '#f9fafb', fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>
+        <SmartToyOutlinedIcon style={{ color: '#3b82f6', fontSize: 18 }} />
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#f9fafb', fontSize: 13, fontWeight: 600, letterSpacing: '0.02em' }}>
           Smart Actuator
         </span>
       </div>
@@ -129,9 +129,11 @@ function SideNav({ onClose }: { onClose: () => void }) {
 
 interface AppToolbarProps {
   title?: string
+  /** Optional dim breadcrumb shown below the title, e.g. "2-DOF Planar Arm". */
+  subtitle?: string
 }
 
-export function AppToolbar({ title = 'Jog Actuators' }: AppToolbarProps) {
+export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -150,16 +152,16 @@ export function AppToolbar({ title = 'Jog Actuators' }: AppToolbarProps) {
     <>
       <header
         style={{
-          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           height: 52,
-          padding: '0 8px',
+          padding: '0 8px 0 4px',
           background: '#0d0d0d',
           borderBottom: '1px solid #1f2937',
           zIndex: 100,
           flexShrink: 0,
           userSelect: 'none',
+          gap: 8,
         }}
       >
         {/* ── Left: hamburger ─────────────────────────────────── */}
@@ -167,30 +169,49 @@ export function AppToolbar({ title = 'Jog Actuators' }: AppToolbarProps) {
           <IconButton
             onClick={() => setDrawerOpen(true)}
             size="small"
-            style={{ color: '#9ca3af' }}
+            style={{ color: '#6b7280', flexShrink: 0 }}
           >
             <MenuIcon fontSize="small" />
           </IconButton>
         </Tooltip>
 
-        {/* ── Center: page title ───────────────────────────────── */}
-        <span
-          style={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            color: '#f3f4f6',
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            pointerEvents: 'none',
-          }}
-        >
-          {title}
-        </span>
+        {/* ── Title block (left-aligned, vertically centred) ──── */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              fontFamily: "'Inter', system-ui, sans-serif",
+              color: '#f3f4f6',
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </span>
+          {subtitle && (
+            <span
+              style={{
+                fontFamily: "'Inter', system-ui, sans-serif",
+                color: '#4b5563',
+                fontSize: 10,
+                letterSpacing: '0.04em',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {subtitle}
+            </span>
+          )}
+        </div>
 
         {/* ── Right: user avatar ───────────────────────────────── */}
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ flexShrink: 0 }}>
           <Tooltip title={user?.name ?? user?.username ?? 'User'} placement="bottom-end">
             <IconButton
               onClick={(e) => setUserAnchor(e.currentTarget)}
@@ -199,9 +220,9 @@ export function AppToolbar({ title = 'Jog Actuators' }: AppToolbarProps) {
             >
               <Avatar
                 style={{
-                  width: 30,
-                  height: 30,
-                  fontSize: 12,
+                  width: 28,
+                  height: 28,
+                  fontSize: 11,
                   fontWeight: 700,
                   background: '#2563eb',
                   color: '#fff',

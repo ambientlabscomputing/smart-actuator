@@ -8,6 +8,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppToolbar } from '../AppToolbar'
+import { SectionLabel } from '../ui/SectionLabel'
+import { Button } from '../ui/Button'
+import { Select } from '../ui/Select'
 import { ProgramRunView } from './ProgramRunView'
 import { nodeToStep } from './programAst'
 import type { ProgramStep } from './programAst'
@@ -25,44 +28,26 @@ import type { GCodePreview, GCodeTranslationResult } from '../../lib/gcodeApi'
 const card: React.CSSProperties = {
   background: '#111827',
   border: '1px solid #374151',
-  borderRadius: 8,
-  padding: '16px 20px',
+  borderRadius: 2,
+  padding: '14px 18px',
   display: 'flex',
   flexDirection: 'column',
-  gap: 12,
-}
-
-const label: React.CSSProperties = {
-  color: '#9ca3af',
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: '0.07em',
-  textTransform: 'uppercase',
-  marginBottom: 3,
+  gap: 10,
 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#0d0d0d',
+  background: '#111827',
   border: '1px solid #374151',
-  borderRadius: 6,
+  borderRadius: 2,
   color: '#f3f4f6',
-  fontSize: 13,
-  padding: '5px 10px',
+  fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+  fontFeatureSettings: '"tnum" 1',
+  fontSize: 12,
+  padding: '5px 8px',
   width: '100%',
   boxSizing: 'border-box',
+  outline: 'none',
 }
-
-const btn = (color: string, disabled = false): React.CSSProperties => ({
-  padding: '8px 18px',
-  background: disabled ? '#374151' : color,
-  border: 'none',
-  borderRadius: 6,
-  color: '#fff',
-  cursor: disabled ? 'not-allowed' : 'pointer',
-  fontSize: 13,
-  fontWeight: 600,
-  opacity: disabled ? 0.6 : 1,
-})
 
 // ── Motion-type colour map ────────────────────────────────────────────────────
 
@@ -138,7 +123,7 @@ function PathPreview({ preview, size = 340 }: PathPreviewProps) {
     <svg
       width={size}
       height={size}
-      style={{ background: '#0d0d0d', borderRadius: 8, display: 'block' }}
+      style={{ background: '#0d0d0d', borderRadius: 2, display: 'block' }}
       viewBox={`0 0 ${size} ${size}`}
     >
       {/* Grid lines */}
@@ -178,17 +163,17 @@ function Legend() {
     <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
       {Object.entries(MOTION_COLOR).map(([type, color]) => (
         <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <div style={{ width: 12, height: 3, background: color, borderRadius: 2 }} />
-          <span style={{ color: '#9ca3af', fontSize: 11 }}>{type}</span>
+          <div style={{ width: 12, height: 3, background: color, borderRadius: 0 }} />
+          <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>{type}</span>
         </div>
       ))}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-        <span style={{ color: '#9ca3af', fontSize: 11 }}>start</span>
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>start</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
-        <span style={{ color: '#9ca3af', fontSize: 11 }}>end</span>
+        <span style={{ fontFamily: "'Inter', system-ui, sans-serif", color: '#9ca3af', fontSize: 11 }}>end</span>
       </div>
     </div>
   )
@@ -419,34 +404,35 @@ export function GCodePage({ machineId }: GCodePageProps) {
 
           {/* Sample generator card */}
           <div style={card}>
-            <div style={label}>Generate sample G-code</div>
+            <SectionLabel>Generate sample G-code</SectionLabel>
 
             <div>
-              <div style={label}>Pattern</div>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
+              <SectionLabel gutterBottom>Pattern</SectionLabel>
+              <Select
                 value={selectedSample}
                 onChange={(e) => setSelectedSample(e.target.value)}
+                mono={false}
+                style={{ width: '100%' }}
               >
                 {sampleNames.map((n) => (
                   <option key={n} value={n}>{n.replace(/_/g, ' ')}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               <div>
-                <div style={label}>Origin X (mm)</div>
+                <SectionLabel gutterBottom>Origin X (mm)</SectionLabel>
                 <input style={inputStyle} type="number" value={sampleOriginX}
                   onChange={(e) => setSampleOriginX(e.target.value)} />
               </div>
               <div>
-                <div style={label}>Origin Y (mm)</div>
+                <SectionLabel gutterBottom>Origin Y (mm)</SectionLabel>
                 <input style={inputStyle} type="number" value={sampleOriginY}
                   onChange={(e) => setSampleOriginY(e.target.value)} />
               </div>
               <div>
-                <div style={label}>Work Z (mm)</div>
+                <SectionLabel gutterBottom>Work Z (mm)</SectionLabel>
                 <input style={inputStyle} type="number" value={sampleOriginZ}
                   onChange={(e) => setSampleOriginZ(e.target.value)} />
               </div>
@@ -454,29 +440,30 @@ export function GCodePage({ machineId }: GCodePageProps) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
-                <div style={label}>Width (mm)</div>
+                <SectionLabel gutterBottom>Width (mm)</SectionLabel>
                 <input style={inputStyle} type="number" min="1" value={sampleWidth}
                   onChange={(e) => setSampleWidth(e.target.value)} />
               </div>
               <div>
-                <div style={label}>Height (mm)</div>
+                <SectionLabel gutterBottom>Height (mm)</SectionLabel>
                 <input style={inputStyle} type="number" min="1" value={sampleHeight}
                   onChange={(e) => setSampleHeight(e.target.value)} />
               </div>
             </div>
 
-            <button
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => void handleGenerateSample()}
               disabled={!selectedSample || generating}
-              style={btn('#7c3aed', !selectedSample || generating)}
             >
               {generating ? 'Generating…' : 'Generate & save program'}
-            </button>
+            </Button>
 
             {generateError && (
               <span style={{ color: '#f87171', fontSize: 12 }}>{generateError}</span>
             )}
-            <div style={{ color: '#6b7280', fontSize: 11, lineHeight: 1.4 }}>
+            <div style={{ color: '#4b5563', fontSize: 11, lineHeight: 1.4 }}>
               Tip: set Origin X = Width/2, Origin Y = Height/2 to keep the entire
               pattern in the positive quadrant (required for CNC gantries).
             </div>
@@ -487,7 +474,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
 
           {/* Upload card */}
           <div style={card}>
-            <div style={label}>1. Upload G-code file</div>
+            <SectionLabel>1. Upload G-code file</SectionLabel>
             <input
               ref={fileInputRef}
               type="file"
@@ -495,16 +482,13 @@ export function GCodePage({ machineId }: GCodePageProps) {
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={btn('#374151')}
-            >
+            <Button variant="secondary" fullWidth onClick={() => fileInputRef.current?.click()}>
               {selectedFile ? selectedFile.name : 'Choose file…'}
-            </button>
+            </Button>
             {selectedFile && !fileId && (
-              <button onClick={() => void handleUpload()} disabled={uploading} style={btn('#2563eb', uploading)}>
+              <Button variant="primary" fullWidth onClick={() => void handleUpload()} disabled={uploading}>
                 {uploading ? 'Uploading…' : 'Upload'}
-              </button>
+              </Button>
             )}
             {fileId != null && (
               <span style={{ color: '#22c55e', fontSize: 12 }}>
@@ -516,10 +500,10 @@ export function GCodePage({ machineId }: GCodePageProps) {
 
           {/* Options card */}
           <div style={card}>
-            <div style={label}>2. Translation options</div>
+            <SectionLabel>2. Translation options</SectionLabel>
 
             <div>
-              <div style={label}>Program name</div>
+              <SectionLabel gutterBottom>Program name</SectionLabel>
               <input
                 style={inputStyle}
                 value={programName}
@@ -529,7 +513,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
             </div>
 
             <div>
-              <div style={label}>Arc chord tolerance (mm)</div>
+              <SectionLabel gutterBottom>Arc chord tolerance (mm)</SectionLabel>
               <input
                 style={inputStyle}
                 type="number"
@@ -541,42 +525,47 @@ export function GCodePage({ machineId }: GCodePageProps) {
             </div>
 
             <div>
-              <div style={label}>Arc plane</div>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
+              <SectionLabel gutterBottom>Arc plane</SectionLabel>
+              <Select
                 value={arcPlane}
                 onChange={(e) => setArcPlane(e.target.value as 'xy' | 'xz' | 'yz')}
+                mono={false}
+                style={{ width: '100%' }}
               >
                 <option value="xy">XY</option>
                 <option value="xz">XZ</option>
                 <option value="yz">YZ</option>
-              </select>
+              </Select>
             </div>
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => void handlePreview()}
               disabled={fileId == null || busy}
-              style={btn('#4b5563', fileId == null || busy)}
             >
               {previewing ? 'Previewing…' : 'Preview path'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
               onClick={() => void handleTranslate()}
               disabled={fileId == null || busy}
-              style={btn('#2563eb', fileId == null || busy)}
             >
               {translating ? 'Translating…' : 'Save program'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => void handleRun()}
               disabled={result == null || runId != null}
-              style={btn('#16a34a', result == null || runId != null)}
+              style={{ color: result != null && runId == null ? '#4ade80' : undefined }}
             >
               Run
-            </button>
+            </Button>
           </div>
 
           {previewError && <span style={{ color: '#f87171', fontSize: 12 }}>{previewError}</span>}
@@ -586,14 +575,14 @@ export function GCodePage({ machineId }: GCodePageProps) {
           {/* Result summary */}
           {result && (
             <div style={{ ...card, borderColor: '#1f2937' }}>
-              <div style={label}>Result</div>
+              <SectionLabel>Result</SectionLabel>
               <span style={{ color: '#d1d5db', fontSize: 12 }}>
                 {result.pose_count} poses saved as{' '}
                 <code style={{ color: '#60a5fa' }}>{result.program.meta.name}</code>
               </span>
               {result.warnings.length > 0 && (
                 <div>
-                  <div style={{ ...label, color: '#fbbf24' }}>Warnings</div>
+                  <SectionLabel style={{ color: '#fbbf24', marginBottom: 4 }}>Warnings</SectionLabel>
                   {result.warnings.map((w, i) => (
                     <div key={i} style={{ color: '#fbbf24', fontSize: 11, marginBottom: 2 }}>{w}</div>
                   ))}
@@ -601,9 +590,9 @@ export function GCodePage({ machineId }: GCodePageProps) {
               )}
               {result.dropped_lines.length > 0 && (
                 <div>
-                  <div style={{ ...label, color: '#f87171' }}>
+                  <SectionLabel style={{ color: '#f87171', marginBottom: 4 }}>
                     {result.dropped_lines.length} dropped line(s)
-                  </div>
+                  </SectionLabel>
                   {result.dropped_lines.slice(0, 5).map(([ln, msg], i) => (
                     <div key={i} style={{ color: '#f87171', fontSize: 11, marginBottom: 2 }}>
                       Line {ln}: {msg}
@@ -645,9 +634,10 @@ export function GCodePage({ machineId }: GCodePageProps) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#4b5563',
-                fontSize: 14,
+                fontSize: 13,
+                fontFamily: "'Inter', system-ui, sans-serif",
                 border: '1px dashed #374151',
-                borderRadius: 8,
+                borderRadius: 2,
                 minHeight: 300,
               }}
             >
@@ -657,7 +647,7 @@ export function GCodePage({ machineId }: GCodePageProps) {
 
           {runId && (
             <div style={{ marginTop: 12 }}>
-              <div style={{ ...label, marginBottom: 8 }}>Run progress</div>
+              <SectionLabel gutterBottom>Run progress</SectionLabel>
               <ProgramRunView
                 runId={runId}
                 steps={runSteps}

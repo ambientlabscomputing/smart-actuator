@@ -27,7 +27,7 @@ export interface KinematicsTabProps {
 
 const TASK_SPACES = ['r3', 'se3', 'planar_xz', 'planar_xy']
 
-export function KinematicsTab({ machineId, machine, ik }: KinematicsTabProps) {
+export function KinematicsTab({ machineId: _machineId, machine, ik }: KinematicsTabProps) {
   const verification = machine?.ik_verification ?? null
   const ee = machine?.description?.end_effector ?? null
   const overrides = machine?.description?.ik_overrides ?? null

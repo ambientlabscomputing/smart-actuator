@@ -8,6 +8,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppToolbar } from '../AppToolbar'
+import { SectionLabel } from '../ui/SectionLabel'
+import { Button } from '../ui/Button'
 import { ProgramRunView } from './ProgramRunView'
 import { StepRow } from './StepRow'
 import {
@@ -27,37 +29,18 @@ interface ProgramsPageProps {
   dhJoints: DHJointValues[] | null
 }
 
-const sectionLabel: React.CSSProperties = {
-  color: '#9ca3af',
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  marginBottom: 6,
-}
-
 const inputStyle: React.CSSProperties = {
   background: '#111827',
   border: '1px solid #374151',
-  borderRadius: 6,
+  borderRadius: 2,
   color: '#f3f4f6',
+  fontFamily: "'Inter', system-ui, sans-serif",
   fontSize: 13,
   padding: '5px 10px',
   width: '100%',
   boxSizing: 'border-box',
+  outline: 'none',
 }
-
-const actionBtn = (color: string): React.CSSProperties => ({
-  flex: 1,
-  padding: '8px 0',
-  background: color,
-  border: 'none',
-  borderRadius: 6,
-  color: '#fff',
-  cursor: 'pointer',
-  fontSize: 13,
-  fontWeight: 600,
-})
 
 export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps) {
   const navigate = useNavigate()
@@ -241,22 +224,15 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
           }}
         >
           <div style={{ padding: '12px 14px', borderBottom: '1px solid #1f2937', flexShrink: 0 }}>
-            <p style={sectionLabel}>Saved programs</p>
-            <button
+            <SectionLabel gutterBottom>Saved programs</SectionLabel>
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth
               onClick={newProgram}
-              style={{
-                width: '100%',
-                background: '#1f2937',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                color: '#d1d5db',
-                cursor: 'pointer',
-                fontSize: 12,
-                padding: '5px 0',
-              }}
             >
               + New program
-            </button>
+            </Button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {listLoading && (
@@ -270,12 +246,14 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
                   display: 'block',
                   width: '100%',
                   textAlign: 'left',
-                  background: p.program_id === programId ? '#1e3a5f' : 'transparent',
+                  background: p.program_id === programId ? '#172033' : 'transparent',
                   border: 'none',
-                  color: p.program_id === programId ? '#93c5fd' : '#d1d5db',
+                  borderLeft: p.program_id === programId ? '2px solid #2563eb' : '2px solid transparent',
+                  color: p.program_id === programId ? '#93c5fd' : '#9ca3af',
                   cursor: 'pointer',
+                  fontFamily: "'Inter', system-ui, sans-serif",
                   fontSize: 12,
-                  padding: '6px 14px',
+                  padding: '6px 12px',
                 }}
               >
                 {p.name}
@@ -283,21 +261,9 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
             ))}
           </div>
           <div style={{ padding: '10px 14px', borderTop: '1px solid #1f2937', flexShrink: 0 }}>
-            <button
-              onClick={() => navigate('/')}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                color: '#9ca3af',
-                cursor: 'pointer',
-                fontSize: 11,
-                padding: '5px 0',
-              }}
-            >
+            <Button variant="ghost" size="sm" fullWidth onClick={() => navigate('/')}>
               ← Back to workspace
-            </button>
+            </Button>
           </div>
         </aside>
 
@@ -305,7 +271,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
         <main style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Program name */}
           <section>
-            <p style={sectionLabel}>Program name</p>
+            <SectionLabel gutterBottom>Program name</SectionLabel>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -316,7 +282,7 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
 
           {/* Steps */}
           <section>
-            <p style={sectionLabel}>Steps</p>
+            <SectionLabel gutterBottom>Steps</SectionLabel>
             {steps.map((step, i) => (
               <StepRow
                 key={i}
@@ -335,23 +301,11 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
             ))}
 
             {/* Add step buttons */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               {(['move', 'move_se3', 'wait'] as StepKind[]).map((k) => (
-                <button
-                  key={k}
-                  onClick={() => addStep(k)}
-                  style={{
-                    background: '#1f2937',
-                    border: '1px solid #374151',
-                    borderRadius: 6,
-                    color: '#9ca3af',
-                    cursor: 'pointer',
-                    fontSize: 11,
-                    padding: '5px 12px',
-                  }}
-                >
+                <Button key={k} variant="ghost" size="sm" onClick={() => addStep(k)}>
                   + {k === 'move' ? 'MoveJoint' : k === 'move_se3' ? 'MovePose' : 'Wait'}
-                </button>
+                </Button>
               ))}
             </div>
           </section>
@@ -368,28 +322,31 @@ export function ProgramsPage({ machineId, joints, dhJoints }: ProgramsPageProps)
           )}
 
           {/* Actions */}
-          <section style={{ display: 'flex', gap: 10 }}>
-            <button
+          <section style={{ display: 'flex', gap: 8 }}>
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => void handleSave()}
               disabled={saving}
-              style={{ ...actionBtn('#374151'), color: '#d1d5db', opacity: saving ? 0.6 : 1 }}
             >
               {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
               onClick={() => void handleRun()}
               disabled={saving}
-              style={{ ...actionBtn('#2563eb'), opacity: saving ? 0.6 : 1 }}
             >
-              Save & Run
-            </button>
+              Save &amp; Run
+            </Button>
             {isSaved && (
-              <button
+              <Button
+                variant="danger"
                 onClick={() => void handleDelete()}
-                style={{ ...actionBtn('#7f1d1d'), color: '#fca5a5', flex: 0, padding: '8px 16px' }}
+                style={{ flexShrink: 0 }}
               >
                 Delete
-              </button>
+              </Button>
             )}
           </section>
 
