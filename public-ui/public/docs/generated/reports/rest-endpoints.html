@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REST Endpoint Scan</title>
+<style>body{font-family:ui-sans-serif,system-ui;background:#09070f;color:#f3f4f6;margin:0;padding:24px;line-height:1.5}a{color:#c084fc}pre{white-space:pre-wrap;word-break:break-word;background:#12101b;border:1px solid #2a2640;border-radius:10px;padding:16px}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}</style>
+</head><body>
+<p><a href="../index.html">Back to docs index</a></p>
+<h1>REST Endpoint Scan</h1>
+<pre>/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/files.py:14:@router.post("/files", response_model=StoredFile, status_code=201)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/files.py:24:@router.get("/files", response_model=StoredFilesResponse)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/files.py:32:@router.get("/files/{file_id}", response_model=StoredFile)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/files.py:41:@router.delete("/files/{file_id}", status_code=204)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:24:@router.get("/me", response_model=User)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:39:@router.post("/login", response_model=LoginResponse)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:51:@router.get("/{user_id}", response_model=User)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:62:@router.get("/", response_model=SearchUsersResponse)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:73:@router.post("/", response_model=User, status_code=201)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:81:@router.patch("/{user_id}", response_model=User)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/users.py:94:@router.delete("/{user_id}", status_code=204)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:44:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:62:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:81:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:97:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:110:@router.delete(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:126:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/teach.py:144:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/actuators.py:15:@router.get("", response_model=list[Actuator])
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/actuators.py:21:@router.get("/{actuator_id}", response_model=Actuator)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/actuators.py:30:@router.post("/{actuator_id}/calibrate", response_model=CalibrationJobState, status_code=201)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/mode.py:20:@router.get("")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/mode.py:27:@router.post("")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/mode.py:34:@router.get("/history", response_model=list[ModeEvent])
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/templates.py:15:@router.get("", response_model=list[TemplateMeta], summary="List available templates")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/templates.py:21:@router.get("/{template_id}", response_model=TemplateParamSchema, summary="Get template schema")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:29:@router.get("s", response_model=list[str], summary="List all machine IDs")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:38:@router.get("/{machine_id}", response_model=Machine, summary="Get machine by ID")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:50:@router.post("", response_model=Machine, status_code=201, summary="Build machine from description")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:80:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:127:@router.post("/{machine_id}/bind")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:138:@router.post("/{machine_id}/home")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:148:@router.patch(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:179:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:201:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:223:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:277:@router.put(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:296:@router.put(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/machine.py:324:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:32:@router.post("/joint")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:90:@router.post("/linear")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:97:@router.post("/pose")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:104:@router.post("/path")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:111:@router.post("/stop")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/motion.py:118:@router.post("/estop")
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:38:@router.get("/programs", response_model=list[ProgramMeta])
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:44:@router.get("/programs/{program_id}", response_model=Program)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:53:@router.post("/programs", response_model=Program, status_code=201)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:66:@router.delete("/programs/{program_id}", status_code=204)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:75:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:96:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:109:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/programs.py:121:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/calibrations.py:23:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/calibrations.py:43:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/calibrations.py:55:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/calibrations.py:70:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/calibrations.py:85:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/state.py:15:@router.get("", response_model=MachineState)
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/gcode.py:21:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/gcode.py:58:@router.post(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/gcode.py:83:@router.get(
+/Users/jose/ambient_labs/smart-actuator/brain/brain/interface/rest/gcode.py:93:@router.post(
+</pre>
+</body></html>

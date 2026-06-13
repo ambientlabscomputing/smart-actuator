@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Transport"],"fn":["do_exchange","read_request","read_response","skip_to_magic","write_error","write_request","write_response"],"struct":["WireClient"]};
