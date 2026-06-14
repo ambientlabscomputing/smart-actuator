@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { DHJointValues, WorkspaceResult } from '../lib/types'
+import { useActiveJoints } from '../hooks/useActiveJoints'
 import { MeshQualityContext, useMeshQuality } from './mesh/MeshQualityContext'
 import { LinkMesh } from './mesh/LinkMesh'
 import { RevoluteJoint } from './mesh/RevoluteJoint'
@@ -118,6 +119,9 @@ export function ArmCanvas({
   // Always render every defined joint. Pad missing telemetry angles with 0
   // so joints show at their resting position when offline or partially connected.
   const nJoints = joints.length
+
+  // Detect which joints are actively moving (covers jog + IK/cartesian jog).
+  const activeJoints = useActiveJoints(anglesRad)
 
   // ── Drag state ─────────────────────────────────────────────────────────────
   type DragType = 'revolute' | 'prismatic' | 'ee'
@@ -451,6 +455,7 @@ export function ArmCanvas({
             frameMatrix={f.linkFrameMatrix}
             linkRadius={radius}
             slotIndex={i}
+            active={activeJoints[i] ?? false}
             clickable={!!onJointClick}
             onClick={onJointClick ? () => onJointClick(i) : undefined}
             draggable={interactionMode === 'drag'}

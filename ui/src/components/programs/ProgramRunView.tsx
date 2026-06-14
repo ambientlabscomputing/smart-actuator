@@ -7,7 +7,9 @@
 import { useProgramRun, PROGRAM_RUN_TERMINAL } from '../../hooks/useProgramRun'
 import type { ProgramStep } from './programAst'
 import { stepLabel } from './programAst'
-import { bg, text, borderColor, semantic } from '@/design'
+import { motion as fm } from 'framer-motion'
+import { accent, bg, text, borderColor, semantic } from '@/design'
+import { motion as motionTokens } from '@/design/motion'
 
 interface ProgramRunViewProps {
   runId: string | null
@@ -40,9 +42,9 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
       style={{
         background: bg.surfaceRaised,
         border: `1px solid ${borderColor.default}`,
-        borderRadius: 10,
+        borderRadius: 6,
         padding: '14px 16px',
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: 'inherit',
         marginTop: 12,
       }}
     >
@@ -88,19 +90,24 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
         style={{
           height: 4,
           background: borderColor.default,
-          borderRadius: 2,
+          borderRadius: 999,
           marginBottom: 12,
           overflow: 'hidden',
+          position: 'relative',
         }}
       >
-        <div
+        <fm.div
           style={{
+            position: 'absolute',
+            inset: 0,
             height: '100%',
-            width: `${pct}%`,
-            background: barColor,
-            borderRadius: 2,
-            transition: 'width 0.4s ease',
+            background: `linear-gradient(90deg, ${barColor} 0%, ${barColor} 100%)`,
+            borderRadius: 999,
+            transformOrigin: 'left center',
           }}
+          initial={false}
+          animate={{ scaleX: pct / 100 }}
+          transition={{ duration: motionTokens.duration.base / 1000, ease: motionTokens.ease.out }}
         />
       </div>
 
@@ -109,17 +116,47 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
         {steps.map((step, i) => {
           const active = i === state.current_step_index && isRunning
           const done = i < state.current_step_index || state.status === 'completed'
+          const rowColor = done ? semantic.ok : active ? accent.default : text.faint
           return (
             <div
               key={i}
               style={{
+                position: 'relative',
+                overflow: 'hidden',
                 fontSize: 11,
-                padding: '3px 0',
-                color: done ? semantic.ok : active ? text.primary : text.faint,
+                padding: '5px 8px',
+                marginBottom: 4,
+                borderRadius: 4,
+                color: rowColor,
                 fontWeight: active ? 600 : 400,
+                background: active ? accent.dim : 'transparent',
+                border: active ? `1px solid ${accent.default}33` : '1px solid transparent',
               }}
             >
-              {done ? '✓' : active ? '▶' : '○'} {stepLabel(step, i)}
+              {active && (
+                <fm.div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: '38%',
+                    background: `linear-gradient(90deg, transparent 0%, ${accent.default}22 50%, transparent 100%)`,
+                    filter: 'blur(2px)',
+                  }}
+                  initial={{ x: '-120%' }}
+                  animate={{ x: '260%' }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: [0.4, 0, 0.2, 1],
+                  }}
+                />
+              )}
+              <span style={{ position: 'relative', zIndex: 1 }}>
+                {done ? '✓' : active ? '▶' : '○'} {stepLabel(step, i)}
+              </span>
             </div>
           )
         })}
@@ -136,7 +173,7 @@ export function ProgramRunView({ runId, steps, onClose }: ProgramRunViewProps) {
       {/* Status label */}
       <p
         style={{
-          color: text.dim,
+          color: isRunning ? accent.default : text.dim,
           fontSize: 11,
           margin: '0 0 12px',
           textTransform: 'uppercase',

@@ -8,8 +8,9 @@
  * The rotation axis direction (DH +Z) is indicated by the seam detail once
  * bands are properly implemented (Box 2 polish / TODO).
  */
-import { useMemo, useState } from 'react'
-import type * as THREE from 'three'
+import { useMemo, useRef, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
 import { useMeshQuality } from './MeshQualityContext'
 import { useMaterials } from './MaterialRegistry'
 import { RecipeNodes } from './recipeToThree'
@@ -17,6 +18,9 @@ import { buildRevoluteRecipe } from './revolute'
 import { buildActuatorAssembly } from './assemblies'
 import { getMachineStyle, defaultMachineStyle } from '../../design/machineStyles'
 import { type MeshFamily, defaultMeshFamily } from './family'
+import { accent } from '../../design/theme'
+
+const ACCENT_COLOR = new THREE.Color(accent.default)
 
 interface RevoluteJointProps {
   /** Link frame matrix — hub is centred here, coaxial with link +X. */
@@ -51,6 +55,24 @@ export function RevoluteJoint({
   const materials = useMaterials(slotIndex)
   const tokens = getMachineStyle(defaultMachineStyle)
 
+  // Point-light ref — intensity driven by useFrame so no hook-return mutation.
+  const lightRef = useRef<THREE.PointLight>(null)
+  const phaseRef = useRef(0)
+
+  useFrame((_, delta) => {
+    const light = lightRef.current
+    if (!light) return
+    if (active) {
+      phaseRef.current = (phaseRef.current + delta * Math.PI * 2) % (Math.PI * 2)
+      // Oscillates between 1.2 and 3.0 at 1 Hz
+      light.intensity = 2.1 + 0.9 * Math.sin(phaseRef.current)
+    } else {
+      phaseRef.current = 0
+      // Fade out in 150 ms
+      light.intensity = Math.max(0, light.intensity - delta * 8)
+    }
+  })
+
   const recipe = useMemo(
     () =>
       family === 'lab_instrument'
@@ -78,6 +100,15 @@ export function RevoluteJoint({
         quality={quality}
         castShadow
         receiveShadow
+      />
+      {/* Point light at joint origin — ref-mutated intensity, no lint issue.
+          Illuminates the surrounding links and housing in accent yellow. */}
+      <pointLight
+        ref={lightRef}
+        color={ACCENT_COLOR}
+        intensity={0}
+        distance={linkRadius * 14}
+        decay={2}
       />
     </group>
   )

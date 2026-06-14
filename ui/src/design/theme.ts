@@ -22,11 +22,11 @@
 
 export const accent = {
   /** Primary accent — active joint, running step, primary CTA. */
-  default: '#D4A017',
+  default: '#c084fc',
   /** Hover / pressed state on accent-coloured buttons. */
-  hover: '#B88A12',
+  hover: '#a855f7',
   /** Low-opacity wash for selected borders, halos, focus rings. */
-  dim: 'rgba(212,160,23,0.15)',
+  dim: 'rgba(192,132,252,0.15)',
   /** Text written ON an accent-filled surface. */
   on: '#0d0d0d',
 } as const
