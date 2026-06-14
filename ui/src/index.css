@@ -41,3 +41,28 @@ code {
   font-feature-settings: "tnum" 1;
   font-variant-numeric: tabular-nums;
 }
+
+@keyframes motion-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes motion-indeterminate {
+  0% {
+    transform: translateX(-45%);
+  }
+
+  100% {
+    transform: translateX(145%);
+  }
+}
+
+.motion-pulse {
+  animation: motion-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

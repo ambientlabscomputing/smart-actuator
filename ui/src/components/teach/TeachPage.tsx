@@ -570,8 +570,9 @@ export function TeachPage({ machineId }: TeachPageProps) {
                   alignItems: 'center',
                   gap: 8,
                   flex: 1,
-                  animation: isRecording ? 'pulse 1.4s cubic-bezier(0.4,0,0.6,1) infinite' : 'none',
+                  animation: 'none',
                 }}
+                className={isRecording ? 'motion-pulse' : undefined}
                 onClick={() => void handleRecord()}
               >
                 <span
@@ -664,13 +665,6 @@ export function TeachPage({ machineId }: TeachPageProps) {
       {showSave && (
         <SaveDialog onSave={(n) => void handleSave(n)} onCancel={() => setShowSave(false)} />
       )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
-        }
-      `}</style>
     </div>
   )
 }
