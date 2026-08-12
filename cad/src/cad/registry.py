@@ -2,18 +2,20 @@ from functools import lru_cache
 import inspect
 from typing import Literal
 
-from cad.assemblies import cycloidal_gearbox
+from cad.assemblies import actuator, cycloidal_gearbox, electronics, shell
 from cad.objects import box
 from cad.objects.cycloidal_gearbox import (
     bearing,
     cycloidal_disc,
     dowel_pin,
     input_shaft,
+    motor_adapter_plate,
     output_flange,
-    output_hub,
     ring_housing,
     shoulder_bolt,
 )
+from cad.objects.electronics import board_mount
+from cad.objects.shell import shell_body, shell_lid
 
 objects = [
     box.Box,
@@ -22,11 +24,19 @@ objects = [
     cycloidal_disc.CycloidalDisc,
     ring_housing.RingHousing,
     input_shaft.InputShaft,
+    motor_adapter_plate.MotorAdapterPlate,
     output_flange.OutputFlange,
-    output_hub.OutputHub,
     shoulder_bolt.ShoulderBolt,
+    shell_body.ShellBody,
+    shell_lid.ShellLid,
+    board_mount.BoardMount,
 ]
-assemblies = [cycloidal_gearbox.CycloidalGearboxAssembly]
+assemblies = [
+    cycloidal_gearbox.CycloidalGearboxAssembly,
+    shell.ShellAssembly,
+    electronics.ElectronicsAssembly,
+    actuator.ActuatorAssembly,
+]
 
 
 def raw_registry() -> dict[str, dict]:

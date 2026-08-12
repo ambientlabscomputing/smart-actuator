@@ -3,36 +3,48 @@ import math
 import cadquery
 
 from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, SHOULDER_BOLT_SPECS, ScrewSize
-from cad.lib.nema import NEMA_SPECS, NemaSize
 from cad.objects.base import CADObject
 
 _HEAD_DIAMETER_CLEARANCE = 0.4
 _HEAD_DEPTH_CLEARANCE = 0.2
 _SHOULDER_CLEARANCE = 0.2
-_SHELL_BOLT_EDGE_MARGIN = 6.0
+_RING_PIN_TO_OUTER_BOLT_GAP = 6.0  # material gap between ring pins and either outer ring
+_OUTER_BOLT_WALL_MARGIN = 4.0
 
 
 class RingHousing(CADObject):
     """
-    The fixed "stator" of the drive: bolts to the NEMA motor face, holds
-    the ring pins the cycloidal disc rolls against, and passes the input
-    shaft/eccentric assembly through its center bore.
+    The fixed "stator" of the drive: holds the ring pins the cycloidal
+    disc rolls against, and passes the input shaft/eccentric assembly
+    through its center bore.
 
-    Round rather than square: a square blank wastes material/print time
-    at the corners and doesn't give an outer shell anything sensible to
-    register against. A bolt circle near the outer edge is reserved for
-    mounting an (as yet undesigned) outer shell.
+    NEMA-agnostic on purpose: motor attachment lives entirely on a
+    separate `MotorAdapterPlate` that bolts to this part's <Z face,
+    so this housing -- ring pins, disc, output flange, shell and all --
+    is a complete, self-contained unit the factory can build without
+    ever touching a motor. Putting the motor's own fixed bolt pattern
+    directly on this face (as an earlier version did) forced the ring
+    pins' fasteners to share a face whose layout we didn't control.
 
-    Each ring pin is a shoulder bolt threaded in from the motor-facing
-    (<Z) face into a heat-set insert: head counterbore + insert bore cut
-    from <Z, with a clearance through-hole for the bolt's smooth shoulder
-    (the disc's actual contact surface) spanning the rest of the housing
-    thickness up to the disc-facing (>Z) face.
+    Two independent bolt circles ring the outside of the ring pins, each
+    positioned a real material gap beyond the ring pins' own outer edge
+    (not derived from the footprint, which is itself sized off the ring
+    pin span -- doing that let rings land on top of each other):
+    - on the >Z (disc-facing) face, a plain clearance bolt circle for an
+      outer shell to bolt onto.
+    - on the <Z face, a bolt circle with our own heat-set inserts (this
+      is an internal joint between two of our own parts, so we own the
+      thread) plus a pilot recess, both for the `MotorAdapterPlate`.
+
+    Each ring pin is a shoulder bolt threaded in from the <Z face into a
+    heat-set insert: head counterbore + insert bore cut from <Z, with a
+    clearance through-hole for the bolt's smooth shoulder (the disc's
+    actual contact surface) spanning the rest of the housing thickness
+    up to the disc-facing (>Z) face.
     """
 
     def __init__(
         self,
-        nema_size: NemaSize,
         num_ring_pins: int,
         ring_pin_diameter: float,
         ring_pin_circle_diameter: float,
@@ -41,8 +53,11 @@ class RingHousing(CADObject):
         thread_size: ScrewSize,
         num_shell_bolts: int,
         shell_bolt_diameter: float,
+        num_adapter_bolts: int,
+        adapter_thread_size: ScrewSize,
+        adapter_pilot_diameter: float,
+        adapter_pilot_depth: float,
     ):
-        self.nema_size = nema_size
         self.num_ring_pins = num_ring_pins
         self.ring_pin_diameter = ring_pin_diameter
         self.ring_pin_circle_diameter = ring_pin_circle_diameter
@@ -51,41 +66,63 @@ class RingHousing(CADObject):
         self.thread_size = thread_size
         self.num_shell_bolts = num_shell_bolts
         self.shell_bolt_diameter = shell_bolt_diameter
+        self.num_adapter_bolts = num_adapter_bolts
+        self.adapter_thread_size = adapter_thread_size
+        self.adapter_pilot_diameter = adapter_pilot_diameter
+        self.adapter_pilot_depth = adapter_pilot_depth
+
+    @property
+    def _ring_pin_outer_radius(self) -> float:
+        return self.ring_pin_circle_diameter / 2 + self.ring_pin_diameter / 2
+
+    @property
+    def _shell_bolt_hole_radius(self) -> float:
+        return HEAT_SET_INSERT_SPECS[self.thread_size].bore_diameter / 2
+
+    @property
+    def shell_bolt_circle_diameter(self) -> float:
+        shell_bolt_radius = (
+            self._ring_pin_outer_radius
+            + _RING_PIN_TO_OUTER_BOLT_GAP
+            + self._shell_bolt_hole_radius
+        )
+        return 2 * shell_bolt_radius
+
+    @property
+    def _adapter_bolt_hole_radius(self) -> float:
+        return HEAT_SET_INSERT_SPECS[self.adapter_thread_size].bore_diameter / 2
+
+    @property
+    def adapter_bolt_circle_diameter(self) -> float:
+        adapter_bolt_radius = (
+            self._ring_pin_outer_radius
+            + _RING_PIN_TO_OUTER_BOLT_GAP
+            + self._adapter_bolt_hole_radius
+        )
+        return 2 * adapter_bolt_radius
+
+    @property
+    def footprint_diameter(self) -> float:
+        ring_pin_span = 2 * self._ring_pin_outer_radius + 2 * _OUTER_BOLT_WALL_MARGIN
+        shell_bolt_span = (
+            self.shell_bolt_circle_diameter
+            + 2 * self._shell_bolt_hole_radius
+            + 2 * _OUTER_BOLT_WALL_MARGIN
+        )
+        adapter_bolt_span = (
+            self.adapter_bolt_circle_diameter
+            + 2 * self._adapter_bolt_hole_radius
+            + 2 * _OUTER_BOLT_WALL_MARGIN
+        )
+        return max(ring_pin_span, shell_bolt_span, adapter_bolt_span)
 
     def cad(self) -> cadquery.Workplane:
-        spec = NEMA_SPECS[self.nema_size]
-
-        # The housing footprint has to be large enough to carry the NEMA
-        # bolt pattern (corner-to-corner of that square pattern, not just
-        # its side length) and to keep a wall of material around the ring
-        # pins for reductions with a larger ring pin circle than the
-        # motor face.
-        wall_margin = 4.0
-        nema_span = (
-            spec.bolt_spacing * math.sqrt(2) + spec.bolt_hole_diameter + 2 * wall_margin
-        )
-        ring_pin_span = (
-            self.ring_pin_circle_diameter + self.ring_pin_diameter + 2 * wall_margin
-        )
-        footprint_diameter = max(nema_span, ring_pin_span)
+        footprint_diameter = self.footprint_diameter
 
         housing = (
             cadquery.Workplane("XY")
             .circle(footprint_diameter / 2)
             .extrude(self.housing_thickness)
-        )
-
-        half_spacing = spec.bolt_spacing / 2
-        bolt_points = [
-            (x, y)
-            for x in (-half_spacing, half_spacing)
-            for y in (-half_spacing, half_spacing)
-        ]
-        housing = (
-            housing.faces(">Z")
-            .workplane()
-            .pushPoints(bolt_points)
-            .hole(spec.bolt_hole_diameter)
         )
 
         ring_radius = self.ring_pin_circle_diameter / 2
@@ -106,8 +143,8 @@ class RingHousing(CADObject):
             .hole(self.ring_pin_diameter + _SHOULDER_CLEARANCE)
         )
 
-        # head counterbore + insert bore, cut from the motor-facing <Z
-        # face where the bolts are installed from
+        # head counterbore + insert bore, cut from the <Z face where the
+        # ring pin bolts are installed from
         bolt_spec = SHOULDER_BOLT_SPECS[self.thread_size]
         insert_spec = HEAT_SET_INSERT_SPECS[self.thread_size]
         housing = (
@@ -124,15 +161,9 @@ class RingHousing(CADObject):
 
         housing = housing.faces(">Z").workplane().hole(self.input_bore_diameter)
 
-        housing = (
-            housing.faces("<Z")
-            .workplane()
-            .circle(spec.pilot_boss_diameter / 2)
-            .cutBlind(-spec.pilot_boss_depth)
-        )
-
-        # shell mounting bolt circle, near the outer edge
-        shell_radius = footprint_diameter / 2 - _SHELL_BOLT_EDGE_MARGIN
+        # shell mounting bolt circle -- plain clearance, on the disc-facing
+        # face
+        shell_radius = self.shell_bolt_circle_diameter / 2
         shell_points = [
             (
                 shell_radius * math.cos(2 * math.pi * i / self.num_shell_bolts),
@@ -145,6 +176,32 @@ class RingHousing(CADObject):
             .workplane()
             .pushPoints(shell_points)
             .hole(self.shell_bolt_diameter)
+        )
+
+        # motor adapter plate's pilot recess, on the <Z face
+        housing = (
+            housing.faces("<Z")
+            .workplane()
+            .circle(self.adapter_pilot_diameter / 2)
+            .cutBlind(-self.adapter_pilot_depth)
+        )
+
+        # motor adapter plate's bolt circle -- our own heat-set inserts,
+        # on the <Z face
+        adapter_insert_spec = HEAT_SET_INSERT_SPECS[self.adapter_thread_size]
+        adapter_radius = self.adapter_bolt_circle_diameter / 2
+        adapter_points = [
+            (
+                adapter_radius * math.cos(2 * math.pi * i / self.num_adapter_bolts),
+                adapter_radius * math.sin(2 * math.pi * i / self.num_adapter_bolts),
+            )
+            for i in range(self.num_adapter_bolts)
+        ]
+        housing = (
+            housing.faces("<Z")
+            .workplane()
+            .pushPoints(adapter_points)
+            .hole(adapter_insert_spec.bore_diameter, depth=adapter_insert_spec.length)
         )
 
         return housing

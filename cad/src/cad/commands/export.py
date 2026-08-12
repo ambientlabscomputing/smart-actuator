@@ -56,12 +56,16 @@ def _resolve_location(identifier: str, location: str | None, extension: str) -> 
     return location
 
 
-def _cad(inst, exploded: bool, explode_spacing: float) -> cadquery.Workplane:
+def _cad(
+    inst, exploded: bool, explode_spacing: float, explode_nested: bool
+) -> cadquery.Workplane:
     if exploded:
         if not isinstance(inst, CADAssembly):
             print("--exploded only applies to assemblies; exporting normally")
         else:
-            return inst.cad(exploded=True, spacing=explode_spacing)
+            return inst.cad(
+                exploded=True, spacing=explode_spacing, nested=explode_nested
+            )
     return inst.cad()
 
 
@@ -82,6 +86,7 @@ def export_svg(
     projection_dir: tuple[float, float, float] = (-1.75, 1.1, 5),
     exploded: bool = False,
     explode_spacing: float = 30.0,
+    explode_nested: bool = False,
 ):
     inst = _instantiate(identifier, params)
     if inst is None:
@@ -89,7 +94,7 @@ def export_svg(
 
     location = _resolve_location(identifier, location, "svg")
     return exports.svg(
-        cad=_cad(inst, exploded, explode_spacing),
+        cad=_cad(inst, exploded, explode_spacing, explode_nested),
         svg_opts=exports.SVGOpts(
             width=width,
             height=height,
@@ -115,6 +120,7 @@ def export_step(
     output_unit: cadquery.types.UnitLiterals | None = None,
     exploded: bool = False,
     explode_spacing: float = 30.0,
+    explode_nested: bool = False,
 ):
     inst = _instantiate(identifier, params)
     if inst is None:
@@ -122,7 +128,7 @@ def export_step(
 
     location = _resolve_location(identifier, location, "step")
     return exporters.export(
-        _cad(inst, exploded, explode_spacing),
+        _cad(inst, exploded, explode_spacing, explode_nested),
         location,
         exportType=exporters.ExportTypes.STEP,
         unit=unit,
@@ -140,6 +146,7 @@ def export_stl(
     ascii: bool = False,
     exploded: bool = False,
     explode_spacing: float = 30.0,
+    explode_nested: bool = False,
 ):
     inst = _instantiate(identifier, params)
     if inst is None:
@@ -147,7 +154,7 @@ def export_stl(
 
     location = _resolve_location(identifier, location, "stl")
     return exporters.export(
-        _cad(inst, exploded, explode_spacing),
+        _cad(inst, exploded, explode_spacing, explode_nested),
         location,
         exportType=exporters.ExportTypes.STL,
         tolerance=tolerance,
@@ -172,6 +179,7 @@ def export_other(
     angular_tolerance: float = 0.1,
     exploded: bool = False,
     explode_spacing: float = 30.0,
+    explode_nested: bool = False,
 ):
     format = format.upper()
     if format not in _EXTENSION_BY_TYPE:
@@ -186,7 +194,7 @@ def export_other(
 
     location = _resolve_location(identifier, location, _EXTENSION_BY_TYPE[format])
     return exporters.export(
-        _cad(inst, exploded, explode_spacing),
+        _cad(inst, exploded, explode_spacing, explode_nested),
         location,
         exportType=format,
         tolerance=tolerance,
