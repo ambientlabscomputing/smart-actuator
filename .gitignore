@@ -4,3 +4,5 @@
 **/*.db
 **/.embuild/**
 **/*.pem
+**/__pycache__/
+**/uv.lock
