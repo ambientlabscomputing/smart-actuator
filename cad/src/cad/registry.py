@@ -15,7 +15,8 @@ def raw_registry() -> dict[str, dict]:
                 "class": obj,
             }
             for obj in objects
-        }
+        },
+        "assemblies": {},
     }
 
 
@@ -25,9 +26,11 @@ def registry():
 
     def __build_params(type_: Literal["objects", "assemblies"]):
         for obj, data in registry_[type_].items():
-            sig = inspect.signature(obj.__init__)
+            sig = inspect.signature(data.get("class").__init__)
             data["params"] = {}
             for name, param in sig.parameters.items():
+                if name == "self":
+                    continue
                 data["params"][name] = {
                     "type": param.annotation,
                     "required": param.default is None,
