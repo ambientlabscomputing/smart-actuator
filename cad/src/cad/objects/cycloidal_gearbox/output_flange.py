@@ -16,12 +16,14 @@ class OutputFlange(CADObject):
     The output side of the drive: a flange plate with holes for the
     output roller pins (which ride in the cycloidal disc's output holes).
 
-    No printed output shaft -- a plastic boss here would be taking pure
-    torque with layer lines perpendicular to the load and would snap off.
-    Instead the outward (>Z) face carries a pilot recess and a bolt
-    circle for a separate metal `OutputHub` (see output_hub.py) to bolt
-    onto, so torque is carried by several bolts in shear plus a metal
-    shaft, never by printed plastic.
+    No printed output shaft, and no separate metal hub part designed by
+    us either -- both just relocate the same "one fixed shaft" problem.
+    Instead the outward (>Z) face carries a pilot recess plus a bolt
+    circle with its own heat-set inserts, exposed as the actual external
+    interface: whatever shaft/coupling/hub the user needs bolts directly
+    into this plate with their own hardware. Torque is carried by
+    several bolts in shear, never by printed plastic, and the interface
+    itself stays generic instead of us guessing at a shaft design.
 
     Each roller pin is a shoulder bolt threaded in from the outward (>Z)
     face into a heat-set insert: head counterbore + insert bore cut from
@@ -37,35 +39,37 @@ class OutputFlange(CADObject):
         roller_circle_diameter: float,
         flange_thickness: float,
         thread_size: ScrewSize,
-        hub_pilot_diameter: float,
-        hub_pilot_depth: float,
-        num_hub_bolts: int,
-        hub_bolt_circle_diameter: float,
-        hub_bolt_diameter: float,
+        pilot_diameter: float,
+        pilot_depth: float,
+        num_interface_bolts: int,
+        interface_bolt_circle_diameter: float,
+        interface_thread_size: ScrewSize,
     ):
         self.num_rollers = num_rollers
         self.roller_pin_diameter = roller_pin_diameter
         self.roller_circle_diameter = roller_circle_diameter
         self.flange_thickness = flange_thickness
         self.thread_size = thread_size
-        self.hub_pilot_diameter = hub_pilot_diameter
-        self.hub_pilot_depth = hub_pilot_depth
-        self.num_hub_bolts = num_hub_bolts
-        self.hub_bolt_circle_diameter = hub_bolt_circle_diameter
-        self.hub_bolt_diameter = hub_bolt_diameter
+        self.pilot_diameter = pilot_diameter
+        self.pilot_depth = pilot_depth
+        self.num_interface_bolts = num_interface_bolts
+        self.interface_bolt_circle_diameter = interface_bolt_circle_diameter
+        self.interface_thread_size = interface_thread_size
 
     def cad(self) -> cadquery.Workplane:
+        interface_insert_spec = HEAT_SET_INSERT_SPECS[self.interface_thread_size]
+
         roller_span = (
             self.roller_circle_diameter
             + self.roller_pin_diameter
             + 2 * _HUB_WALL_MARGIN
         )
-        hub_span = (
-            self.hub_bolt_circle_diameter
-            + self.hub_bolt_diameter
+        interface_span = (
+            self.interface_bolt_circle_diameter
+            + interface_insert_spec.bore_diameter
             + 2 * _HUB_WALL_MARGIN
         )
-        flange_diameter = max(roller_span, hub_span)
+        flange_diameter = max(roller_span, interface_span)
 
         flange = (
             cadquery.Workplane("XY")
@@ -107,29 +111,30 @@ class OutputFlange(CADObject):
             )
         )
 
-        # pilot recess for the metal output hub to register into
+        # pilot recess for whatever the user attaches to register into
         flange = (
             flange.faces(">Z")
             .workplane()
-            .circle(self.hub_pilot_diameter / 2)
-            .cutBlind(-self.hub_pilot_depth)
+            .circle(self.pilot_diameter / 2)
+            .cutBlind(-self.pilot_depth)
         )
 
-        # hub bolt circle -- clearance holes, the hub itself carries the
-        # tapped holes
-        hub_bolt_radius = self.hub_bolt_circle_diameter / 2
-        hub_bolt_points = [
+        # external interface bolt circle -- heat-set inserts live here,
+        # in our part, so the user's own hardware just threads straight
+        # in. This *is* the product's output interface.
+        interface_radius = self.interface_bolt_circle_diameter / 2
+        interface_points = [
             (
-                hub_bolt_radius * math.cos(2 * math.pi * i / self.num_hub_bolts),
-                hub_bolt_radius * math.sin(2 * math.pi * i / self.num_hub_bolts),
+                interface_radius * math.cos(2 * math.pi * i / self.num_interface_bolts),
+                interface_radius * math.sin(2 * math.pi * i / self.num_interface_bolts),
             )
-            for i in range(self.num_hub_bolts)
+            for i in range(self.num_interface_bolts)
         ]
         flange = (
             flange.faces(">Z")
             .workplane()
-            .pushPoints(hub_bolt_points)
-            .hole(self.hub_bolt_diameter)
+            .pushPoints(interface_points)
+            .hole(interface_insert_spec.bore_diameter, depth=interface_insert_spec.length)
         )
 
         return flange

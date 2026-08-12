@@ -1,4 +1,5 @@
 import math
+from types import SimpleNamespace
 
 import cadquery
 from cadquery import Location, Vector
@@ -9,14 +10,19 @@ from cad.lib.nema import NEMA_SPECS, NemaSize
 from cad.objects.cycloidal_gearbox.bearing import Bearing
 from cad.objects.cycloidal_gearbox.cycloidal_disc import CycloidalDisc
 from cad.objects.cycloidal_gearbox.input_shaft import InputShaft
+from cad.objects.cycloidal_gearbox.motor_adapter_plate import MotorAdapterPlate
 from cad.objects.cycloidal_gearbox.output_flange import OutputFlange
-from cad.objects.cycloidal_gearbox.output_hub import OutputHub
 from cad.objects.cycloidal_gearbox.ring_housing import RingHousing
 from cad.objects.cycloidal_gearbox.shoulder_bolt import ShoulderBolt
 
 _INSERT_MARGIN = 3.0
 _SHOULDER_REACH_MARGIN = 2.0
 _SHELL_BOLT_CLEARANCE_DIAMETER = 3.4  # M3 clearance, provisional until the shell exists
+_PILOT_TO_INTERFACE_BOLT_GAP = 4.0
+_ROLLER_HEAD_DIAMETER_CLEARANCE = 0.4  # matches OutputFlange's own head clearance
+_ADAPTER_PLATE_THICKNESS = 5.0
+_ADAPTER_PILOT_MARGIN = 6.0
+_ADAPTER_PILOT_DEPTH = 2.0
 
 
 class CycloidalGearboxAssembly(CADAssembly):
@@ -27,6 +33,20 @@ class CycloidalGearboxAssembly(CADAssembly):
     System-level params only -- this is the design contract. Everything
     else (bearing sizes, bore diameters, hole clearances) is derived from
     these plus the NEMA frame size.
+
+    The output side has no printed shaft and no separate hub part
+    designed by us -- `output_interface_diameter` sizes a pilot recess
+    and bolt circle (with our own heat-set inserts) on `OutputFlange`
+    itself, exposed as the actual external interface. Whatever the user
+    needs to attach bolts straight into that with their own hardware.
+
+    The motor side is NEMA-agnostic for the same reason: a separate
+    `MotorAdapterPlate` (not `RingHousing` itself) carries the NEMA bolt
+    pattern, bolted onto `RingHousing`'s own dedicated bolt circle. That
+    keeps the ring pins' fasteners off a face whose layout we don't
+    control, and means the rest of the gearbox -- ring pins, disc,
+    output flange, shell -- is a complete, self-contained unit that
+    never needs a motor present to be fully assembled.
     """
 
     def __init__(
@@ -38,12 +58,14 @@ class CycloidalGearboxAssembly(CADAssembly):
         disc_thickness: float,
         num_output_rollers: int,
         roller_pin_diameter: float,
-        output_shaft_diameter: float,
+        output_interface_diameter: float,
         ring_pin_thread_size: ScrewSize,
         roller_pin_thread_size: ScrewSize,
         num_shell_bolts: int,
-        num_hub_bolts: int,
-        hub_thread_size: ScrewSize,
+        num_interface_bolts: int,
+        interface_thread_size: ScrewSize,
+        num_adapter_bolts: int,
+        adapter_thread_size: ScrewSize,
     ):
         self.nema_size = nema_size
         self.num_ring_pins = num_ring_pins
@@ -52,27 +74,32 @@ class CycloidalGearboxAssembly(CADAssembly):
         self.disc_thickness = disc_thickness
         self.num_output_rollers = num_output_rollers
         self.roller_pin_diameter = roller_pin_diameter
-        self.output_shaft_diameter = output_shaft_diameter
+        self.num_adapter_bolts = num_adapter_bolts
+        self.adapter_thread_size = adapter_thread_size
+        self.output_interface_diameter = output_interface_diameter
         self.ring_pin_thread_size = ring_pin_thread_size
         self.roller_pin_thread_size = roller_pin_thread_size
         self.num_shell_bolts = num_shell_bolts
-        self.num_hub_bolts = num_hub_bolts
-        self.hub_thread_size = hub_thread_size
+        self.num_interface_bolts = num_interface_bolts
+        self.interface_thread_size = interface_thread_size
 
-    def assemble(self) -> cadquery.Assembly:
+    def _derive(self) -> SimpleNamespace:
+        """
+        All geometry derived from the system-level params, in one place so
+        `assemble()` and the read-only properties below never disagree.
+        """
         spec = NEMA_SPECS[self.nema_size]
 
         ring_insert = HEAT_SET_INSERT_SPECS[self.ring_pin_thread_size]
         ring_bolt_spec = SHOULDER_BOLT_SPECS[self.ring_pin_thread_size]
         roller_insert = HEAT_SET_INSERT_SPECS[self.roller_pin_thread_size]
         roller_bolt_spec = SHOULDER_BOLT_SPECS[self.roller_pin_thread_size]
-        hub_bolt_spec = SHOULDER_BOLT_SPECS[self.hub_thread_size]
 
         housing_thickness = max(6.0, ring_insert.length + _INSERT_MARGIN)
         flange_thickness = max(6.0, roller_insert.length + _INSERT_MARGIN)
 
         ring_pin_circle_diameter = spec.faceplate_width * 1.4
-        output_hole_circle_diameter = ring_pin_circle_diameter * 0.5
+        baseline_output_hole_circle_diameter = ring_pin_circle_diameter * 0.5
 
         eccentric_boss_diameter = spec.shaft_diameter * 2.4
         bearing_outer_diameter = eccentric_boss_diameter + 8.0
@@ -88,79 +115,41 @@ class CycloidalGearboxAssembly(CADAssembly):
         set_screw_hole_diameter = 3.0
         shaft_length = housing_thickness + self.disc_thickness + 4.0
 
-        # metal output hub geometry: pilot registers into the flange's
-        # recess, bolt circle clamps hub to flange, tapped holes live in
-        # the metal (no insert needed there)
-        hub_clearance_diameter = hub_bolt_spec.thread_diameter + 0.4
-        hub_tapped_diameter = hub_bolt_spec.thread_diameter
-        hub_pilot_diameter = self.output_shaft_diameter * 1.6
-        hub_pilot_depth = 2.0
-        hub_bolt_circle_diameter = hub_pilot_diameter + 10.0
-        hub_flange_diameter = hub_bolt_circle_diameter + hub_clearance_diameter + 8.0
-        hub_flange_thickness = 5.0
-        hub_shaft_length = self.output_shaft_diameter * 2.5
+        # motor adapter plate's registration feature with RingHousing --
+        # an internal joint between two of our own parts, sized off the
+        # input bore rather than anything NEMA-specific
+        adapter_pilot_diameter = housing_input_bore_diameter + 2 * _ADAPTER_PILOT_MARGIN
+        adapter_pilot_depth = _ADAPTER_PILOT_DEPTH
 
-        ring_housing = RingHousing(
-            nema_size=self.nema_size,
-            num_ring_pins=self.num_ring_pins,
-            ring_pin_diameter=self.ring_pin_diameter,
-            ring_pin_circle_diameter=ring_pin_circle_diameter,
-            housing_thickness=housing_thickness,
-            input_bore_diameter=housing_input_bore_diameter,
-            thread_size=self.ring_pin_thread_size,
-            num_shell_bolts=self.num_shell_bolts,
-            shell_bolt_diameter=_SHELL_BOLT_CLEARANCE_DIAMETER,
+        # output interface geometry: a pilot recess plus a bolt circle
+        # with our own heat-set inserts, exposed on OutputFlange itself,
+        # sized purely from the pilot -- it sits INSIDE the roller pin
+        # circle (the concentric shaft/coupling interface, with the
+        # rollers forming the outer structural ring around it), so it
+        # doesn't need to know about the rollers at all.
+        pilot_diameter = self.output_interface_diameter
+        pilot_depth = 2.0
+        interface_insert_radius = (
+            HEAT_SET_INSERT_SPECS[self.interface_thread_size].bore_diameter / 2
         )
-
-        input_shaft = InputShaft(
-            nema_size=self.nema_size,
-            eccentricity=self.eccentricity,
-            eccentric_boss_diameter=eccentric_boss_diameter,
-            shaft_length=shaft_length,
-            set_screw_hole_diameter=set_screw_hole_diameter,
+        interface_bolt_circle_diameter = pilot_diameter + 2 * (
+            _PILOT_TO_INTERFACE_BOLT_GAP + interface_insert_radius
         )
+        interface_outer_radius = interface_bolt_circle_diameter / 2 + interface_insert_radius
 
-        disc = CycloidalDisc(
-            num_ring_pins=self.num_ring_pins,
-            ring_pin_diameter=self.ring_pin_diameter,
-            ring_pin_circle_diameter=ring_pin_circle_diameter,
-            eccentricity=self.eccentricity,
-            thickness=self.disc_thickness,
-            center_bore_diameter=disc_center_bore_diameter,
-            num_output_holes=self.num_output_rollers,
-            output_hole_diameter=output_hole_diameter,
-            output_hole_circle_diameter=output_hole_circle_diameter,
+        # the roller circle -- and everything downstream of it, the disc's
+        # output holes included, since they share this same value -- has
+        # to sit far enough out that its own bolt counterbores clear the
+        # interface, growing past the NEMA-derived baseline if a larger
+        # interface needs the room
+        roller_counterbore_radius = (
+            roller_bolt_spec.head_diameter / 2 + _ROLLER_HEAD_DIAMETER_CLEARANCE / 2
         )
-
-        eccentric_bearing = Bearing(
-            outer_diameter=bearing_outer_diameter,
-            inner_diameter=eccentric_boss_diameter,
-            width=self.disc_thickness,
+        min_output_hole_circle_radius = (
+            interface_outer_radius + _PILOT_TO_INTERFACE_BOLT_GAP + roller_counterbore_radius
         )
-
-        output_flange = OutputFlange(
-            num_rollers=self.num_output_rollers,
-            roller_pin_diameter=self.roller_pin_diameter,
-            roller_circle_diameter=output_hole_circle_diameter,
-            flange_thickness=flange_thickness,
-            thread_size=self.roller_pin_thread_size,
-            hub_pilot_diameter=hub_pilot_diameter,
-            hub_pilot_depth=hub_pilot_depth,
-            num_hub_bolts=self.num_hub_bolts,
-            hub_bolt_circle_diameter=hub_bolt_circle_diameter,
-            hub_bolt_diameter=hub_clearance_diameter,
-        )
-
-        output_hub = OutputHub(
-            shaft_diameter=self.output_shaft_diameter,
-            shaft_length=hub_shaft_length,
-            flange_diameter=hub_flange_diameter,
-            flange_thickness=hub_flange_thickness,
-            pilot_diameter=hub_pilot_diameter,
-            pilot_height=hub_pilot_depth,
-            num_bolts=self.num_hub_bolts,
-            bolt_circle_diameter=hub_bolt_circle_diameter,
-            bolt_hole_diameter=hub_tapped_diameter,
+        output_hole_circle_diameter = max(
+            baseline_output_hole_circle_diameter, 2 * min_output_hole_circle_radius
         )
 
         # ring pin bolts: head + short thread engage the insert right
@@ -172,12 +161,6 @@ class CycloidalGearboxAssembly(CADAssembly):
             + self.disc_thickness
             + _SHOULDER_REACH_MARGIN
         )
-        ring_pin = ShoulderBolt(
-            thread_size=self.ring_pin_thread_size,
-            shoulder_diameter=self.ring_pin_diameter,
-            shoulder_length=ring_pin_shoulder_length,
-            thread_length=ring_pin_thread_length,
-        )
 
         # roller pin bolts: same idea, but installed from the flange's
         # outward face with the shoulder projecting down through the
@@ -188,26 +171,175 @@ class CycloidalGearboxAssembly(CADAssembly):
             + self.disc_thickness
             + _SHOULDER_REACH_MARGIN
         )
+
+        return SimpleNamespace(
+            housing_thickness=housing_thickness,
+            flange_thickness=flange_thickness,
+            ring_pin_circle_diameter=ring_pin_circle_diameter,
+            output_hole_circle_diameter=output_hole_circle_diameter,
+            eccentric_boss_diameter=eccentric_boss_diameter,
+            bearing_outer_diameter=bearing_outer_diameter,
+            disc_center_bore_diameter=disc_center_bore_diameter,
+            housing_input_bore_diameter=housing_input_bore_diameter,
+            output_hole_diameter=output_hole_diameter,
+            set_screw_hole_diameter=set_screw_hole_diameter,
+            shaft_length=shaft_length,
+            adapter_pilot_diameter=adapter_pilot_diameter,
+            adapter_pilot_depth=adapter_pilot_depth,
+            pilot_diameter=pilot_diameter,
+            pilot_depth=pilot_depth,
+            interface_bolt_circle_diameter=interface_bolt_circle_diameter,
+            ring_pin_thread_length=ring_pin_thread_length,
+            ring_pin_shoulder_length=ring_pin_shoulder_length,
+            roller_pin_thread_length=roller_pin_thread_length,
+            roller_pin_shoulder_length=roller_pin_shoulder_length,
+        )
+
+    def _ring_housing(self, d: SimpleNamespace | None = None) -> RingHousing:
+        d = d or self._derive()
+        return RingHousing(
+            num_ring_pins=self.num_ring_pins,
+            ring_pin_diameter=self.ring_pin_diameter,
+            ring_pin_circle_diameter=d.ring_pin_circle_diameter,
+            housing_thickness=d.housing_thickness,
+            input_bore_diameter=d.housing_input_bore_diameter,
+            thread_size=self.ring_pin_thread_size,
+            num_shell_bolts=self.num_shell_bolts,
+            shell_bolt_diameter=_SHELL_BOLT_CLEARANCE_DIAMETER,
+            num_adapter_bolts=self.num_adapter_bolts,
+            adapter_thread_size=self.adapter_thread_size,
+            adapter_pilot_diameter=d.adapter_pilot_diameter,
+            adapter_pilot_depth=d.adapter_pilot_depth,
+        )
+
+    def _motor_adapter_plate(
+        self, d: SimpleNamespace | None = None, ring_housing: RingHousing | None = None
+    ) -> MotorAdapterPlate:
+        d = d or self._derive()
+        ring_housing = ring_housing or self._ring_housing(d)
+        return MotorAdapterPlate(
+            nema_size=self.nema_size,
+            thickness=_ADAPTER_PLATE_THICKNESS,
+            input_bore_diameter=d.housing_input_bore_diameter,
+            num_housing_bolts=self.num_adapter_bolts,
+            housing_bolt_circle_diameter=ring_housing.adapter_bolt_circle_diameter,
+            housing_thread_size=self.adapter_thread_size,
+            housing_pilot_diameter=d.adapter_pilot_diameter,
+            housing_pilot_depth=d.adapter_pilot_depth,
+        )
+
+    @property
+    def shell_mount_diameter(self) -> float:
+        """Outer diameter of the ring housing -- what a shell has to wrap around."""
+        return self._ring_housing().footprint_diameter
+
+    @property
+    def shell_bolt_circle_diameter(self) -> float:
+        """Bolt circle a shell's base flange has to match to mate with the housing."""
+        return self._ring_housing().shell_bolt_circle_diameter
+
+    @property
+    def housing_thickness(self) -> float:
+        """Axial offset from the assembly's own z=0 to the ring housing's
+        disc-facing (>Z) face -- where a shell's base flange should sit."""
+        return self._derive().housing_thickness
+
+    @property
+    def tube_length(self) -> float:
+        """
+        Axial length a shell tube needs to span, starting from the ring
+        housing's disc-facing face (`housing_thickness`) out to the
+        output flange's outward face -- where the external interface
+        (and whatever the user bolts to it) is exposed.
+        """
+        d = self._derive()
+        return self.disc_thickness + d.flange_thickness
+
+    @property
+    def interface_bolt_circle_diameter(self) -> float:
+        """Bolt circle of the exposed output interface on OutputFlange."""
+        return self._derive().interface_bolt_circle_diameter
+
+    def assemble(self) -> cadquery.Assembly:
+        d = self._derive()
+
+        ring_housing = self._ring_housing(d)
+        motor_adapter_plate = self._motor_adapter_plate(d, ring_housing)
+
+        input_shaft = InputShaft(
+            nema_size=self.nema_size,
+            eccentricity=self.eccentricity,
+            eccentric_boss_diameter=d.eccentric_boss_diameter,
+            shaft_length=d.shaft_length,
+            set_screw_hole_diameter=d.set_screw_hole_diameter,
+        )
+
+        disc = CycloidalDisc(
+            num_ring_pins=self.num_ring_pins,
+            ring_pin_diameter=self.ring_pin_diameter,
+            ring_pin_circle_diameter=d.ring_pin_circle_diameter,
+            eccentricity=self.eccentricity,
+            thickness=self.disc_thickness,
+            center_bore_diameter=d.disc_center_bore_diameter,
+            num_output_holes=self.num_output_rollers,
+            output_hole_diameter=d.output_hole_diameter,
+            output_hole_circle_diameter=d.output_hole_circle_diameter,
+        )
+
+        eccentric_bearing = Bearing(
+            outer_diameter=d.bearing_outer_diameter,
+            inner_diameter=d.eccentric_boss_diameter,
+            width=self.disc_thickness,
+        )
+
+        output_flange = OutputFlange(
+            num_rollers=self.num_output_rollers,
+            roller_pin_diameter=self.roller_pin_diameter,
+            roller_circle_diameter=d.output_hole_circle_diameter,
+            flange_thickness=d.flange_thickness,
+            thread_size=self.roller_pin_thread_size,
+            pilot_diameter=d.pilot_diameter,
+            pilot_depth=d.pilot_depth,
+            num_interface_bolts=self.num_interface_bolts,
+            interface_bolt_circle_diameter=d.interface_bolt_circle_diameter,
+            interface_thread_size=self.interface_thread_size,
+        )
+
+        ring_pin = ShoulderBolt(
+            thread_size=self.ring_pin_thread_size,
+            shoulder_diameter=self.ring_pin_diameter,
+            shoulder_length=d.ring_pin_shoulder_length,
+            thread_length=d.ring_pin_thread_length,
+        )
+
         roller_pin = ShoulderBolt(
             thread_size=self.roller_pin_thread_size,
             shoulder_diameter=self.roller_pin_diameter,
-            shoulder_length=roller_pin_shoulder_length,
-            thread_length=roller_pin_thread_length,
+            shoulder_length=d.roller_pin_shoulder_length,
+            thread_length=d.roller_pin_thread_length,
         )
 
         assembly = cadquery.Assembly()
 
-        # ring housing sits at z=0..housing_thickness, bolted to the motor
-        # face on its -Z side
+        # ring housing sits at z=0..housing_thickness
         assembly.add(
             ring_housing.cad(), loc=Location(Vector(0, 0, 0)), name="ring_housing"
+        )
+
+        # motor adapter plate sits behind it, at z=-thickness..0 -- its
+        # pilot boss (at the top of its own local frame) registers flush
+        # into the ring housing's recess at world z=0
+        assembly.add(
+            motor_adapter_plate.cad(),
+            loc=Location(Vector(0, 0, -_ADAPTER_PLATE_THICKNESS)),
+            name="motor_adapter_plate",
         )
 
         assembly.add(
             input_shaft.cad(), loc=Location(Vector(0, 0, 0)), name="input_shaft"
         )
 
-        disc_z = housing_thickness
+        disc_z = d.housing_thickness
         assembly.add(
             eccentric_bearing.cad(),
             loc=Location(Vector(self.eccentricity, 0, disc_z)),
@@ -230,18 +362,9 @@ class CycloidalGearboxAssembly(CADAssembly):
             name="output_flange",
         )
 
-        # output hub: its local z=0 (bottom of the flange, top of the
-        # pilot boss) sits right at the printed flange's outward face, so
-        # the pilot boss registers into the flange's recess and the
-        # metal shaft continues on outward from there
-        hub_z = output_flange_z + flange_thickness
-        assembly.add(
-            output_hub.cad(), loc=Location(Vector(0, 0, hub_z)), name="output_hub"
-        )
-
         # ring pin bolts: head at world z=0 (housing's back face), no
         # rotation needed -- the bolt is already built head-first along +Z
-        ring_radius = ring_pin_circle_diameter / 2
+        ring_radius = d.ring_pin_circle_diameter / 2
         for i in range(self.num_ring_pins):
             angle = 2 * math.pi * i / self.num_ring_pins
             x = ring_radius * math.cos(angle)
@@ -252,8 +375,8 @@ class CycloidalGearboxAssembly(CADAssembly):
 
         # roller pin bolts: head at the flange's outward face, flipped
         # 180 degrees so the shoulder projects downward into the disc
-        roller_head_z = output_flange_z + flange_thickness
-        roller_radius = output_hole_circle_diameter / 2
+        roller_head_z = output_flange_z + d.flange_thickness
+        roller_radius = d.output_hole_circle_diameter / 2
         for i in range(self.num_output_rollers):
             angle = 2 * math.pi * i / self.num_output_rollers
             x = roller_radius * math.cos(angle)
