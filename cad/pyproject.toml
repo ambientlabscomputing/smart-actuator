@@ -1,0 +1,67 @@
+[project]
+name = "cad"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Jose Catarino", email = "jfcatarino1@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "cadquery>=2.8.0",
+    "pydantic>=2.13.4",
+    "result>=0.17.0",
+    "typer>=0.27.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.2",
+]
+[tool.ruff]
+# Target Python version
+target-version = "py313"
+
+# Same as Black.
+line-length = 88
+
+# Exclude a variety of common directories.
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes (F) and Error (E) codes by default.
+# "I" enables isort for import sorting.
+select = ["E", "F", "I", "W", "B", "C90", "N"]
+ignore = [
+    "E501", # Line too long (handled by formatter)
+]
+
+# Allow fixable rules to be automatically fixed.
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Ensure imports are grouped logically
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect the line length.
+line-ending = "auto"
