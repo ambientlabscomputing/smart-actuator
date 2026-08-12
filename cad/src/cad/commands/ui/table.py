@@ -10,7 +10,9 @@ def print_table(data: list[dict]) -> None:
     col_widths = [max(len(str(item)) for item in col) for col in zip(*rows, headers)]
 
     # Print header
-    header_row = " | ".join(f"{header:<{col_widths[i]}}" for i, header in enumerate(headers))
+    header_row = " | ".join(
+        f"{header:<{col_widths[i]}}" for i, header in enumerate(headers)
+    )
     print(header_row)
     print("-" * len(header_row))
 
