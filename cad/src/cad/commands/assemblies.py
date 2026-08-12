@@ -2,14 +2,14 @@ import typer
 
 from cad.commands import ui
 
-objects = typer.Typer()
+assemblies = typer.Typer()
 
 
-@objects.command("list", help="List all registered CAD objects")
-def list_objects():
+@assemblies.command("list", help="List all registered CAD assemblies")
+def list_assemblies():
     from cad.registry import registry
 
-    objects = registry().get("objects", {})
+    assemblies = registry().get("assemblies", {})
     ui.print_table(
         data=[
             {
@@ -17,6 +17,6 @@ def list_objects():
                 "Class": data["class"].__name__,
                 "Params": ", ".join(data.get("params", {}).keys()),
             }
-            for name, data in objects.items()
+            for name, data in assemblies.items()
         ]
     )
