@@ -1,9 +1,8 @@
 import math
 
 import cadquery
-
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
-from cad.objects.base import CADObject
+from machinewright import CADObject, register_object
+from machinewright.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
 
 # The pod's inner face has to genuinely plunge past the tube's outer
 # radius, not just sit exactly coincident with it -- a boolean union of
@@ -13,6 +12,7 @@ from cad.objects.base import CADObject
 _POD_OVERLAP = 1.5
 
 
+@register_object
 class ShellBody(CADObject):
     """
     Cylindrical tube wrapping the gearbox stack's outer diameter. Its <Z

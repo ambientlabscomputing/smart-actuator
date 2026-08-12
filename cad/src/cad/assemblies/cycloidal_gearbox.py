@@ -3,17 +3,21 @@ from types import SimpleNamespace
 
 import cadquery
 from cadquery import Location, Vector
+from machinewright import CADAssembly, register_assembly
+from machinewright.lib.fasteners import (
+    HEAT_SET_INSERT_SPECS,
+    SHOULDER_BOLT_SPECS,
+    ScrewSize,
+)
+from machinewright.objects.bearings.bearing import Bearing
+from machinewright.objects.fasteners.shoulder_bolt import ShoulderBolt
 
-from cad.assemblies.base import CADAssembly
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, SHOULDER_BOLT_SPECS, ScrewSize
 from cad.lib.nema import NEMA_SPECS, NemaSize
-from cad.objects.cycloidal_gearbox.bearing import Bearing
 from cad.objects.cycloidal_gearbox.cycloidal_disc import CycloidalDisc
 from cad.objects.cycloidal_gearbox.input_shaft import InputShaft
 from cad.objects.cycloidal_gearbox.motor_adapter_plate import MotorAdapterPlate
 from cad.objects.cycloidal_gearbox.output_flange import OutputFlange
 from cad.objects.cycloidal_gearbox.ring_housing import RingHousing
-from cad.objects.cycloidal_gearbox.shoulder_bolt import ShoulderBolt
 
 _INSERT_MARGIN = 3.0
 _SHOULDER_REACH_MARGIN = 2.0
@@ -25,6 +29,7 @@ _ADAPTER_PILOT_MARGIN = 6.0
 _ADAPTER_PILOT_DEPTH = 2.0
 
 
+@register_assembly
 class CycloidalGearboxAssembly(CADAssembly):
     """
     A single-stage cycloidal reduction gearbox that bolts onto a NEMA

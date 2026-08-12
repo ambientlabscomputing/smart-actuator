@@ -1,9 +1,10 @@
 import cadquery
+from machinewright import CADObject, register_object
 
 from cad.lib.nema import NEMA_SPECS, NemaSize
-from cad.objects.base import CADObject
 
 
+@register_object
 class InputShaft(CADObject):
     """
     Couples to the NEMA motor's output shaft at one end, and carries an

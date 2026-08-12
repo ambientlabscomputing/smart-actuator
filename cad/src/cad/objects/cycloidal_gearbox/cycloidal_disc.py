@@ -1,11 +1,12 @@
 import math
 
 import cadquery
+from machinewright import CADObject, register_object
 
 from cad.lib.cycloidal import cycloidal_disc_profile
-from cad.objects.base import CADObject
 
 
+@register_object
 class CycloidalDisc(CADObject):
     def __init__(
         self,
