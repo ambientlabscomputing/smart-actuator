@@ -1,15 +1,16 @@
 import math
 
 import cadquery
+from machinewright import CADObject, register_object
+from machinewright.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 
-from cad.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 from cad.lib.nema import NEMA_SPECS, NemaSize
-from cad.objects.base import CADObject
 
 _WALL_MARGIN = 4.0
 _HOUSING_BOLT_CLEARANCE = 0.4
 
 
+@register_object
 class MotorAdapterPlate(CADObject):
     """
     Thin, NEMA-specific adapter between the motor and the (NEMA-agnostic)

@@ -1,14 +1,14 @@
 import math
 
 import cadquery
-
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
-from cad.objects.base import CADObject
+from machinewright import CADObject, register_object
+from machinewright.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
 
 _BOARD_MARGIN = 6.0
 _STANDOFF_WALL = 4.0
 
 
+@register_object
 class BoardMount(CADObject):
     """
     Generic board-mount plate -- every board is just different numbers

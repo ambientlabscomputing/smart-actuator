@@ -1,14 +1,15 @@
 import cadquery
 from cadquery import Location, Vector
+from machinewright import CADAssembly, register_assembly
+from machinewright.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 
-from cad.assemblies.base import CADAssembly
-from cad.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 from cad.objects.shell.shell_body import ShellBody
 from cad.objects.shell.shell_lid import ShellLid
 
 _MOUNT_CLEARANCE = 0.4
 
 
+@register_assembly
 class ShellAssembly(CADAssembly):
     """
     Cylindrical shell wrapping a gearbox stack. Decoupled from any

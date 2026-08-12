@@ -1,11 +1,15 @@
 import cadquery
 from cadquery import Location, Vector
+from machinewright import CADAssembly, register_assembly
+from machinewright.lib.fasteners import (
+    HEAT_SET_INSERT_SPECS,
+    SHOULDER_BOLT_SPECS,
+    ScrewSize,
+)
 
-from cad.assemblies.base import CADAssembly
 from cad.assemblies.cycloidal_gearbox import CycloidalGearboxAssembly
 from cad.assemblies.electronics import ElectronicsAssembly
 from cad.assemblies.shell import ShellAssembly
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, SHOULDER_BOLT_SPECS, ScrewSize
 from cad.lib.nema import NemaSize
 
 _POD_BOLT_MARGIN = 8.0
@@ -13,6 +17,7 @@ _MOUNT_CLEARANCE = 0.4
 _OUTPUT_INTERFACE_GAP = 8.0
 
 
+@register_assembly
 class ActuatorAssembly(CADAssembly):
     """
     Top-level "smart gearbox" product assembly: nests the cycloidal

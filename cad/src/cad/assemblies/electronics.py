@@ -1,11 +1,12 @@
 import cadquery
 from cadquery import Location, Vector
+from machinewright import CADAssembly, register_assembly
+from machinewright.lib.fasteners import ScrewSize
 
-from cad.assemblies.base import CADAssembly
-from cad.lib.fasteners import ScrewSize
 from cad.objects.electronics.board_mount import BoardMount
 
 
+@register_assembly
 class ElectronicsAssembly(CADAssembly):
     """
     MVP electronics group: a single board mount. Multiple distinct

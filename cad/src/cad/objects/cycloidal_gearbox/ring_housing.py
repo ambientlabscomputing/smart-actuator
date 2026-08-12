@@ -1,9 +1,12 @@
 import math
 
 import cadquery
-
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, SHOULDER_BOLT_SPECS, ScrewSize
-from cad.objects.base import CADObject
+from machinewright import CADObject, register_object
+from machinewright.lib.fasteners import (
+    HEAT_SET_INSERT_SPECS,
+    SHOULDER_BOLT_SPECS,
+    ScrewSize,
+)
 
 _HEAD_DIAMETER_CLEARANCE = 0.4
 _HEAD_DEPTH_CLEARANCE = 0.2
@@ -12,6 +15,7 @@ _RING_PIN_TO_OUTER_BOLT_GAP = 6.0  # material gap between ring pins and either o
 _OUTER_BOLT_WALL_MARGIN = 4.0
 
 
+@register_object
 class RingHousing(CADObject):
     """
     The fixed "stator" of the drive: holds the ring pins the cycloidal

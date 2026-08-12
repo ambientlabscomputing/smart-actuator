@@ -1,10 +1,10 @@
 import math
 
 import cadquery
+from machinewright import CADObject, register_object
 
-from cad.objects.base import CADObject
 
-
+@register_object
 class ShellLid(CADObject):
     """
     Caps the far (output) end of a ShellBody tube. Plain clearance holes

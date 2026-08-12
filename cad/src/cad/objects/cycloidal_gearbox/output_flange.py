@@ -1,9 +1,12 @@
 import math
 
 import cadquery
-
-from cad.lib.fasteners import HEAT_SET_INSERT_SPECS, SHOULDER_BOLT_SPECS, ScrewSize
-from cad.objects.base import CADObject
+from machinewright import CADObject, register_object
+from machinewright.lib.fasteners import (
+    HEAT_SET_INSERT_SPECS,
+    SHOULDER_BOLT_SPECS,
+    ScrewSize,
+)
 
 _HEAD_DIAMETER_CLEARANCE = 0.4
 _HEAD_DEPTH_CLEARANCE = 0.2
@@ -11,6 +14,7 @@ _SHOULDER_CLEARANCE = 0.2
 _HUB_WALL_MARGIN = 4.0
 
 
+@register_object
 class OutputFlange(CADObject):
     """
     The output side of the drive: a flange plate with holes for the

@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "cadquery>=2.8.0",
+    "machinewright",
     "pydantic>=2.13.4",
     "result>=0.17.0",
     "typer>=0.27.1",
@@ -66,3 +67,22 @@ indent-style = "space"
 
 # Like Black, respect the line length.
 line-ending = "auto"
+
+[tool.uv.sources]
+machinewright = { git = "https://github.com/ambientlabscomputing/machinewright", rev = "rc-0.1.0" }
+
+[tool.machinewright]
+modules = [
+    "cad.objects.cycloidal_gearbox.cycloidal_disc",
+    "cad.objects.cycloidal_gearbox.ring_housing",
+    "cad.objects.cycloidal_gearbox.input_shaft",
+    "cad.objects.cycloidal_gearbox.motor_adapter_plate",
+    "cad.objects.cycloidal_gearbox.output_flange",
+    "cad.objects.shell.shell_body",
+    "cad.objects.shell.shell_lid",
+    "cad.objects.electronics.board_mount",
+    "cad.assemblies.cycloidal_gearbox",
+    "cad.assemblies.shell",
+    "cad.assemblies.electronics",
+    "cad.assemblies.actuator",
+]
