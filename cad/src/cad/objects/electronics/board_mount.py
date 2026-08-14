@@ -4,6 +4,8 @@ import cadquery
 from machinewright import CADObject, register_object
 from machinewright.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
 
+from cad.lib.materials import PRINTED
+
 _BOARD_MARGIN = 6.0
 _STANDOFF_WALL = 4.0
 
@@ -18,6 +20,8 @@ class BoardMount(CADObject):
     outer bolt circle bolts it over a `ShellBody` pod opening from
     outside, doubling as that pod's cover.
     """
+
+    material = PRINTED
 
     def __init__(
         self,

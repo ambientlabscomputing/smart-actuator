@@ -8,6 +8,8 @@ from machinewright.lib.fasteners import (
     ScrewSize,
 )
 
+from cad.lib.materials import PRINTED
+
 _HEAD_DIAMETER_CLEARANCE = 0.4
 _HEAD_DEPTH_CLEARANCE = 0.2
 _SHOULDER_CLEARANCE = 0.2
@@ -46,6 +48,8 @@ class RingHousing(CADObject):
     actual contact surface) spanning the rest of the housing thickness
     up to the disc-facing (>Z) face.
     """
+
+    material = PRINTED
 
     def __init__(
         self,

@@ -4,6 +4,8 @@ import cadquery
 from machinewright import CADObject, register_object
 from machinewright.lib.fasteners import HEAT_SET_INSERT_SPECS, ScrewSize
 
+from cad.lib.materials import PRINTED
+
 # The pod's inner face has to genuinely plunge past the tube's outer
 # radius, not just sit exactly coincident with it -- a boolean union of
 # two solids that only touch at a coincident/tangent face is numerically
@@ -27,6 +29,8 @@ class ShellBody(CADObject):
     the duct's outward-facing frame for an electronics `BoardMount` to
     bolt onto from outside -- that plate doubles as the pod's cover.
     """
+
+    material = PRINTED
 
     def __init__(
         self,

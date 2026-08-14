@@ -69,7 +69,7 @@ indent-style = "space"
 line-ending = "auto"
 
 [tool.uv.sources]
-machinewright = { git = "https://github.com/ambientlabscomputing/machinewright", rev = "rc-0.1.0" }
+machinewright = { git = "https://github.com/ambientlabscomputing/machinewright", rev = "0.1.0-rc.5" }
 
 [tool.machinewright]
 modules = [
@@ -85,4 +85,8 @@ modules = [
     "cad.assemblies.shell",
     "cad.assemblies.electronics",
     "cad.assemblies.actuator",
+    "cad.objects.alternate.integral_ring_housing",
+    "cad.objects.alternate.integral_output_flange",
+    "cad.assemblies.alternate_cycloidal_gearbox",
+    "cad.assemblies.alternate_actuator",
 ]

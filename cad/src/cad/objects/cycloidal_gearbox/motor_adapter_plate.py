@@ -4,6 +4,7 @@ import cadquery
 from machinewright import CADObject, register_object
 from machinewright.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 
+from cad.lib.materials import PRINTED
 from cad.lib.nema import NEMA_SPECS, NemaSize
 
 _WALL_MARGIN = 4.0
@@ -23,6 +24,8 @@ class MotorAdapterPlate(CADObject):
     Swapping motor sizes only means swapping this plate -- the housing,
     and everything built on it, doesn't change.
     """
+
+    material = PRINTED
 
     def __init__(
         self,
