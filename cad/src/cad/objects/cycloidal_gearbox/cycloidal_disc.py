@@ -4,10 +4,13 @@ import cadquery
 from machinewright import CADObject, register_object
 
 from cad.lib.cycloidal import cycloidal_disc_profile
+from cad.lib.materials import PRINTED
 
 
 @register_object
 class CycloidalDisc(CADObject):
+    material = PRINTED
+
     def __init__(
         self,
         num_ring_pins: int,

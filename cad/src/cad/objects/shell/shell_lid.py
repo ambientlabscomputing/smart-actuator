@@ -3,6 +3,8 @@ import math
 import cadquery
 from machinewright import CADObject, register_object
 
+from cad.lib.materials import PRINTED
+
 
 @register_object
 class ShellLid(CADObject):
@@ -12,6 +14,8 @@ class ShellLid(CADObject):
     matching how the ring housing's shell holes stay plain too. A
     central bore lets the OutputHub's shaft pass through.
     """
+
+    material = PRINTED
 
     def __init__(
         self,

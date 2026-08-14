@@ -61,6 +61,8 @@ class ActuatorAssembly(CADAssembly):
         board_plate_thickness: float,
         board_thread_size: ScrewSize,
         num_board_bolts: int,
+        bearing_inner_diameter: float | None = None,
+        bearing_outer_diameter: float | None = None,
     ):
         self.nema_size = nema_size
         self.num_ring_pins = num_ring_pins
@@ -89,6 +91,8 @@ class ActuatorAssembly(CADAssembly):
         self.board_plate_thickness = board_plate_thickness
         self.board_thread_size = board_thread_size
         self.num_board_bolts = num_board_bolts
+        self.bearing_inner_diameter = bearing_inner_diameter
+        self.bearing_outer_diameter = bearing_outer_diameter
 
     def _gearbox(self) -> CycloidalGearboxAssembly:
         return CycloidalGearboxAssembly(
@@ -107,6 +111,8 @@ class ActuatorAssembly(CADAssembly):
             interface_thread_size=self.interface_thread_size,
             num_adapter_bolts=self.num_adapter_bolts,
             adapter_thread_size=self.adapter_thread_size,
+            bearing_inner_diameter=self.bearing_inner_diameter,
+            bearing_outer_diameter=self.bearing_outer_diameter,
         )
 
     def assemble(self) -> cadquery.Assembly:

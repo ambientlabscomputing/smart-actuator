@@ -1,6 +1,6 @@
 import cadquery
 from cadquery import Location, Vector
-from machinewright import CADAssembly, register_assembly
+from machinewright import CADAssembly, attach, register_assembly
 from machinewright.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
 
 from cad.objects.shell.shell_body import ShellBody
@@ -88,8 +88,8 @@ class ShellAssembly(CADAssembly):
         )
 
         assembly = cadquery.Assembly()
-        assembly.add(body.cad(), loc=Location(Vector(0, 0, 0)), name="shell_body")
-        assembly.add(
-            lid.cad(), loc=Location(Vector(0, 0, self.tube_length)), name="shell_lid"
+        attach(assembly, body, loc=Location(Vector(0, 0, 0)), name="shell_body")
+        attach(
+            assembly, lid, loc=Location(Vector(0, 0, self.tube_length)), name="shell_lid"
         )
         return assembly

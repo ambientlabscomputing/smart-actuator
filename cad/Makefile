@@ -8,12 +8,13 @@
 
 OUT_DIR ?= build/step
 
-GEARBOX_CLASS   := assemblies.cad.assemblies.cycloidal_gearbox.CycloidalGearboxAssembly
-ACTUATOR_CLASS  := assemblies.cad.assemblies.actuator.ActuatorAssembly
+GEARBOX_CLASS      := assemblies.cad.assemblies.cycloidal_gearbox.CycloidalGearboxAssembly
+ACTUATOR_CLASS     := assemblies.cad.assemblies.actuator.ActuatorAssembly
+ALT_ACTUATOR_CLASS := assemblies.cad.assemblies.alternate_actuator.AlternateActuatorAssembly
 
-GEARBOX_PARAMS ?= {"nema_size":"17","num_ring_pins":10,"ring_pin_diameter":4,"eccentricity":1.0,"disc_thickness":6,"num_output_rollers":6,"roller_pin_diameter":5,"output_interface_diameter":14,"ring_pin_thread_size":"M3","roller_pin_thread_size":"M3","num_shell_bolts":8,"num_interface_bolts":4,"interface_thread_size":"M3","num_adapter_bolts":4,"adapter_thread_size":"M3"}
+GEARBOX_PARAMS ?= {"nema_size":"17","num_ring_pins":10,"ring_pin_diameter":4,"eccentricity":1.0,"disc_thickness":6,"num_output_rollers":6,"roller_pin_diameter":5,"output_interface_diameter":14,"ring_pin_thread_size":"M3","roller_pin_thread_size":"M3","num_shell_bolts":8,"num_interface_bolts":4,"interface_thread_size":"M3","num_adapter_bolts":4,"adapter_thread_size":"M3","bearing_inner_diameter":10,"bearing_outer_diameter":22}
 
-ACTUATOR_PARAMS ?= {"nema_size":"17","num_ring_pins":10,"ring_pin_diameter":4,"eccentricity":1.0,"disc_thickness":6,"num_output_rollers":6,"roller_pin_diameter":5,"output_interface_diameter":14,"ring_pin_thread_size":"M3","roller_pin_thread_size":"M3","num_shell_bolts":8,"num_interface_bolts":4,"interface_thread_size":"M3","num_adapter_bolts":4,"adapter_thread_size":"M3","shell_wall_thickness":2.5,"shell_lid_thickness":4,"shell_thread_size":"M3","pod_depth":15,"pod_center_z":14.2,"board_width":25.4,"board_length":25.4,"board_hole_inset":2.5,"board_standoff_height":5,"board_plate_thickness":3,"board_thread_size":"M3","num_board_bolts":4}
+ACTUATOR_PARAMS ?= {"nema_size":"17","num_ring_pins":10,"ring_pin_diameter":4,"eccentricity":1.0,"disc_thickness":6,"num_output_rollers":6,"roller_pin_diameter":5,"output_interface_diameter":14,"ring_pin_thread_size":"M3","roller_pin_thread_size":"M3","num_shell_bolts":8,"num_interface_bolts":4,"interface_thread_size":"M3","num_adapter_bolts":4,"adapter_thread_size":"M3","bearing_inner_diameter":10,"bearing_outer_diameter":22,"shell_wall_thickness":2.5,"shell_lid_thickness":4,"shell_thread_size":"M3","pod_depth":15,"pod_center_z":14.2,"board_width":25.4,"board_length":25.4,"board_hole_inset":2.5,"board_standoff_height":5,"board_plate_thickness":3,"board_thread_size":"M3","num_board_bolts":4}
 
 ## help: Print this help
 help:
@@ -41,11 +42,44 @@ step-actuator-exploded:
 		--exploded --explode-nested --explode-spacing 40 \
 		--location $(OUT_DIR)/actuator-exploded.step
 
-## step-all: Export gearbox, actuator, and exploded actuator STEP files in one go
-step-all: step-gearbox step-actuator step-actuator-exploded
+## step-actuator-alt: Export the fully 3D-printable test-fit actuator assembly to STEP (build/step/actuator-alt.step)
+step-actuator-alt:
+	@mkdir -p $(OUT_DIR)
+	uv run machinewright export step "$(ALT_ACTUATOR_CLASS)" \
+		--params '$(ACTUATOR_PARAMS)' \
+		--location $(OUT_DIR)/actuator-alt.step
+
+## print-layout: Export every printed part of the actuator, packed for slicing, to STL (build/step/print-layout.stl)
+print-layout:
+	@mkdir -p $(OUT_DIR)
+	uv run machinewright export print-layout "$(ACTUATOR_CLASS)" \
+		--params '$(ACTUATOR_PARAMS)' \
+		--process PRINTED \
+		--location $(OUT_DIR)/print-layout.stl
+
+## print-layout-alt: Export every part of the fully 3D-printable test-fit actuator, packed for slicing, to STL (build/step/print-layout-alt.stl)
+print-layout-alt:
+	@mkdir -p $(OUT_DIR)
+	uv run machinewright export print-layout "$(ALT_ACTUATOR_CLASS)" \
+		--params '$(ACTUATOR_PARAMS)' \
+		--process PRINTED \
+		--location $(OUT_DIR)/print-layout-alt.stl
+
+## bom: Export a bill of materials for the actuator assembly to CSV (build/step/bom.csv)
+bom:
+	@mkdir -p $(OUT_DIR)
+	uv run machinewright export bom "$(ACTUATOR_CLASS)" \
+		--params '$(ACTUATOR_PARAMS)' \
+		--location $(OUT_DIR)/bom.csv
+
+## step-all: Export gearbox, actuator, exploded actuator, print layout, and BOM in one go
+step-all: step-gearbox step-actuator step-actuator-exploded print-layout bom
+
+## step-all-alt: Export gearbox, actuator, exploded actuator, print layout, and BOM in one go, using the fully 3D-printable test-fit actuator
+step-all-alt: step-gearbox step-actuator-alt print-layout-alt bom
 
 ## clean: Remove generated STEP output
 clean:
 	rm -rf $(OUT_DIR)
 
-.PHONY: help step-gearbox step-actuator step-actuator-exploded step-all clean
+.PHONY: help step-gearbox step-actuator step-actuator-exploded step-actuator-alt print-layout print-layout-alt bom step-all clean

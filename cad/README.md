@@ -67,7 +67,7 @@ targets instead — see below.
 make step-gearbox            # cycloidal gearbox alone -> build/step/gearbox.step
 make step-actuator           # full actuator assembly -> build/step/actuator.step
 make step-actuator-exploded  # full actuator, exploded -> build/step/actuator-exploded.step
-make step-all                # all three
+make step-all                # gearbox, actuator, exploded actuator, print layout, and BOM
 make clean                   # remove build/step
 ```
 
@@ -76,4 +76,35 @@ e.g. to swap motor size:
 
 ```bash
 make step-gearbox GEARBOX_PARAMS='{"nema_size":"23", ...}'
+```
+
+## Material tracking, the print layout, and the BOM
+
+Every printed `CADObject` (all of `objects/cycloidal_gearbox/`,
+`objects/shell/`, and `BoardMount`) declares `material = PRINTED`, a
+bright-orange `Material` defined in `lib/materials.py` — a project-local
+override of machinewright's generic starter catalog, so printed parts
+are easy to spot in any viewer. Reused hardware (`Bearing`,
+`ShoulderBolt`) gets its `.material` overridden to `lib/materials.py`'s
+dark grey/black `METAL` after construction, in
+`assemblies/cycloidal_gearbox.py`. Each assembly's `assemble()` adds its
+parts with `machinewright.attach()` (instead of raw
+`cadquery.Assembly.add()`) so that material/color metadata actually
+lands in the assembled tree.
+
+`machinewright export print-layout` walks an assembly, collects every
+part whose material has `process == PRINTED`, and shelf-packs them onto
+a single build plate as one STL — ready to bring straight into a slicer:
+
+```bash
+make print-layout   # -> build/step/print-layout.stl
+```
+
+`machinewright export bom` walks an assembly's leaf parts, groups
+identical ones into line items (by part class + params + material), and
+writes a CSV with quantity, material/process, dimensions, volume, and
+mass (when the material has a density) per line:
+
+```bash
+make bom   # -> build/step/bom.csv
 ```

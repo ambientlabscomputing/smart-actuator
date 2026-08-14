@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import cadquery
 from cadquery import Location, Vector
-from machinewright import CADAssembly, register_assembly
+from machinewright import CADAssembly, attach, register_assembly
 from machinewright.lib.fasteners import (
     HEAT_SET_INSERT_SPECS,
     SHOULDER_BOLT_SPECS,
@@ -12,6 +12,7 @@ from machinewright.lib.fasteners import (
 from machinewright.objects.bearings.bearing import Bearing
 from machinewright.objects.fasteners.shoulder_bolt import ShoulderBolt
 
+from cad.lib.materials import METAL
 from cad.lib.nema import NEMA_SPECS, NemaSize
 from cad.objects.cycloidal_gearbox.cycloidal_disc import CycloidalDisc
 from cad.objects.cycloidal_gearbox.input_shaft import InputShaft
@@ -71,6 +72,8 @@ class CycloidalGearboxAssembly(CADAssembly):
         interface_thread_size: ScrewSize,
         num_adapter_bolts: int,
         adapter_thread_size: ScrewSize,
+        bearing_inner_diameter: float | None = None,
+        bearing_outer_diameter: float | None = None,
     ):
         self.nema_size = nema_size
         self.num_ring_pins = num_ring_pins
@@ -87,6 +90,8 @@ class CycloidalGearboxAssembly(CADAssembly):
         self.num_shell_bolts = num_shell_bolts
         self.num_interface_bolts = num_interface_bolts
         self.interface_thread_size = interface_thread_size
+        self.bearing_inner_diameter = bearing_inner_diameter
+        self.bearing_outer_diameter = bearing_outer_diameter
 
     def _derive(self) -> SimpleNamespace:
         """
@@ -106,8 +111,11 @@ class CycloidalGearboxAssembly(CADAssembly):
         ring_pin_circle_diameter = spec.faceplate_width * 1.4
         baseline_output_hole_circle_diameter = ring_pin_circle_diameter * 0.5
 
-        eccentric_boss_diameter = spec.shaft_diameter * 2.4
-        bearing_outer_diameter = eccentric_boss_diameter + 8.0
+        # the eccentric boss doubles as the bearing's inner diameter, so
+        # sizing the bearing to a specific real part (rather than the
+        # NEMA-derived default) means overriding both together
+        eccentric_boss_diameter = self.bearing_inner_diameter or spec.shaft_diameter * 2.4
+        bearing_outer_diameter = self.bearing_outer_diameter or eccentric_boss_diameter + 8.0
         bearing_clearance = 0.2
         disc_center_bore_diameter = bearing_outer_diameter + bearing_clearance
         housing_input_bore_diameter = bearing_outer_diameter + 4.0
@@ -324,29 +332,37 @@ class CycloidalGearboxAssembly(CADAssembly):
             thread_length=d.roller_pin_thread_length,
         )
 
+        # dark grey/black for this project's metal hardware, distinct from
+        # machinewright's own generic OFF_THE_SHELF grey
+        eccentric_bearing.material = METAL
+        ring_pin.material = METAL
+        roller_pin.material = METAL
+
         assembly = cadquery.Assembly()
 
         # ring housing sits at z=0..housing_thickness
-        assembly.add(
-            ring_housing.cad(), loc=Location(Vector(0, 0, 0)), name="ring_housing"
+        attach(
+            assembly, ring_housing, loc=Location(Vector(0, 0, 0)), name="ring_housing"
         )
 
         # motor adapter plate sits behind it, at z=-thickness..0 -- its
         # pilot boss (at the top of its own local frame) registers flush
         # into the ring housing's recess at world z=0
-        assembly.add(
-            motor_adapter_plate.cad(),
+        attach(
+            assembly,
+            motor_adapter_plate,
             loc=Location(Vector(0, 0, -_ADAPTER_PLATE_THICKNESS)),
             name="motor_adapter_plate",
         )
 
-        assembly.add(
-            input_shaft.cad(), loc=Location(Vector(0, 0, 0)), name="input_shaft"
+        attach(
+            assembly, input_shaft, loc=Location(Vector(0, 0, 0)), name="input_shaft"
         )
 
         disc_z = d.housing_thickness
-        assembly.add(
-            eccentric_bearing.cad(),
+        attach(
+            assembly,
+            eccentric_bearing,
             loc=Location(Vector(self.eccentricity, 0, disc_z)),
             name="eccentric_bearing",
         )
@@ -354,15 +370,17 @@ class CycloidalGearboxAssembly(CADAssembly):
         # the disc is built centered on its own rotation axis (the
         # eccentric boss), so it gets placed offset by `eccentricity` from
         # the housing's central axis
-        assembly.add(
-            disc.cad(),
+        attach(
+            assembly,
+            disc,
             loc=Location(Vector(self.eccentricity, 0, disc_z)),
             name="cycloidal_disc",
         )
 
         output_flange_z = disc_z + self.disc_thickness
-        assembly.add(
-            output_flange.cad(),
+        attach(
+            assembly,
+            output_flange,
             loc=Location(Vector(0, 0, output_flange_z)),
             name="output_flange",
         )
@@ -374,8 +392,8 @@ class CycloidalGearboxAssembly(CADAssembly):
             angle = 2 * math.pi * i / self.num_ring_pins
             x = ring_radius * math.cos(angle)
             y = ring_radius * math.sin(angle)
-            assembly.add(
-                ring_pin.cad(), loc=Location(Vector(x, y, 0)), name=f"ring_pin_{i}"
+            attach(
+                assembly, ring_pin, loc=Location(Vector(x, y, 0)), name=f"ring_pin_{i}"
             )
 
         # roller pin bolts: head at the flange's outward face, flipped
@@ -386,8 +404,9 @@ class CycloidalGearboxAssembly(CADAssembly):
             angle = 2 * math.pi * i / self.num_output_rollers
             x = roller_radius * math.cos(angle)
             y = roller_radius * math.sin(angle)
-            assembly.add(
-                roller_pin.cad(),
+            attach(
+                assembly,
+                roller_pin,
                 loc=Location(Vector(x, y, roller_head_z), Vector(1, 0, 0), 180),
                 name=f"roller_pin_{i}",
             )

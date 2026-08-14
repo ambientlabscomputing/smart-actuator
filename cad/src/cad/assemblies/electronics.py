@@ -1,6 +1,6 @@
 import cadquery
 from cadquery import Location, Vector
-from machinewright import CADAssembly, register_assembly
+from machinewright import CADAssembly, attach, register_assembly
 from machinewright.lib.fasteners import ScrewSize
 
 from cad.objects.electronics.board_mount import BoardMount
@@ -52,8 +52,9 @@ class ElectronicsAssembly(CADAssembly):
 
     def assemble(self) -> cadquery.Assembly:
         assembly = cadquery.Assembly()
-        assembly.add(
-            self._board_mount().cad(),
+        attach(
+            assembly,
+            self._board_mount(),
             loc=Location(Vector(0, 0, 0)),
             name="board_mount",
         )

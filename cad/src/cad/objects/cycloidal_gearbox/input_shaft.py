@@ -1,6 +1,7 @@
 import cadquery
 from machinewright import CADObject, register_object
 
+from cad.lib.materials import PRINTED
 from cad.lib.nema import NEMA_SPECS, NemaSize
 
 
@@ -11,6 +12,8 @@ class InputShaft(CADObject):
     eccentric boss (offset from the rotation axis by `eccentricity`) at
     the other end that the eccentric bearing / cycloidal disc rides on.
     """
+
+    material = PRINTED
 
     def __init__(
         self,
