@@ -26,7 +26,10 @@ class ActuatorAssembly(CADAssembly):
     the shell's mating dimensions come from the gearbox's derived
     properties, and the electronics board mount's outer bolt circle is
     derived to match the shell's pod opening, so all three actually
-    mate rather than just coexisting.
+    mate rather than just coexisting. Same bridging role for the encoder
+    sensor board: `gearbox.sensor_mount_radius` is read off the gearbox
+    and passed to the shell so its lid mounts the sensor exactly where
+    OutputFlange's own ring magnet actually is.
     """
 
     def __init__(
@@ -61,6 +64,10 @@ class ActuatorAssembly(CADAssembly):
         board_plate_thickness: float,
         board_thread_size: ScrewSize,
         num_board_bolts: int,
+        # encoder sensor board (reads OutputFlange's own ring magnet)
+        sensor_board_width: float,
+        sensor_board_length: float,
+        sensor_hole_inset: float,
         bearing_inner_diameter: float | None = None,
         bearing_outer_diameter: float | None = None,
     ):
@@ -91,6 +98,9 @@ class ActuatorAssembly(CADAssembly):
         self.board_plate_thickness = board_plate_thickness
         self.board_thread_size = board_thread_size
         self.num_board_bolts = num_board_bolts
+        self.sensor_board_width = sensor_board_width
+        self.sensor_board_length = sensor_board_length
+        self.sensor_hole_inset = sensor_hole_inset
         self.bearing_inner_diameter = bearing_inner_diameter
         self.bearing_outer_diameter = bearing_outer_diameter
 
@@ -157,6 +167,11 @@ class ActuatorAssembly(CADAssembly):
             pod_center_z=self.pod_center_z,
             pod_bolt_circle_diameter=pod_bolt_circle_diameter,
             num_pod_bolts=self.num_board_bolts,
+            sensor_mount_radius=gearbox.sensor_mount_radius,
+            sensor_board_width=self.sensor_board_width,
+            sensor_board_length=self.sensor_board_length,
+            sensor_hole_inset=self.sensor_hole_inset,
+            sensor_thread_size=self.shell_thread_size,
         )
 
         electronics = ElectronicsAssembly(
