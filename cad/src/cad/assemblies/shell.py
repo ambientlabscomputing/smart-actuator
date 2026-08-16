@@ -2,11 +2,14 @@ import cadquery
 from cadquery import Location, Vector
 from machinewright import CADAssembly, attach, register_assembly
 from machinewright.lib.fasteners import SHOULDER_BOLT_SPECS, ScrewSize
+from machinewright.lib.materials import MATERIALS
+from machinewright.objects.box import Box
 
 from cad.objects.shell.shell_body import ShellBody
 from cad.objects.shell.shell_lid import ShellLid
 
 _MOUNT_CLEARANCE = 0.4
+_SENSOR_BOARD_THICKNESS = 1.6  # typical PCB thickness; verify against the actual breakout you buy
 
 
 @register_assembly
@@ -17,7 +20,10 @@ class ShellAssembly(CADAssembly):
     (mount diameter, bolt circle, tube length) rather than a
     `NemaSize`, the same way `RingHousing` doesn't know about
     `CycloidalDisc`. `ActuatorAssembly` is what bridges the two,
-    reading these numbers off a `CycloidalGearboxAssembly` instance.
+    reading these numbers off a `CycloidalGearboxAssembly` instance --
+    including `sensor_mount_radius`, so the lid's encoder sensor board
+    lines up with OutputFlange's target ring on the other side of the
+    assembly gap.
     """
 
     def __init__(
@@ -36,6 +42,11 @@ class ShellAssembly(CADAssembly):
         pod_center_z: float,
         pod_bolt_circle_diameter: float,
         num_pod_bolts: int,
+        sensor_mount_radius: float,
+        sensor_board_width: float,
+        sensor_board_length: float,
+        sensor_hole_inset: float,
+        sensor_thread_size: ScrewSize,
     ):
         self.mount_diameter = mount_diameter
         self.mount_bolt_circle_diameter = mount_bolt_circle_diameter
@@ -51,6 +62,11 @@ class ShellAssembly(CADAssembly):
         self.pod_center_z = pod_center_z
         self.pod_bolt_circle_diameter = pod_bolt_circle_diameter
         self.num_pod_bolts = num_pod_bolts
+        self.sensor_mount_radius = sensor_mount_radius
+        self.sensor_board_width = sensor_board_width
+        self.sensor_board_length = sensor_board_length
+        self.sensor_hole_inset = sensor_hole_inset
+        self.sensor_thread_size = sensor_thread_size
 
     def _shell_body(self) -> ShellBody:
         return ShellBody(
@@ -85,11 +101,36 @@ class ShellAssembly(CADAssembly):
             num_bolts=self.num_mount_bolts,
             bolt_hole_diameter=mount_clearance_diameter,
             output_clearance_diameter=self.output_clearance_diameter,
+            sensor_mount_radius=self.sensor_mount_radius,
+            sensor_board_width=self.sensor_board_width,
+            sensor_board_length=self.sensor_board_length,
+            sensor_hole_inset=self.sensor_hole_inset,
+            sensor_thread_size=self.sensor_thread_size,
         )
+
+        # purchased-part stand-in for the encoder sensor breakout board,
+        # same role Bearing plays for the eccentric bearing -- not a
+        # manufacturable part, just enough shape for clearance checks
+        sensor_board = Box(
+            height=_SENSOR_BOARD_THICKNESS,
+            width=self.sensor_board_length,
+            depth=self.sensor_board_width,
+        )
+        sensor_board.material = MATERIALS["OFF_THE_SHELF"]
 
         assembly = cadquery.Assembly()
         attach(assembly, body, loc=Location(Vector(0, 0, 0)), name="shell_body")
         attach(
             assembly, lid, loc=Location(Vector(0, 0, self.tube_length)), name="shell_lid"
+        )
+
+        # sits in the lid's own sensor pocket, facing back into the
+        # gearbox toward OutputFlange's encoder magnet ring
+        sensor_board_z = self.tube_length - _SENSOR_BOARD_THICKNESS / 2
+        attach(
+            assembly,
+            sensor_board,
+            loc=Location(Vector(self.sensor_mount_radius, 0, sensor_board_z)),
+            name="encoder_sensor_board",
         )
         return assembly

@@ -12,7 +12,7 @@ from machinewright.lib.fasteners import (
 from machinewright.objects.bearings.bearing import Bearing
 from machinewright.objects.fasteners.shoulder_bolt import ShoulderBolt
 
-from cad.lib.materials import METAL
+from cad.lib.materials import MAGNET, METAL
 from cad.lib.nema import NEMA_SPECS, NemaSize
 from cad.objects.cycloidal_gearbox.cycloidal_disc import CycloidalDisc
 from cad.objects.cycloidal_gearbox.input_shaft import InputShaft
@@ -28,6 +28,30 @@ _ROLLER_HEAD_DIAMETER_CLEARANCE = 0.4  # matches OutputFlange's own head clearan
 _ADAPTER_PLATE_THICKNESS = 5.0
 _ADAPTER_PILOT_MARGIN = 6.0
 _ADAPTER_PILOT_DEPTH = 2.0
+# Encoder target ring. Purely a pocket engraved into material that
+# already exists on OutputFlange's outward face -- it must never feed
+# back into the gearbox's own geometry. In particular it must never
+# influence `output_hole_circle_diameter`, which is ALSO the cycloidal
+# disc's output hole circle: driving that outward to suit a magnet
+# pushes the disc's holes through its rim and destroys the gear.
+_SENSOR_RING_CLEARANCE = 1.0  # ring inner edge -> roller pin bolt heads
+_SENSOR_RING_WIDTH = 6.0  # radial width of the ring magnet
+_SENSOR_MAGNET_POCKET_DEPTH = 2.0  # shallow engraving; magnet is bonded in flush
+# The input shaft's eccentric ends flush with the disc's outer face, and
+# the shaft spins at INPUT speed while the flange spins at output speed
+# -- a shared face there would rub at their full speed difference, so
+# the flange is held off by this much.
+_DISC_TO_FLANGE_CLEARANCE = 0.5
+
+# Sensor IC: Infineon TLE5012B (GMR, PG-DSO-8) or MPS MA600 (TMR,
+# QFN-16) -- both read the LOCAL in-plane field direction, so they work
+# against a ring's flat face offset from the rotation axis (MPS AN142
+# "Linearity in side-shaft configuration" calls this the "ortho"
+# topology). The ring magnet is a custom-magnetized part sized to the
+# band measured in `_derive()` -- diametric magnetization on a
+# made-to-size ring is a standard prototype service, and sizing the
+# magnet to the gearbox is the correct dependency direction; sizing the
+# gearbox to a stock magnet is what broke the disc.
 
 
 @register_assembly
@@ -53,6 +77,14 @@ class CycloidalGearboxAssembly(CADAssembly):
     control, and means the rest of the gearbox -- ring pins, disc,
     output flange, shell -- is a complete, self-contained unit that
     never needs a motor present to be fully assembled.
+
+    That same self-containment extends to position sensing: OutputFlange
+    carries a diametrically-magnetized ring magnet on its own outward
+    face, read by an Infineon TLE5012B (GMR angle sensor) mounted on the
+    shell lid opposite it (see `ActuatorAssembly`/`ShellAssembly`) --
+    true output-side position, immune to any backlash in the reduction
+    stage, and built entirely from parts this gearbox already ships
+    with. No dependency on the motor's own shaft.
     """
 
     def __init__(
@@ -126,7 +158,13 @@ class CycloidalGearboxAssembly(CADAssembly):
         )
 
         set_screw_hole_diameter = 3.0
-        shaft_length = housing_thickness + self.disc_thickness + 4.0
+
+        # the coupler ends exactly where the disc begins and the eccentric
+        # spans exactly the disc, so the shaft stops at the disc's outer
+        # face instead of reaching into the output flange
+        coupler_length = housing_thickness
+        eccentric_section_length = self.disc_thickness
+        shaft_length = coupler_length + eccentric_section_length
 
         # motor adapter plate's registration feature with RingHousing --
         # an internal joint between two of our own parts, sized off the
@@ -154,7 +192,12 @@ class CycloidalGearboxAssembly(CADAssembly):
         # output holes included, since they share this same value -- has
         # to sit far enough out that its own bolt counterbores clear the
         # interface, growing past the NEMA-derived baseline if a larger
-        # interface needs the room
+        # interface needs the room.
+        #
+        # NOTHING sensor-related may feed into this. This value is the
+        # cycloidal disc's own output hole circle too, and pushing it
+        # outward drives those holes through the disc's rim -- it is the
+        # gear itself, not a mounting convenience.
         roller_counterbore_radius = (
             roller_bolt_spec.head_diameter / 2 + _ROLLER_HEAD_DIAMETER_CLEARANCE / 2
         )
@@ -164,6 +207,46 @@ class CycloidalGearboxAssembly(CADAssembly):
         output_hole_circle_diameter = max(
             baseline_output_hole_circle_diameter, 2 * min_output_hole_circle_radius
         )
+
+        # ...and having grown it, check it still fits the disc. The disc's
+        # lobed profile comes closest to its own center at
+        # (ring_pin_circle_radius - ring_pin_radius - eccentricity)
+        # (exact, not an approximation), and the whole disc orbits by
+        # `eccentricity` about the true axis, so the output holes have
+        # one more eccentricity of margin to give up. Past that the holes
+        # break through the rim and there is no gear left -- silently, in
+        # a STEP file that still exports, so it's asserted here.
+        disc_min_boundary_radius = (
+            ring_pin_circle_diameter / 2 - self.ring_pin_diameter / 2 - self.eccentricity
+        )
+        output_hole_outer_edge = (
+            output_hole_circle_diameter / 2 + output_hole_diameter / 2
+        )
+        if output_hole_outer_edge >= disc_min_boundary_radius - self.eccentricity:
+            raise ValueError(
+                f"output_interface_diameter={self.output_interface_diameter} forces the "
+                f"output hole circle out to r={output_hole_outer_edge:.2f}mm, but the "
+                f"cycloidal disc's rim only allows "
+                f"r={disc_min_boundary_radius - self.eccentricity:.2f}mm -- the disc's "
+                f"output holes would break through its own profile. Reduce "
+                f"output_interface_diameter, or raise num_ring_pins/ring_pin_diameter "
+                f"to grow the disc."
+            )
+
+        # Encoder target ring: a pocket engraved OUTBOARD of the roller
+        # pin bolt heads, on OutputFlange's outward face. It reads off
+        # the roller circle but never feeds back into it -- the only
+        # thing that grows to accommodate the ring is the flange's own
+        # outer rim (see `OutputFlange.cad`'s `sensor_span`), which is
+        # just the plate's boundary and touches neither the disc nor the
+        # roller pin positions. Placing it out here also lands it under
+        # solid shell-lid material, unlike the narrow band inboard of the
+        # rollers, which sits under the lid's open tool-access bore.
+        roller_head_outer_radius = (
+            output_hole_circle_diameter / 2 + roller_counterbore_radius
+        )
+        sensor_ring_inner_diameter = 2 * (roller_head_outer_radius + _SENSOR_RING_CLEARANCE)
+        sensor_ring_outer_diameter = sensor_ring_inner_diameter + 2 * _SENSOR_RING_WIDTH
 
         # ring pin bolts: head + short thread engage the insert right
         # behind the head (near the motor-facing back face), long bare
@@ -181,6 +264,7 @@ class CycloidalGearboxAssembly(CADAssembly):
         roller_pin_thread_length = roller_insert.length - roller_bolt_spec.head_height
         roller_pin_shoulder_length = (
             (flange_thickness - roller_insert.length)
+            + _DISC_TO_FLANGE_CLEARANCE
             + self.disc_thickness
             + _SHOULDER_REACH_MARGIN
         )
@@ -197,11 +281,16 @@ class CycloidalGearboxAssembly(CADAssembly):
             output_hole_diameter=output_hole_diameter,
             set_screw_hole_diameter=set_screw_hole_diameter,
             shaft_length=shaft_length,
+            coupler_length=coupler_length,
+            eccentric_section_length=eccentric_section_length,
             adapter_pilot_diameter=adapter_pilot_diameter,
             adapter_pilot_depth=adapter_pilot_depth,
             pilot_diameter=pilot_diameter,
             pilot_depth=pilot_depth,
             interface_bolt_circle_diameter=interface_bolt_circle_diameter,
+            sensor_ring_inner_diameter=sensor_ring_inner_diameter,
+            sensor_ring_outer_diameter=sensor_ring_outer_diameter,
+            sensor_magnet_pocket_depth=_SENSOR_MAGNET_POCKET_DEPTH,
             ring_pin_thread_length=ring_pin_thread_length,
             ring_pin_shoulder_length=ring_pin_shoulder_length,
             roller_pin_thread_length=roller_pin_thread_length,
@@ -223,6 +312,17 @@ class CycloidalGearboxAssembly(CADAssembly):
             adapter_thread_size=self.adapter_thread_size,
             adapter_pilot_diameter=d.adapter_pilot_diameter,
             adapter_pilot_depth=d.adapter_pilot_depth,
+        )
+
+    def _input_shaft(self, d: SimpleNamespace | None = None) -> InputShaft:
+        d = d or self._derive()
+        return InputShaft(
+            nema_size=self.nema_size,
+            eccentricity=self.eccentricity,
+            eccentric_boss_diameter=d.eccentric_boss_diameter,
+            set_screw_hole_diameter=d.set_screw_hole_diameter,
+            coupler_length=d.coupler_length,
+            eccentric_section_length=d.eccentric_section_length,
         )
 
     def _motor_adapter_plate(
@@ -266,12 +366,22 @@ class CycloidalGearboxAssembly(CADAssembly):
         (and whatever the user bolts to it) is exposed.
         """
         d = self._derive()
-        return self.disc_thickness + d.flange_thickness
+        return self.disc_thickness + _DISC_TO_FLANGE_CLEARANCE + d.flange_thickness
 
     @property
     def interface_bolt_circle_diameter(self) -> float:
         """Bolt circle of the exposed output interface on OutputFlange."""
         return self._derive().interface_bolt_circle_diameter
+
+    @property
+    def sensor_mount_radius(self) -> float:
+        """
+        Radius, on OutputFlange's outward face, of the encoder target
+        ring's midline -- where a shell lid needs to mount its fixed
+        sensor IC to read it.
+        """
+        d = self._derive()
+        return (d.sensor_ring_inner_diameter + d.sensor_ring_outer_diameter) / 4
 
     def assemble(self) -> cadquery.Assembly:
         d = self._derive()
@@ -279,13 +389,7 @@ class CycloidalGearboxAssembly(CADAssembly):
         ring_housing = self._ring_housing(d)
         motor_adapter_plate = self._motor_adapter_plate(d, ring_housing)
 
-        input_shaft = InputShaft(
-            nema_size=self.nema_size,
-            eccentricity=self.eccentricity,
-            eccentric_boss_diameter=d.eccentric_boss_diameter,
-            shaft_length=d.shaft_length,
-            set_screw_hole_diameter=d.set_screw_hole_diameter,
-        )
+        input_shaft = self._input_shaft(d)
 
         disc = CycloidalDisc(
             num_ring_pins=self.num_ring_pins,
@@ -316,6 +420,19 @@ class CycloidalGearboxAssembly(CADAssembly):
             num_interface_bolts=self.num_interface_bolts,
             interface_bolt_circle_diameter=d.interface_bolt_circle_diameter,
             interface_thread_size=self.interface_thread_size,
+            sensor_ring_inner_diameter=d.sensor_ring_inner_diameter,
+            sensor_ring_outer_diameter=d.sensor_ring_outer_diameter,
+            sensor_magnet_pocket_depth=d.sensor_magnet_pocket_depth,
+        )
+
+        # diametrically-magnetized ring magnet, glued into OutputFlange's
+        # own pocket -- Bearing is just a concentric annulus, the same
+        # shape a ring magnet is, so it doubles as the stand-in shape
+        # here rather than a new object for one boolean
+        encoder_magnet = Bearing(
+            outer_diameter=d.sensor_ring_outer_diameter,
+            inner_diameter=d.sensor_ring_inner_diameter,
+            width=d.sensor_magnet_pocket_depth,
         )
 
         ring_pin = ShoulderBolt(
@@ -337,6 +454,7 @@ class CycloidalGearboxAssembly(CADAssembly):
         eccentric_bearing.material = METAL
         ring_pin.material = METAL
         roller_pin.material = METAL
+        encoder_magnet.material = MAGNET
 
         assembly = cadquery.Assembly()
 
@@ -377,12 +495,23 @@ class CycloidalGearboxAssembly(CADAssembly):
             name="cycloidal_disc",
         )
 
-        output_flange_z = disc_z + self.disc_thickness
+        output_flange_z = disc_z + self.disc_thickness + _DISC_TO_FLANGE_CLEARANCE
         attach(
             assembly,
             output_flange,
             loc=Location(Vector(0, 0, output_flange_z)),
             name="output_flange",
+        )
+
+        # sits in OutputFlange's own pocket, flush with its outward face
+        encoder_magnet_z = (
+            output_flange_z + d.flange_thickness - d.sensor_magnet_pocket_depth
+        )
+        attach(
+            assembly,
+            encoder_magnet,
+            loc=Location(Vector(0, 0, encoder_magnet_z)),
+            name="encoder_magnet_ring",
         )
 
         # ring pin bolts: head at world z=0 (housing's back face), no

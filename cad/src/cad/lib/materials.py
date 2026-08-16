@@ -13,3 +13,7 @@ PRINTED = Material(name="PLA", process=Process.PRINTED, color=(1.0, 0.45, 0.0), 
 METAL = Material(
     name="Off-the-shelf hardware", process=Process.PURCHASED, color=(0.12, 0.12, 0.13)
 )
+
+MAGNET = Material(
+    name="Diametric ring magnet", process=Process.PURCHASED, color=(0.75, 0.1, 0.1)
+)

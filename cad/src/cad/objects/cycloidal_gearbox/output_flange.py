@@ -36,6 +36,19 @@ class OutputFlange(CADObject):
     >Z, with a clearance through-hole for the bolt's smooth shoulder (the
     disc's actual contact surface) spanning the rest of the flange
     thickness down to the disc-facing (<Z) face.
+
+    The true rotation axis runs through this part (it's placed with no
+    XY offset, unlike the eccentric disc) but that axis is already
+    spoken for by the pilot recess -- the user's own external interface
+    -- so the encoder target ring sits in the band between the interface
+    zone and the roller pin bolt heads: a shallow annular pocket on the
+    >Z face, recessed flush the same way the pilot recess and bolt-head
+    counterbores already are, holding a real stock diametric ring magnet
+    (see `CycloidalGearboxAssembly`'s `_SENSOR_RING_*` constants -- the
+    roller circle is sized to clear it, not the other way around). This
+    is the "smart" half of the smart gearbox reading its own output
+    directly, entirely within parts the gearbox already ships with --
+    no dependency on the motor's own shaft.
     """
 
     material = PRINTED
@@ -52,6 +65,9 @@ class OutputFlange(CADObject):
         num_interface_bolts: int,
         interface_bolt_circle_diameter: float,
         interface_thread_size: ScrewSize,
+        sensor_ring_inner_diameter: float,
+        sensor_ring_outer_diameter: float,
+        sensor_magnet_pocket_depth: float,
     ):
         self.num_rollers = num_rollers
         self.roller_pin_diameter = roller_pin_diameter
@@ -63,6 +79,9 @@ class OutputFlange(CADObject):
         self.num_interface_bolts = num_interface_bolts
         self.interface_bolt_circle_diameter = interface_bolt_circle_diameter
         self.interface_thread_size = interface_thread_size
+        self.sensor_ring_inner_diameter = sensor_ring_inner_diameter
+        self.sensor_ring_outer_diameter = sensor_ring_outer_diameter
+        self.sensor_magnet_pocket_depth = sensor_magnet_pocket_depth
 
     def cad(self) -> cadquery.Workplane:
         interface_insert_spec = HEAT_SET_INSERT_SPECS[self.interface_thread_size]
@@ -77,7 +96,11 @@ class OutputFlange(CADObject):
             + interface_insert_spec.bore_diameter
             + 2 * _HUB_WALL_MARGIN
         )
-        flange_diameter = max(roller_span, interface_span)
+        # the rim grows to cover the encoder ring pocket if it needs to.
+        # This is only the plate's outer boundary -- unlike the roller
+        # circle, growing it moves no pin and no disc feature.
+        sensor_span = self.sensor_ring_outer_diameter + 2 * _HUB_WALL_MARGIN
+        flange_diameter = max(roller_span, interface_span, sensor_span)
 
         flange = (
             cadquery.Workplane("XY")
@@ -143,6 +166,19 @@ class OutputFlange(CADObject):
             .workplane()
             .pushPoints(interface_points)
             .hole(interface_insert_spec.bore_diameter, depth=interface_insert_spec.length)
+        )
+
+        # encoder target ring: a shallow annular pocket outboard of the
+        # roller pin bolt heads, on the true rotation axis (this part's
+        # own center), recessed from >Z the same way the pilot recess is
+        # so a ring magnet glued in here sits flush with -- not
+        # protruding past -- the flange's outward face
+        flange = (
+            flange.faces(">Z")
+            .workplane()
+            .circle(self.sensor_ring_outer_diameter / 2)
+            .circle(self.sensor_ring_inner_diameter / 2)
+            .cutBlind(-self.sensor_magnet_pocket_depth)
         )
 
         return flange

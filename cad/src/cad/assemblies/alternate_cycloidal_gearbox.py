@@ -3,12 +3,14 @@ from cadquery import Location, Vector
 from machinewright import attach, register_assembly
 from machinewright.objects.bearings.bearing import Bearing
 
-from cad.assemblies.cycloidal_gearbox import CycloidalGearboxAssembly
-from cad.lib.materials import PRINTED
+from cad.assemblies.cycloidal_gearbox import (
+    _DISC_TO_FLANGE_CLEARANCE,
+    CycloidalGearboxAssembly,
+)
+from cad.lib.materials import MAGNET, PRINTED
 from cad.objects.alternate.integral_output_flange import IntegralPinOutputFlange
 from cad.objects.alternate.integral_ring_housing import IntegralPinRingHousing
 from cad.objects.cycloidal_gearbox.cycloidal_disc import CycloidalDisc
-from cad.objects.cycloidal_gearbox.input_shaft import InputShaft
 from cad.objects.cycloidal_gearbox.output_flange import OutputFlange
 
 _ADAPTER_PLATE_THICKNESS = 5.0
@@ -42,13 +44,7 @@ class AlternateCycloidalGearboxAssembly(CycloidalGearboxAssembly):
             ring_housing=ring_housing, pin_length=self.disc_thickness
         )
 
-        input_shaft = InputShaft(
-            nema_size=self.nema_size,
-            eccentricity=self.eccentricity,
-            eccentric_boss_diameter=d.eccentric_boss_diameter,
-            shaft_length=d.shaft_length,
-            set_screw_hole_diameter=d.set_screw_hole_diameter,
-        )
+        input_shaft = self._input_shaft(d)
 
         disc = CycloidalDisc(
             num_ring_pins=self.num_ring_pins,
@@ -80,10 +76,21 @@ class AlternateCycloidalGearboxAssembly(CycloidalGearboxAssembly):
             num_interface_bolts=self.num_interface_bolts,
             interface_bolt_circle_diameter=d.interface_bolt_circle_diameter,
             interface_thread_size=self.interface_thread_size,
+            sensor_ring_inner_diameter=d.sensor_ring_inner_diameter,
+            sensor_ring_outer_diameter=d.sensor_ring_outer_diameter,
+            sensor_magnet_pocket_depth=d.sensor_magnet_pocket_depth,
         )
         integral_output_flange = IntegralPinOutputFlange(
-            output_flange=output_flange, pin_length=self.disc_thickness
+            output_flange=output_flange,
+            pin_length=self.disc_thickness + _DISC_TO_FLANGE_CLEARANCE,
         )
+
+        encoder_magnet = Bearing(
+            outer_diameter=d.sensor_ring_outer_diameter,
+            inner_diameter=d.sensor_ring_inner_diameter,
+            width=d.sensor_magnet_pocket_depth,
+        )
+        encoder_magnet.material = MAGNET
 
         assembly = cadquery.Assembly()
 
@@ -127,12 +134,22 @@ class AlternateCycloidalGearboxAssembly(CycloidalGearboxAssembly):
             name="cycloidal_disc",
         )
 
-        output_flange_z = disc_z + self.disc_thickness
+        output_flange_z = disc_z + self.disc_thickness + _DISC_TO_FLANGE_CLEARANCE
         attach(
             assembly,
             integral_output_flange,
             loc=Location(Vector(0, 0, output_flange_z)),
             name="output_flange",
+        )
+
+        encoder_magnet_z = (
+            output_flange_z + d.flange_thickness - d.sensor_magnet_pocket_depth
+        )
+        attach(
+            assembly,
+            encoder_magnet,
+            loc=Location(Vector(0, 0, encoder_magnet_z)),
+            name="encoder_magnet_ring",
         )
 
         return assembly
