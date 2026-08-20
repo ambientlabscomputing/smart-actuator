@@ -87,6 +87,27 @@ Cloudflare Pages deep-link support is handled by:
 
 - `src/App.tsx` - top-level page rendering and route handling
 - `src/components/ActuatorDemo.tsx` - demo composition
+- `src/components/BuilderShowcaseVideo.tsx` - screen-capture walkthrough video (see below)
 - `src/workers/actuator.worker.ts` - worker simulation loop
+- `src/assets/screenshots/` - product screenshots used throughout the site
 - `public/_headers` - response headers including wasm content type
 - `public/_redirects` - SPA fallback for deep links
+
+## Video assets
+
+Large media (the builder walkthrough video) is hosted on R2, not committed to
+the repo — `*.mov` is gitignored at the repo root. To update it:
+
+```bash
+ffmpeg -i source.mov -vf "fps=30,scale=1600:-2" \
+  -c:v libx264 -preset slow -crf 26 -pix_fmt yuv420p -profile:v high \
+  -movflags +faststart -an out.mp4
+
+wrangler r2 object put ambientlabs-media/smart-actuator/jog-actuator-demo.mp4 \
+  --file out.mp4 --content-type video/mp4 \
+  --cache-control "public, max-age=31536000, immutable" --remote
+```
+
+It's served from `https://cdn.ambientlabs.io/smart-actuator/jog-actuator-demo.mp4`
+(R2 bucket `ambientlabs-media`, custom domain `cdn.ambientlabs.io`), referenced
+directly by URL in `BuilderShowcaseVideo.tsx`.

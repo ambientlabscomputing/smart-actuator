@@ -2,7 +2,7 @@
 SimLifecycleService — Brain-side subprocess manager for actuator-sim instances.
 
 Responsibilities:
-  - Allocate gRPC ports from a deterministic range (50100–50199 by default).
+  - Allocate gRPC ports from a deterministic range (15100–15199 by default).
   - Spawn actuator-sim child processes with env-var overrides for port + identity.
   - Poll ReadPosition until the sim is ready (same readiness check used for real hardware).
   - Register each spawned sim with the Sidecar via RegisterPeer.

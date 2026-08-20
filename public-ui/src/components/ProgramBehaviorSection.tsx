@@ -1,4 +1,5 @@
 import { color, font, space, radius } from '../design/tokens'
+import programRunning from '../assets/screenshots/program-running.jpg'
 
 const codeBlockStyle: React.CSSProperties = {
   fontFamily: font.mono,
@@ -81,36 +82,18 @@ export function ProgramBehaviorSection() {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <div style={{
-            width: '100%',
-            aspectRatio: '16 / 9',
-            borderRadius: radius.md,
-            border: `1px solid ${color.border}`,
-            background: 'radial-gradient(circle at 18% 20%, rgba(170,59,255,0.18) 0%, rgba(8,6,13,0.97) 68%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            textAlign: 'center',
-            padding: `${space.md}px`,
-            boxSizing: 'border-box',
-          }}>
-            <div style={{
-              fontSize: 11,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: color.textDim,
-            }}>
-              Execution Preview Placeholder
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>
-              Robot executing the program
-            </div>
-            <div style={{ color: color.textSecondary, fontSize: 13, maxWidth: 320, lineHeight: 1.5 }}>
-              Replace with mp4, gif, or screenshot of the machine running this sequence.
-            </div>
-          </div>
+          <img
+            src={programRunning}
+            alt="A saved program running on the arm, with each step completing"
+            style={{
+              width: '100%',
+              aspectRatio: '16 / 9',
+              objectFit: 'cover',
+              borderRadius: radius.md,
+              border: `1px solid ${color.border}`,
+              display: 'block',
+            }}
+          />
         </div>
       </div>
     </section>

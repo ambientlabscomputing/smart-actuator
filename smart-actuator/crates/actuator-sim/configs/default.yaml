@@ -2,7 +2,7 @@ pid_file: actuator_sim.pid
 
 log_settings:
   file: actuator_sim.log
-  level: DEBUG
+  level: INFO
   log_to_stderr: false   # true → stderr (terminal); false → file above
 
 grpc:

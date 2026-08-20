@@ -9,6 +9,7 @@ from brain.interface.app import create_app
 from brain.interface.grpc.server import create_grpc_server
 from brain.repository.session_maker import init_session_maker
 from brain.service import init_brain_service
+from brain.utils.logger import setup_logger
 
 
 @click.group()
@@ -93,6 +94,7 @@ def run() -> None:
 
 async def _run() -> None:
     config = load_config()
+    setup_logger(config)
     init_session_maker(config)
     logger.debug("Starting Brain with config: {}", config.model_dump_json(indent=4))
 

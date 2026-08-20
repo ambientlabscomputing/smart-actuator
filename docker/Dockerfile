@@ -76,7 +76,7 @@ VOLUME ["/data"]
 
 # 80   → nginx (UI + /api proxy)
 # 8080 → brain REST (internal; expose if direct access is needed)
-# 50061 → brain gRPC
-EXPOSE 80 8080 50061
+# 15061 → brain gRPC
+EXPOSE 80 8080 15061
 
 ENTRYPOINT ["/entrypoint.sh"]

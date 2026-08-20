@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { color, font, space, radius } from '../design/tokens'
+import armScreenshot from '../assets/screenshots/arm.jpg'
 
 const machineTypes = ['Arm', 'Gantry', 'SCARA', 'Delta'] as const
 
@@ -121,17 +122,19 @@ export function BuildMachineSection() {
                 {machineCopy[activeType].body}
               </div>
             </div>
-            <div style={{
-              fontFamily: font.mono,
-              fontSize: 12,
-              color: color.textDim,
-              border: `1px dashed ${color.border}`,
-              borderRadius: radius.md,
-              padding: `${space.sm}px ${space.md}px`,
-              marginTop: space.lg,
-            }}>
-              Drop screenshot at public-ui/src/assets/screenshots/{activeType.toLowerCase()}.png
-            </div>
+            {activeType !== 'Arm' && (
+              <div style={{
+                fontFamily: font.mono,
+                fontSize: 12,
+                color: color.textDim,
+                border: `1px dashed ${color.border}`,
+                borderRadius: radius.md,
+                padding: `${space.sm}px ${space.md}px`,
+                marginTop: space.lg,
+              }}>
+                Drop screenshot at public-ui/src/assets/screenshots/{activeType.toLowerCase()}.jpg
+              </div>
+            )}
           </div>
 
           <div style={{
@@ -142,36 +145,44 @@ export function BuildMachineSection() {
             position: 'relative',
             background: 'linear-gradient(160deg, rgba(17,16,24,0.95) 0%, rgba(8,6,13,1) 100%)',
           }}>
-            <div style={{
-              width: 'min(92%, 520px)',
-              aspectRatio: '16 / 10',
-              borderRadius: radius.md,
-              border: `1px solid ${color.border}`,
-              background: 'radial-gradient(circle at 20% 20%, rgba(170,59,255,0.2) 0%, rgba(8,6,13,0.95) 70%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: `${space.md}px`,
-              boxSizing: 'border-box',
-              textAlign: 'center',
-            }}>
+            {activeType === 'Arm' ? (
+              <img
+                src={armScreenshot}
+                alt="Configuring a 7-DOF arm in the machine builder"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
               <div style={{
-                fontSize: 11,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: color.textDim,
-                marginBottom: space.sm,
+                width: 'min(92%, 520px)',
+                aspectRatio: '16 / 10',
+                borderRadius: radius.md,
+                border: `1px solid ${color.border}`,
+                background: 'radial-gradient(circle at 20% 20%, rgba(170,59,255,0.2) 0%, rgba(8,6,13,0.95) 70%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: `${space.md}px`,
+                boxSizing: 'border-box',
+                textAlign: 'center',
               }}>
-                Machine Scene Placeholder
+                <div style={{
+                  fontSize: 11,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: color.textDim,
+                  marginBottom: space.sm,
+                }}>
+                  Machine Scene Placeholder
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+                  {activeType} visual goes here
+                </div>
+                <div style={{ color: color.textSecondary, fontSize: 13, lineHeight: 1.5, maxWidth: 320 }}>
+                  Add screenshots or short clips from MachineEditor to show builder capabilities.
+                </div>
               </div>
-              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
-                {activeType} visual goes here
-              </div>
-              <div style={{ color: color.textSecondary, fontSize: 13, lineHeight: 1.5, maxWidth: 320 }}>
-                Add screenshots or short clips from MachineEditor to show builder capabilities.
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
