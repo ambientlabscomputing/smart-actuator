@@ -26,7 +26,7 @@ class RestConfig(BaseModel):
 
 class GrpcConfig(BaseModel):
     host: str = Field(default="0.0.0.0")
-    port: int = Field(default=50061)
+    port: int = Field(default=15061)
 
 
 class SidecarConfig(BaseModel):
@@ -59,11 +59,11 @@ class SimConfig(BaseModel):
         description="Path to the base actuator-sim config YAML, relative to the workspace root",
     )
     port_range_start: int = Field(
-        default=50100,
+        default=15100,
         description="First port in the range allocated to spawned sim instances",
     )
     port_range_end: int = Field(
-        default=50199,
+        default=15199,
         description="Last port in the range allocated to spawned sim instances",
     )
 

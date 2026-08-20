@@ -27,9 +27,10 @@ class ActuatorAssembly(CADAssembly):
     properties, and the electronics board mount's outer bolt circle is
     derived to match the shell's pod opening, so all three actually
     mate rather than just coexisting. Same bridging role for the encoder
-    sensor board: `gearbox.sensor_mount_radius` is read off the gearbox
-    and passed to the shell so its lid mounts the sensor exactly where
-    OutputFlange's own ring magnet actually is.
+    sensor board: `gearbox.sensor_mount_radius` and `.sensor_mount_angle`
+    are read off the gearbox and passed to the shell, so its lid mounts
+    the sensor exactly where OutputFlange's own ring magnet actually is
+    -- and away from where its roller pin bolt heads are.
     """
 
     def __init__(
@@ -168,6 +169,7 @@ class ActuatorAssembly(CADAssembly):
             pod_bolt_circle_diameter=pod_bolt_circle_diameter,
             num_pod_bolts=self.num_board_bolts,
             sensor_mount_radius=gearbox.sensor_mount_radius,
+            sensor_mount_angle=gearbox.sensor_mount_angle,
             sensor_board_width=self.sensor_board_width,
             sensor_board_length=self.sensor_board_length,
             sensor_hole_inset=self.sensor_hole_inset,

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { ActuatorDemo } from './components/ActuatorDemo'
+import { BuilderShowcaseVideo } from './components/BuilderShowcaseVideo'
 import { BuildMachineSection } from './components/BuildMachineSection'
 import { ProgramBehaviorSection } from './components/ProgramBehaviorSection'
 import { color, font, space } from './design/tokens'
+import heroBuilder from './assets/screenshots/hero-builder.jpg'
 import './index.css'
 
 function App() {
@@ -256,6 +258,24 @@ function HomePage({ onNavigate }: { onNavigate: (path: string) => void }) {
             Work with Ambient Labs
           </a>
         </div>
+        <div style={{
+          marginTop: space.xl,
+          width: 'min(760px, 100%)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          border: `1px solid ${color.border}`,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+        }}>
+          <img
+            src={heroBuilder}
+            alt="Smart Actuator machine builder — choosing a kinematic template"
+            style={{ display: 'block', width: '100%', height: 'auto' }}
+          />
+        </div>
+      </section>
+
+      <section style={{ borderTop: `1px solid ${color.border}`, padding: `${space.xxl}px 0` }}>
+        <BuilderShowcaseVideo />
       </section>
 
       <section style={{ borderTop: `1px solid ${color.border}`, background: 'rgba(17,16,24,0.4)' }}>
@@ -396,7 +416,7 @@ function GetStartedPage() {
         <div style={{ color: color.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
           Use pinned toolchain/setup targets for repeatable board bring-up.
         </div>
-        <div style={code}>{`cd smart-actuator/crates/actuator-firmware\nmake firmware-setup\nsource ~/export-esp.sh\nmake firmware-flash`}</div>
+        <div style={code}>{`cd smart-actuator/crates/actuator-firmware\nmake firmware-setup\nsource ~/export-esp.sh\ncp .env.example .env   # set WIFI_SSID / WIFI_PASSWORD\nmake firmware-flash`}</div>
       </div>
 
       <div style={{ width: 'min(860px, 100%)', textAlign: 'left', color: color.textSecondary, fontSize: 14, lineHeight: 1.7 }}>

@@ -7,7 +7,7 @@ db:
 
 grpc:
   host: 0.0.0.0
-  port: 50061
+  port: 15061
 
 log:
   log_file: /data/brain.log
@@ -29,8 +29,8 @@ sidecar:
 sim:
   binary_path: /usr/local/bin/actuator-sim
   config_path: /app/actuator-sim-config.yaml
-  port_range_start: 50100
-  port_range_end: 50199
+  port_range_start: 15100
+  port_range_end: 15199
 
 templates:
   dir: /app/templates

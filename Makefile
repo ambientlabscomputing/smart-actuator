@@ -76,8 +76,9 @@ stop:
 	@pkill -9 -f 'target/debug/controller-sidecar' 2>/dev/null || true
 	@pkill -9 -f 'brain.main' 2>/dev/null || true
 	@lsof -ti tcp:50051 2>/dev/null | xargs kill -9 2>/dev/null || true
+	@lsof -ti tcp:15061 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@lsof -ti tcp:8080 2>/dev/null | xargs kill -9 2>/dev/null || true
-	@for port in $$(seq 50100 50199); do lsof -ti tcp:$$port 2>/dev/null | xargs kill -9 2>/dev/null || true; done
+	@for port in $$(seq 15100 15199); do lsof -ti tcp:$$port 2>/dev/null | xargs kill -9 2>/dev/null || true; done
 	@rm -f /tmp/sidecar.sock /tmp/actuator_sim_*.pid smart-actuator/sidecar.pid 2>/dev/null || true
 	@rm -f .overmind.sock
 

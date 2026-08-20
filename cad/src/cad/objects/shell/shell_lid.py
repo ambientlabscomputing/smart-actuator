@@ -27,6 +27,11 @@ class ShellLid(CADObject):
     body) -- its GMR bridge reads the local field direction, so it
     works off-axis against a ring magnet the same way it works on-axis
     against a shaft-end magnet.
+
+    Placed at `sensor_mount_angle`, not angle 0 -- the roller pin bolt
+    heads land at 0, 360/n, 720/n... around the same face, and a sensor
+    parked at 0 sits directly on top of the first one. The gearbox
+    supplies the actual angle (the midpoint between two roller pins).
     """
 
     material = PRINTED
@@ -40,6 +45,7 @@ class ShellLid(CADObject):
         bolt_hole_diameter: float,
         output_clearance_diameter: float,
         sensor_mount_radius: float,
+        sensor_mount_angle: float,
         sensor_board_width: float,
         sensor_board_length: float,
         sensor_hole_inset: float,
@@ -52,6 +58,7 @@ class ShellLid(CADObject):
         self.bolt_hole_diameter = bolt_hole_diameter
         self.output_clearance_diameter = output_clearance_diameter
         self.sensor_mount_radius = sensor_mount_radius
+        self.sensor_mount_angle = sensor_mount_angle
         self.sensor_board_width = sensor_board_width
         self.sensor_board_length = sensor_board_length
         self.sensor_hole_inset = sensor_hole_inset
@@ -82,15 +89,28 @@ class ShellLid(CADObject):
         lid = lid.faces(">Z").workplane().hole(self.output_clearance_diameter)
 
         # sensor board pocket, recessed into the <Z face at the radius
-        # that lines up with OutputFlange's encoder target ring -- sits
-        # entirely outboard of the interface bolts' access bore, in the
-        # otherwise-blank annulus between that bore and the tube's own
-        # mount bolt circle
+        # that lines up with OutputFlange's encoder target ring, and at
+        # `sensor_mount_angle` -- NOT angle 0, which is where the first
+        # roller pin bolt head lands. The workplane is rotated to that
+        # angle first so the pocket (and its standoffs, below) come out
+        # aligned to the radial direction there, not just translated
+        # along the original X axis.
+        #
+        # The angle is NEGATED here specifically: a workplane built on a
+        # <Z-selected face has flipped handedness relative to a plain
+        # Workplane("XY") (confirmed empirically -- a +30 request here
+        # cuts the pocket at world angle -30). Every other angle in this
+        # codebase (roller pins, ring pins, the sensor board placeholder
+        # in ShellAssembly) is placed with plain cos/sin math, which
+        # doesn't go through a face-derived workplane and has no such
+        # flip. Negating here, once, keeps this the only place that has
+        # to know about the quirk.
         pocket_width = self.sensor_board_width + 2 * _SENSOR_POCKET_MARGIN
         pocket_length = self.sensor_board_length + 2 * _SENSOR_POCKET_MARGIN
         lid = (
             lid.faces("<Z")
             .workplane()
+            .transformed(rotate=(0, 0, -self.sensor_mount_angle))
             .center(self.sensor_mount_radius, 0)
             .rect(pocket_width, pocket_length)
             .cutBlind(-_SENSOR_POCKET_DEPTH)
@@ -109,6 +129,7 @@ class ShellLid(CADObject):
         lid = (
             lid.faces("<Z")
             .workplane()
+            .transformed(rotate=(0, 0, -self.sensor_mount_angle))
             .pushPoints(standoff_points)
             .hole(insert_spec.bore_diameter, depth=_SENSOR_POCKET_DEPTH + insert_spec.length)
         )

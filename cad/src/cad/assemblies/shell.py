@@ -1,3 +1,5 @@
+import math
+
 import cadquery
 from cadquery import Location, Vector
 from machinewright import CADAssembly, attach, register_assembly
@@ -6,7 +8,7 @@ from machinewright.lib.materials import MATERIALS
 from machinewright.objects.box import Box
 
 from cad.objects.shell.shell_body import ShellBody
-from cad.objects.shell.shell_lid import ShellLid
+from cad.objects.shell.shell_lid import _SENSOR_POCKET_DEPTH, ShellLid
 
 _MOUNT_CLEARANCE = 0.4
 _SENSOR_BOARD_THICKNESS = 1.6  # typical PCB thickness; verify against the actual breakout you buy
@@ -21,9 +23,10 @@ class ShellAssembly(CADAssembly):
     `NemaSize`, the same way `RingHousing` doesn't know about
     `CycloidalDisc`. `ActuatorAssembly` is what bridges the two,
     reading these numbers off a `CycloidalGearboxAssembly` instance --
-    including `sensor_mount_radius`, so the lid's encoder sensor board
-    lines up with OutputFlange's target ring on the other side of the
-    assembly gap.
+    including `sensor_mount_radius` and `sensor_mount_angle`, so the
+    lid's encoder sensor board lines up with OutputFlange's target ring
+    on the other side of the assembly gap, at an angle clear of the
+    gearbox's own roller pin bolt heads.
     """
 
     def __init__(
@@ -43,6 +46,7 @@ class ShellAssembly(CADAssembly):
         pod_bolt_circle_diameter: float,
         num_pod_bolts: int,
         sensor_mount_radius: float,
+        sensor_mount_angle: float,
         sensor_board_width: float,
         sensor_board_length: float,
         sensor_hole_inset: float,
@@ -63,6 +67,7 @@ class ShellAssembly(CADAssembly):
         self.pod_bolt_circle_diameter = pod_bolt_circle_diameter
         self.num_pod_bolts = num_pod_bolts
         self.sensor_mount_radius = sensor_mount_radius
+        self.sensor_mount_angle = sensor_mount_angle
         self.sensor_board_width = sensor_board_width
         self.sensor_board_length = sensor_board_length
         self.sensor_hole_inset = sensor_hole_inset
@@ -102,6 +107,7 @@ class ShellAssembly(CADAssembly):
             bolt_hole_diameter=mount_clearance_diameter,
             output_clearance_diameter=self.output_clearance_diameter,
             sensor_mount_radius=self.sensor_mount_radius,
+            sensor_mount_angle=self.sensor_mount_angle,
             sensor_board_width=self.sensor_board_width,
             sensor_board_length=self.sensor_board_length,
             sensor_hole_inset=self.sensor_hole_inset,
@@ -124,13 +130,28 @@ class ShellAssembly(CADAssembly):
             assembly, lid, loc=Location(Vector(0, 0, self.tube_length)), name="shell_lid"
         )
 
-        # sits in the lid's own sensor pocket, facing back into the
-        # gearbox toward OutputFlange's encoder magnet ring
-        sensor_board_z = self.tube_length - _SENSOR_BOARD_THICKNESS / 2
+        # sits in the lid's own sensor pocket, back flush against the
+        # pocket floor (world z = tube_length + _SENSOR_POCKET_DEPTH),
+        # component side facing back out through the pocket opening
+        # toward OutputFlange's encoder magnet ring. The pocket is cut
+        # INTO the lid (world z: tube_length -> tube_length +
+        # _SENSOR_POCKET_DEPTH) -- placing the board's span on the other
+        # side of tube_length, as before, put it inside the flange's own
+        # magnet pocket instead, a dead-on collision with the magnet.
+        sensor_board_z = (
+            self.tube_length + _SENSOR_POCKET_DEPTH - _SENSOR_BOARD_THICKNESS / 2
+        )
+        angle = math.radians(self.sensor_mount_angle)
+        board_x = self.sensor_mount_radius * math.cos(angle)
+        board_y = self.sensor_mount_radius * math.sin(angle)
         attach(
             assembly,
             sensor_board,
-            loc=Location(Vector(self.sensor_mount_radius, 0, sensor_board_z)),
+            loc=Location(
+                Vector(board_x, board_y, sensor_board_z),
+                Vector(0, 0, 1),
+                self.sensor_mount_angle,
+            ),
             name="encoder_sensor_board",
         )
         return assembly

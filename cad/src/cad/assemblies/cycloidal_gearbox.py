@@ -34,7 +34,11 @@ _ADAPTER_PILOT_DEPTH = 2.0
 # influence `output_hole_circle_diameter`, which is ALSO the cycloidal
 # disc's output hole circle: driving that outward to suit a magnet
 # pushes the disc's holes through its rim and destroys the gear.
-_SENSOR_RING_CLEARANCE = 1.0  # ring inner edge -> roller pin bolt heads
+_SENSOR_RING_CLEARANCE = 3.0  # ring inner edge -> roller pin bolt heads; wide enough
+# to survive as an actual printed wall (0.4mm nozzle, FDM tolerance), not
+# just a nonzero number in the nominal CAD model. 1.0mm nominal was real
+# in the math but not real on a printer -- it would reliably merge the
+# ring pocket and the roller pin counterbore into one cavity when sliced.
 _SENSOR_RING_WIDTH = 6.0  # radial width of the ring magnet
 _SENSOR_MAGNET_POCKET_DEPTH = 2.0  # shallow engraving; magnet is bonded in flush
 # The input shaft's eccentric ends flush with the disc's outer face, and
@@ -372,6 +376,17 @@ class CycloidalGearboxAssembly(CADAssembly):
     def interface_bolt_circle_diameter(self) -> float:
         """Bolt circle of the exposed output interface on OutputFlange."""
         return self._derive().interface_bolt_circle_diameter
+
+    @property
+    def sensor_mount_angle(self) -> float:
+        """
+        Angular position (degrees) for the sensor mount -- the midpoint
+        between two adjacent roller pin bolt heads (which sit at
+        0, 360/n, 720/n, ... around this same face). Angle 0 itself is
+        occupied by the first roller pin's head; this is the farthest a
+        single mount point can get from all of them.
+        """
+        return 180.0 / self.num_output_rollers
 
     @property
     def sensor_mount_radius(self) -> float:

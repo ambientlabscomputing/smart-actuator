@@ -16,6 +16,7 @@ from cad.assemblies.cycloidal_gearbox import (
     CycloidalGearboxAssembly,
 )
 from cad.lib.cycloidal import cycloidal_disc_profile
+from cad.objects.shell.shell_lid import _SENSOR_POCKET_MARGIN
 
 # the Makefile's own GEARBOX_PARAMS defaults
 DEFAULT_PARAMS = dict(
@@ -131,6 +132,60 @@ def test_sensor_mount_radius_lies_within_the_ring():
         < gb.sensor_mount_radius
         < d.sensor_ring_outer_diameter / 2
     )
+
+
+@pytest.mark.parametrize("num_output_rollers", [3, 4, 6, 8])
+def test_sensor_mount_is_clear_of_every_roller_pin_bolt_head(num_output_rollers):
+    """
+    The encoder ring is a full 360-degree annulus, but the sensor mount
+    on the shell lid is one point at one angle -- and the roller pin
+    bolt heads are `num_output_rollers` more points on that same face,
+    at 0, 360/n, 720/n, ... A sensor parked at angle 0 sits directly on
+    top of the first one; this checks the real 3D distance from the
+    sensor's world position to every roller pin's, not just that the
+    radial bands don't overlap (which was true even in the broken
+    version -- the bug was angular, not radial).
+
+    Clearance needed is the pocket's own half-diagonal (the real board
+    footprint plus ShellLid's `_SENSOR_POCKET_MARGIN`, worst-cased as a
+    corner pointed straight at the pin) -- not an arbitrary constant,
+    which would just be a second made-up number next to the design's
+    first one.
+    """
+    # the Makefile's own ACTUATOR_PARAMS defaults
+    board_width, board_length = 5.0, 10.0
+    pocket_half_diagonal = math.hypot(
+        board_width / 2 + _SENSOR_POCKET_MARGIN, board_length / 2 + _SENSOR_POCKET_MARGIN
+    )
+
+    gb = gearbox(num_output_rollers=num_output_rollers)
+    d = gb._derive()
+    roller_radius = d.output_hole_circle_diameter / 2
+    roller_counterbore_radius = 5.5 / 2 + 0.4 / 2  # M3 head + OutputFlange's clearance
+
+    sensor_angle = math.radians(gb.sensor_mount_angle)
+    sx = gb.sensor_mount_radius * math.cos(sensor_angle)
+    sy = gb.sensor_mount_radius * math.sin(sensor_angle)
+
+    for i in range(num_output_rollers):
+        a = 2 * math.pi * i / num_output_rollers
+        rx = roller_radius * math.cos(a)
+        ry = roller_radius * math.sin(a)
+        dist = math.hypot(rx - sx, ry - sy)
+        assert dist > roller_counterbore_radius + pocket_half_diagonal, (
+            f"sensor mount is only {dist:.2f}mm from roller_pin_{i} "
+            f"(num_output_rollers={num_output_rollers})"
+        )
+
+
+def test_sensor_mount_angle_is_the_gap_midpoint():
+    """
+    Pins the actual placement rule so it can't quietly drift back toward
+    a roller pin: the sensor sits at exactly half the roller pitch,
+    equidistant from the two nearest pins.
+    """
+    gb = gearbox()
+    assert gb.sensor_mount_angle == pytest.approx(180.0 / gb.num_output_rollers)
 
 
 def test_output_rotates_purely_about_the_center_axis():
