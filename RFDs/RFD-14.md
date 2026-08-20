@@ -1,4 +1,4 @@
-# RFD-14: Aesthetic Pass — A Teenage Engineering–Inspired UI
+# RFD-14: Aesthetic Pass
 Author: Jose Catarino
 
 ## Why this RFD
@@ -18,7 +18,7 @@ no matter how clever the IK underneath is. A canvas with considered
 lighting, intentional materials, and a typographic system reads as
 "product."
 
-This RFD scopes a deliberate aesthetic pass — a Teenage Engineering
+This RFD scopes a deliberate aesthetic pass — a 
 (TE)–inspired visual language applied uniformly across the canvas,
 the chrome, and the chart surfaces. It is structured as **seven
 timeboxed boxes** that can ship independently and in order. Each box
@@ -104,7 +104,7 @@ What works and should be kept:
 
 ## 2. The aesthetic, in one paragraph
 
-A Teenage Engineering–inspired surface is built from four things:
+A –inspired surface is built from four things:
 **deliberate typography** (one display face, one monospace, a
 tight scale, generous tracking on caps), **restrained colour** (an
 off-white / charcoal / one product accent — no gradients, no
