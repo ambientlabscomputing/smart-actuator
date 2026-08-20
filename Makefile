@@ -32,7 +32,7 @@ pre-commit:
 
 ## wasm-build: Compile the actuator-wasm crate to WebAssembly (output: smart-actuator/pkg-wasm/)
 wasm-build:
-	@wasm-pack build smart-actuator/crates/actuator-wasm --target web --out-dir ../../../pkg-wasm
+	@wasm-pack build smart-actuator/crates/actuator-wasm --target web --out-dir ../../pkg-wasm
 
 ## public-ui-docs: Generate static docs artifacts for publishing under /docs (requires brain deps installed)
 public-ui-docs:
