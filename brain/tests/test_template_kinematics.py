@@ -111,6 +111,14 @@ TEMPLATE_CASES = [
             ],
         ],
     ),
+    (
+        "scara_rrpr",
+        [
+            [0.0, 0.0, 0.0, 0.0],
+            [0.08, math.radians(30), math.radians(-45), math.radians(90)],
+            [0.15, math.radians(-60), math.radians(40), math.radians(-120)],
+        ],
+    ),
 ]
 
 

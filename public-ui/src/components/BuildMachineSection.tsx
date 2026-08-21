@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { color, font, space, radius } from '../design/tokens'
 import armScreenshot from '../assets/screenshots/arm.jpg'
+import gantryScreenshot from '../assets/screenshots/gantry.jpg'
+import scaraScreenshot from '../assets/screenshots/scara.jpg'
 
-const machineTypes = ['Arm', 'Gantry', 'SCARA', 'Delta'] as const
+// Delta (parallel kinematics) isn't listed here: the current DH-chain solver
+// only supports serial chains, so there's no real machine to screenshot yet.
+const machineTypes = ['Arm', 'Gantry', 'SCARA'] as const
 
 type MachineType = (typeof machineTypes)[number]
 
@@ -19,10 +23,12 @@ const machineCopy: Record<MachineType, { title: string; body: string }> = {
     title: 'SCARA',
     body: 'Fast planar motion with compact footprint and high throughput assembly behavior.',
   },
-  Delta: {
-    title: 'Delta',
-    body: 'Parallel kinematics for high-speed lightweight positioning and sorting flows.',
-  },
+}
+
+const machineScreenshots: Partial<Record<MachineType, { src: string; alt: string }>> = {
+  Arm: { src: armScreenshot, alt: 'Configuring a 7-DOF arm in the machine builder' },
+  Gantry: { src: gantryScreenshot, alt: 'A 3-axis CNC gantry loaded in the jog view' },
+  SCARA: { src: scaraScreenshot, alt: 'A 4-DOF SCARA arm loaded in the jog view' },
 }
 
 export function BuildMachineSection() {
@@ -122,7 +128,7 @@ export function BuildMachineSection() {
                 {machineCopy[activeType].body}
               </div>
             </div>
-            {activeType !== 'Arm' && (
+            {!machineScreenshots[activeType] && (
               <div style={{
                 fontFamily: font.mono,
                 fontSize: 12,
@@ -145,10 +151,10 @@ export function BuildMachineSection() {
             position: 'relative',
             background: 'linear-gradient(160deg, rgba(17,16,24,0.95) 0%, rgba(8,6,13,1) 100%)',
           }}>
-            {activeType === 'Arm' ? (
+            {machineScreenshots[activeType] ? (
               <img
-                src={armScreenshot}
-                alt="Configuring a 7-DOF arm in the machine builder"
+                src={machineScreenshots[activeType]!.src}
+                alt={machineScreenshots[activeType]!.alt}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             ) : (

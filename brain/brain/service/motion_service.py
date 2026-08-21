@@ -273,15 +273,21 @@ class MotionService:
             joint_to_actuator[row.joint_name] = row.actuator_id
         for row in hardware:
             joint_to_actuator[row.joint_name] = row.actuator_id
+
+        # Fail fast on any unbound joint rather than silently skipping it —
+        # a silent skip leaves that joint's target permanently unreached, so
+        # any caller waiting on convergence (e.g. ProgramService) just hangs
+        # until its step timeout instead of getting an immediate, actionable
+        # error naming the joint that needs to be bound.
+        unbound = [name for name in joint_targets if name not in joint_to_actuator]
+        if unbound:
+            raise RuntimeError(
+                f"move_joint: no actuator bound for joint(s) {unbound} on machine "
+                f"{machine_id!r} — bind these slots before commanding motion"
+            )
+
         for joint_name, angle_rad in joint_targets.items():
-            actuator_id = joint_to_actuator.get(joint_name)
-            if actuator_id is None:
-                logger.warning(
-                    "move_joint: no actuator bound for joint %r on machine %s — skipping",
-                    joint_name,
-                    machine_id,
-                )
-                continue
+            actuator_id = joint_to_actuator[joint_name]
             result = await self._sidecar.send_command(actuator_id, position=angle_rad)
             if not result["success"]:
                 logger.warning(

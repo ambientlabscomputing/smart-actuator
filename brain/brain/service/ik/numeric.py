@@ -51,6 +51,7 @@ def solve_numeric(
     Returns the solved angles (rad) for *joint_indices* in order, or None
     if it failed to converge.
     """
+    from brain.models.machine import joint_limit_to_si
     from brain.service.dh_fk import ee_transform, geometric_jacobian
 
     max_iters = config.max_iters if config else _DEFAULT_MAX_ITERS
@@ -122,10 +123,12 @@ def solve_numeric(
         for k in range(nk):
             idx = joint_indices[k]
             new_angle = full_q[idx] + delta_q[k]
-            # Clamp to joint limits
+            # Clamp to joint limits. Revolute limits are stored in degrees
+            # (convert to radians); prismatic limits are stored in metres
+            # already (pass through unchanged) — see joint_limit_to_si().
             jv = dh.joints[idx]
-            lo = math.radians(jv.limit_lower)
-            hi = math.radians(jv.limit_upper)
+            lo = joint_limit_to_si(jv, jv.limit_lower)
+            hi = joint_limit_to_si(jv, jv.limit_upper)
             full_q[idx] = max(lo, min(hi, new_angle))
 
     # Return best effort even if not converged
