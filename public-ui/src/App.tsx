@@ -463,7 +463,7 @@ function DocsPage() {
     },
     {
       label: 'Architecture RFDs',
-      href: 'https://github.com/ambientlabscomputing/smart-actuator/tree/main/RFDs',
+      href: 'https://github.com/ambientlabscomputing/smart-actuator/tree/develop/RFDs',
       desc: 'Decision records and design rationale behind the system.',
     },
   ]
