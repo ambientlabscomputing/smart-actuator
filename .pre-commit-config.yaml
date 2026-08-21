@@ -21,11 +21,7 @@ repos:
       - id: ruff-format
         files: ^brain/.*\.py$
 
-  - repo: local
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
     hooks:
-      - id: generate-public-docs
-        name: Generate and stage public docs
-        entry: bash -lc 'make public-ui-docs && git add public-ui/public/docs'
-        language: system
-        pass_filenames: false
-        files: ^(brain/|smart-actuator/proto/|RFDs/|scripts/(extract_openapi\.py|generate_public_docs\.sh)|README\.md|brain/README\.md)
+      - id: gitleaks

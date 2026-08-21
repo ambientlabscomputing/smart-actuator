@@ -21,8 +21,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 Service = Annotated[BrainService, Depends(get_service)]
 
 
-@router.get("/me", response_model=User)
-async def get_current_user(request: Request) -> User:
+class MeResponse(User):
+    has_default_password: bool = False
+
+
+@router.get("/me", response_model=MeResponse)
+async def get_current_user(request: Request, svc: Service) -> MeResponse:
     """
     Get the currently authenticated user.
     """
@@ -33,7 +37,8 @@ async def get_current_user(request: Request) -> User:
             "should reject unauthenticated requests"
         )
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
+    has_default_password = await svc.user_service.has_default_password(user.username)
+    return MeResponse(**user.model_dump(), has_default_password=has_default_password)
 
 
 @router.post("/login", response_model=LoginResponse)

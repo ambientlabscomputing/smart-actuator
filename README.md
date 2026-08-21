@@ -64,6 +64,20 @@ cd smart-actuator
 make run
 ```
 
+### Self-hosting
+
+The brain publishes a Docker image (`ghcr.io/ambientlabscomputing/smart-actuator`) that bundles the UI, the brain, and the sidecar. On first boot it seeds an admin account with username `admin` and password `admin` so you can log in immediately — override either before exposing the instance to an untrusted network:
+
+```bash
+docker run \
+  -e BRAIN_ADMIN_USERNAME=admin \
+  -e BRAIN_ADMIN_PASSWORD='change-me' \
+  -p 8080:80 \
+  ghcr.io/ambientlabscomputing/smart-actuator:latest
+```
+
+If you don't set these, the brain logs a warning on startup and the UI shows a banner until the password is changed from Settings.
+
 ## RFD Table of Contents
 
 - [RFD-1: The Smart Actuator, foundational RFD](RFDs/RFD-1.md)

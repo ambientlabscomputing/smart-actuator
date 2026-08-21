@@ -18,7 +18,7 @@ no matter how clever the IK underneath is. A canvas with considered
 lighting, intentional materials, and a typographic system reads as
 "product."
 
-This RFD scopes a deliberate aesthetic pass — a 
+This RFD scopes a deliberate aesthetic pass — a
 (TE)–inspired visual language applied uniformly across the canvas,
 the chrome, and the chart surfaces. It is structured as **seven
 timeboxed boxes** that can ship independently and in order. Each box

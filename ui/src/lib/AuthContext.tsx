@@ -22,6 +22,8 @@ interface AuthState {
   error: string | null
   login: (username: string, password: string) => Promise<void>
   logout: () => void
+  /** Re-fetch /users/me, e.g. after a profile/password change, without a full re-login. */
+  refreshUser: () => Promise<void>
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -108,8 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearToken() // subscriber will set status='anon'
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const u = await fetchMe()
+    setUser(u)
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, status, error, login, logout }}>
+    <AuthContext.Provider value={{ user, status, error, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

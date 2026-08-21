@@ -23,10 +23,12 @@ import MenuIcon from '@mui/icons-material/Menu'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CodeIcon from '@mui/icons-material/Code'
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked'
 import { bg, text, borderColor, accent, semantic } from '@/design'
+import { ChangePasswordDialog } from '@/components/auth/ChangePasswordDialog'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +142,7 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   const initials = user ? getInitials(user.name || user.username) : '?'
 
@@ -151,6 +154,37 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
 
   return (
     <>
+      {user?.has_default_password && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 16px',
+            background: `${semantic.warn}22`,
+            color: semantic.warn,
+            fontSize: 12,
+            flexShrink: 0,
+          }}
+        >
+          <WarningAmberIcon style={{ fontSize: 15 }} />
+          <span>Still using the default admin password.</span>
+          <button
+            onClick={() => setChangePasswordOpen(true)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'inherit',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              fontSize: 12,
+              padding: 0,
+            }}
+          >
+            Change it now
+          </button>
+        </div>
+      )}
       <header
         style={{
           display: 'flex',
@@ -280,11 +314,11 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
         <Divider style={{ borderColor: borderColor.dim, margin: '0 0 4px' }} />
 
         <MenuItem
+          onClick={() => { setUserAnchor(null); setChangePasswordOpen(true) }}
           style={{ color: text.dim, fontSize: 13, padding: '8px 16px', gap: 10 }}
-          disabled
         >
           <PersonOutlineIcon style={{ fontSize: 16, color: text.faint }} />
-          Profile
+          Change password
         </MenuItem>
 
         <Divider style={{ borderColor: borderColor.dim, margin: '4px 0' }} />
@@ -297,6 +331,8 @@ export function AppToolbar({ title = 'Jog Actuators', subtitle }: AppToolbarProp
           Sign out
         </MenuItem>
       </Menu>
+
+      <ChangePasswordDialog open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </>
   )
 }

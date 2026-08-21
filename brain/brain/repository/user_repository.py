@@ -128,6 +128,16 @@ class UserRepository:
         await session.commit()
         return bcrypt.checkpw(password.encode("utf-8"), sql_user.password_hash.encode("utf-8"))
 
+    @with_session
+    async def get_password_hash(
+        self, username: str, *, session: AsyncSession | None = None
+    ) -> str | None:
+        assert session is not None
+        result = await session.execute(
+            select(SqlUser.password_hash).where(SqlUser.username == username)
+        )
+        return result.scalar_one_or_none()
+
     def hash_password(self, password: str) -> str:
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
         return hashed_password.decode("utf-8")

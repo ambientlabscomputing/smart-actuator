@@ -15,7 +15,7 @@ exclude = ["crates/actuator-firmware", "crates/actuator-wasm"]
 
 [workspace.package]
 edition = "2021"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/ambient-labs/smart-actuator"
 
 [workspace.dependencies]

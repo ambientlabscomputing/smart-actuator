@@ -8,3 +8,6 @@
 **/uv.lock
 cad/build/
 *.mov
+**/.env
+!**/.env.example
+public-ui/public/docs/

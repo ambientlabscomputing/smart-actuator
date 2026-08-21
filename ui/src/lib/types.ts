@@ -11,6 +11,7 @@ export interface User {
   updated_at: string
   created_by: string
   updated_by: string
+  has_default_password: boolean
 }
 
 export interface LoginResponse {
