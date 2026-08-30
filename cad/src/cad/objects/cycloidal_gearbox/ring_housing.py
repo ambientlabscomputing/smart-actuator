@@ -13,7 +13,9 @@ from cad.lib.materials import PRINTED
 _HEAD_DIAMETER_CLEARANCE = 0.4
 _HEAD_DEPTH_CLEARANCE = 0.2
 _SHOULDER_CLEARANCE = 0.2
-_RING_PIN_TO_OUTER_BOLT_GAP = 6.0  # material gap between ring pins and either outer ring
+_RING_PIN_TO_OUTER_BOLT_GAP = (
+    6.0  # material gap between ring pins and either outer ring
+)
 _OUTER_BOLT_WALL_MARGIN = 4.0
 
 

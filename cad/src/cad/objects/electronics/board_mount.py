@@ -49,14 +49,18 @@ class BoardMount(CADObject):
     def plate_width(self) -> float:
         return max(
             self.board_width + 2 * _BOARD_MARGIN,
-            self.mount_bolt_circle_diameter + self.mount_bolt_diameter + 2 * _BOARD_MARGIN,
+            self.mount_bolt_circle_diameter
+            + self.mount_bolt_diameter
+            + 2 * _BOARD_MARGIN,
         )
 
     @property
     def plate_length(self) -> float:
         return max(
             self.board_length + 2 * _BOARD_MARGIN,
-            self.mount_bolt_circle_diameter + self.mount_bolt_diameter + 2 * _BOARD_MARGIN,
+            self.mount_bolt_circle_diameter
+            + self.mount_bolt_diameter
+            + 2 * _BOARD_MARGIN,
         )
 
     def cad(self) -> cadquery.Workplane:

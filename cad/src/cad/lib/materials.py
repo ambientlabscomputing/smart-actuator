@@ -8,7 +8,9 @@ each other in any assembly viewer.
 
 from machinewright.lib.materials import Material, Process
 
-PRINTED = Material(name="PLA", process=Process.PRINTED, color=(1.0, 0.45, 0.0), density=1.24)
+PRINTED = Material(
+    name="PLA", process=Process.PRINTED, color=(1.0, 0.45, 0.0), density=1.24
+)
 
 METAL = Material(
     name="Off-the-shelf hardware", process=Process.PURCHASED, color=(0.12, 0.12, 0.13)

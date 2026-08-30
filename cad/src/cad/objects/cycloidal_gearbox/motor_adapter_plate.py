@@ -58,7 +58,9 @@ class MotorAdapterPlate(CADObject):
     def plate_diameter(self) -> float:
         spec = NEMA_SPECS[self.nema_size]
         nema_span = (
-            spec.bolt_spacing * math.sqrt(2) + spec.bolt_hole_diameter + 2 * _WALL_MARGIN
+            spec.bolt_spacing * math.sqrt(2)
+            + spec.bolt_hole_diameter
+            + 2 * _WALL_MARGIN
         )
         housing_bolt_span = (
             self.housing_bolt_circle_diameter
@@ -100,9 +102,11 @@ class MotorAdapterPlate(CADObject):
 
         # housing-facing >Z: pilot boss registers into RingHousing's
         # matching recess
-        pilot_boss = cadquery.Workplane(
-            "XY", origin=(0, 0, self.thickness)
-        ).circle(self.housing_pilot_diameter / 2).extrude(self.housing_pilot_depth)
+        pilot_boss = (
+            cadquery.Workplane("XY", origin=(0, 0, self.thickness))
+            .circle(self.housing_pilot_diameter / 2)
+            .extrude(self.housing_pilot_depth)
+        )
         plate = plate.union(pilot_boss)
 
         # housing bolt clearance holes -- the housing carries the insert

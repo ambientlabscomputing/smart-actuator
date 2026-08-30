@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AppCanvas, AppToolbar, ArmCanvas, JointDataPanel, LoadingScreen, MachineCard, ProgramRunPanel, WorkspaceMenu } from '@/components'
+import { AppCanvas, AppToolbar, ArmCanvas, FabricateGatewayPage, JointDataPanel, LoadingScreen, MachineCard, ProgramRunPanel, WorkspaceMenu } from '@/components'
 import type { JointHistory } from '@/components'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { MachineEditor } from '@/components/MachineEditor'
@@ -507,6 +507,7 @@ export default function App() {
         <Route path="/programs" element={programsElement} />
         <Route path="/gcode" element={gcodeElement} />
         <Route path="/teach" element={teachElement} />
+        <Route path="/fabricate" element={<FabricateGatewayPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

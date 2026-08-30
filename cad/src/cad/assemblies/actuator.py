@@ -148,9 +148,8 @@ class ActuatorAssembly(CADAssembly):
         interface_insert_radius = (
             HEAT_SET_INSERT_SPECS[self.interface_thread_size].bore_diameter / 2
         )
-        output_clearance_diameter = (
-            gearbox.interface_bolt_circle_diameter
-            + 2 * (interface_insert_radius + _OUTPUT_INTERFACE_GAP)
+        output_clearance_diameter = gearbox.interface_bolt_circle_diameter + 2 * (
+            interface_insert_radius + _OUTPUT_INTERFACE_GAP
         )
 
         shell = ShellAssembly(

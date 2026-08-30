@@ -104,10 +104,14 @@ def test_sensor_pocket_lands_at_the_requested_world_angle():
         sensor_hole_inset=1.0,
         sensor_thread_size="M3",
     )
-    with_pocket = ShellLid(**common, sensor_board_width=5, sensor_board_length=10).cad().val()
-    no_pocket = ShellLid(
-        **common, sensor_board_width=0.001, sensor_board_length=0.001
-    ).cad().val()
+    with_pocket = (
+        ShellLid(**common, sensor_board_width=5, sensor_board_length=10).cad().val()
+    )
+    no_pocket = (
+        ShellLid(**common, sensor_board_width=0.001, sensor_board_length=0.001)
+        .cad()
+        .val()
+    )
 
     removed = no_pocket.cut(with_pocket)
     bb = removed.BoundingBox()

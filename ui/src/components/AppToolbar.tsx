@@ -27,6 +27,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CodeIcon from '@mui/icons-material/Code'
 import DataObjectIcon from '@mui/icons-material/DataObject'
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked'
+import PrecisionManufacturingOutlinedIcon from '@mui/icons-material/PrecisionManufacturingOutlined'
 import { bg, text, borderColor, accent, semantic } from '@/design'
 import { ChangePasswordDialog } from '@/components/auth/ChangePasswordDialog'
 
@@ -115,6 +116,18 @@ function SideNav({ onClose }: { onClose: () => void }) {
           </ListItemIcon>
           <ListItemText
             primary="Teach"
+            slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
+          />
+        </ListItemButton>
+        <ListItemButton
+          onClick={() => go('/fabricate')}
+          sx={{ padding: '10px 20px', borderRadius: 0, '&:hover': { background: bg.surfaceAlt } }}
+        >
+          <ListItemIcon sx={{ minWidth: 36, color: accent.default }}>
+            <PrecisionManufacturingOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Fabricate"
             slotProps={{ primary: { sx: { color: text.secondary, fontSize: 14, fontWeight: 500 } } }}
           />
         </ListItemButton>

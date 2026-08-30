@@ -11,7 +11,9 @@ from cad.objects.shell.shell_body import ShellBody
 from cad.objects.shell.shell_lid import _SENSOR_POCKET_DEPTH, ShellLid
 
 _MOUNT_CLEARANCE = 0.4
-_SENSOR_BOARD_THICKNESS = 1.6  # typical PCB thickness; verify against the actual breakout you buy
+_SENSOR_BOARD_THICKNESS = (
+    1.6  # typical PCB thickness; verify against the actual breakout you buy
+)
 
 
 @register_assembly
@@ -127,7 +129,10 @@ class ShellAssembly(CADAssembly):
         assembly = cadquery.Assembly()
         attach(assembly, body, loc=Location(Vector(0, 0, 0)), name="shell_body")
         attach(
-            assembly, lid, loc=Location(Vector(0, 0, self.tube_length)), name="shell_lid"
+            assembly,
+            lid,
+            loc=Location(Vector(0, 0, self.tube_length)),
+            name="shell_lid",
         )
 
         # sits in the lid's own sensor pocket, back flush against the

@@ -4,6 +4,7 @@ Extract the FastAPI OpenAPI schema without starting the server.
 
 Usage: python scripts/extract_openapi.py > public-ui/public/docs/api/openapi.json
 """
+
 import json
 import sys
 from pathlib import Path

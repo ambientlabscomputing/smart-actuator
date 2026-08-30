@@ -94,3 +94,7 @@ If you don't set these, the brain logs a warning on startup and the UI shows a b
 - [RFD-12: Prismatic Joints and the Cartesian Gantry Template](RFDs/RFD-12.md)
 - [RFD-13: Teach Mode — Record-and-Replay and Drag-to-Pose](RFDs/RFD-13.md)
 - [RFD-14: Aesthetic Pass](RFDs/RFD-14.md)
+- [RFD-15: Public UI](RFDs/RFD-15.md)
+- [RFD-16: Next Gen Machine Design](RFDs/RFD-16.md)
+- [RFD-17: End Effector Integration](RFDs/RFD-17.md)
+- [RFD-18: Roadmap to Fabricate Phase 1](RFDs/RFD-18.md)

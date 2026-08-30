@@ -165,7 +165,9 @@ class OutputFlange(CADObject):
             flange.faces(">Z")
             .workplane()
             .pushPoints(interface_points)
-            .hole(interface_insert_spec.bore_diameter, depth=interface_insert_spec.length)
+            .hole(
+                interface_insert_spec.bore_diameter, depth=interface_insert_spec.length
+            )
         )
 
         # encoder target ring: a shallow annular pocket outboard of the

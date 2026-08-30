@@ -112,9 +112,7 @@ class AlternateCycloidalGearboxAssembly(CycloidalGearboxAssembly):
             name="motor_adapter_plate",
         )
 
-        attach(
-            assembly, input_shaft, loc=Location(Vector(0, 0, 0)), name="input_shaft"
-        )
+        attach(assembly, input_shaft, loc=Location(Vector(0, 0, 0)), name="input_shaft")
 
         disc_z = d.housing_thickness
         attach(

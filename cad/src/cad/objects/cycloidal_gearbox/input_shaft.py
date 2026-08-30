@@ -69,9 +69,7 @@ class InputShaft(CADObject):
         # `eccentricity` -- this is what the bearing (and cycloidal disc)
         # ride on.
         eccentric = (
-            cadquery.Workplane(
-                "XY", origin=(self.eccentricity, 0, self.coupler_length)
-            )
+            cadquery.Workplane("XY", origin=(self.eccentricity, 0, self.coupler_length))
             .circle(self.eccentric_boss_diameter / 2)
             .extrude(self.eccentric_section_length)
         )

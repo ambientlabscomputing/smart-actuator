@@ -155,7 +155,8 @@ def test_sensor_mount_is_clear_of_every_roller_pin_bolt_head(num_output_rollers)
     # the Makefile's own ACTUATOR_PARAMS defaults
     board_width, board_length = 5.0, 10.0
     pocket_half_diagonal = math.hypot(
-        board_width / 2 + _SENSOR_POCKET_MARGIN, board_length / 2 + _SENSOR_POCKET_MARGIN
+        board_width / 2 + _SENSOR_POCKET_MARGIN,
+        board_length / 2 + _SENSOR_POCKET_MARGIN,
     )
 
     gb = gearbox(num_output_rollers=num_output_rollers)

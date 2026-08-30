@@ -150,8 +150,12 @@ class CycloidalGearboxAssembly(CADAssembly):
         # the eccentric boss doubles as the bearing's inner diameter, so
         # sizing the bearing to a specific real part (rather than the
         # NEMA-derived default) means overriding both together
-        eccentric_boss_diameter = self.bearing_inner_diameter or spec.shaft_diameter * 2.4
-        bearing_outer_diameter = self.bearing_outer_diameter or eccentric_boss_diameter + 8.0
+        eccentric_boss_diameter = (
+            self.bearing_inner_diameter or spec.shaft_diameter * 2.4
+        )
+        bearing_outer_diameter = (
+            self.bearing_outer_diameter or eccentric_boss_diameter + 8.0
+        )
         bearing_clearance = 0.2
         disc_center_bore_diameter = bearing_outer_diameter + bearing_clearance
         housing_input_bore_diameter = bearing_outer_diameter + 4.0
@@ -190,7 +194,9 @@ class CycloidalGearboxAssembly(CADAssembly):
         interface_bolt_circle_diameter = pilot_diameter + 2 * (
             _PILOT_TO_INTERFACE_BOLT_GAP + interface_insert_radius
         )
-        interface_outer_radius = interface_bolt_circle_diameter / 2 + interface_insert_radius
+        interface_outer_radius = (
+            interface_bolt_circle_diameter / 2 + interface_insert_radius
+        )
 
         # the roller circle -- and everything downstream of it, the disc's
         # output holes included, since they share this same value -- has
@@ -206,7 +212,9 @@ class CycloidalGearboxAssembly(CADAssembly):
             roller_bolt_spec.head_diameter / 2 + _ROLLER_HEAD_DIAMETER_CLEARANCE / 2
         )
         min_output_hole_circle_radius = (
-            interface_outer_radius + _PILOT_TO_INTERFACE_BOLT_GAP + roller_counterbore_radius
+            interface_outer_radius
+            + _PILOT_TO_INTERFACE_BOLT_GAP
+            + roller_counterbore_radius
         )
         output_hole_circle_diameter = max(
             baseline_output_hole_circle_diameter, 2 * min_output_hole_circle_radius
@@ -221,7 +229,9 @@ class CycloidalGearboxAssembly(CADAssembly):
         # break through the rim and there is no gear left -- silently, in
         # a STEP file that still exports, so it's asserted here.
         disc_min_boundary_radius = (
-            ring_pin_circle_diameter / 2 - self.ring_pin_diameter / 2 - self.eccentricity
+            ring_pin_circle_diameter / 2
+            - self.ring_pin_diameter / 2
+            - self.eccentricity
         )
         output_hole_outer_edge = (
             output_hole_circle_diameter / 2 + output_hole_diameter / 2
@@ -249,7 +259,9 @@ class CycloidalGearboxAssembly(CADAssembly):
         roller_head_outer_radius = (
             output_hole_circle_diameter / 2 + roller_counterbore_radius
         )
-        sensor_ring_inner_diameter = 2 * (roller_head_outer_radius + _SENSOR_RING_CLEARANCE)
+        sensor_ring_inner_diameter = 2 * (
+            roller_head_outer_radius + _SENSOR_RING_CLEARANCE
+        )
         sensor_ring_outer_diameter = sensor_ring_inner_diameter + 2 * _SENSOR_RING_WIDTH
 
         # ring pin bolts: head + short thread engage the insert right
@@ -488,9 +500,7 @@ class CycloidalGearboxAssembly(CADAssembly):
             name="motor_adapter_plate",
         )
 
-        attach(
-            assembly, input_shaft, loc=Location(Vector(0, 0, 0)), name="input_shaft"
-        )
+        attach(assembly, input_shaft, loc=Location(Vector(0, 0, 0)), name="input_shaft")
 
         disc_z = d.housing_thickness
         attach(

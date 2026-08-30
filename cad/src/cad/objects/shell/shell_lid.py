@@ -131,7 +131,10 @@ class ShellLid(CADObject):
             .workplane()
             .transformed(rotate=(0, 0, -self.sensor_mount_angle))
             .pushPoints(standoff_points)
-            .hole(insert_spec.bore_diameter, depth=_SENSOR_POCKET_DEPTH + insert_spec.length)
+            .hole(
+                insert_spec.bore_diameter,
+                depth=_SENSOR_POCKET_DEPTH + insert_spec.length,
+            )
         )
 
         return lid
