@@ -4,6 +4,7 @@ from brain import Config
 from brain.repository.repository import Repository
 from brain.service.actuator_service import ActuatorService
 from brain.service.calibration_service import CalibrationService
+from brain.service.fabricate_service import FabricateService
 from brain.service.file_service import FileService
 from brain.service.gcode_service import GCodeService
 from brain.service.hardware_lifecycle_service import HardwareLifecycleService
@@ -65,6 +66,7 @@ class BrainService(Service):
         teach: TeachService,
         sim_lifecycle: SimLifecycleService | None = None,
         hardware_lifecycle: HardwareLifecycleService | None = None,
+        fabricate: FabricateService | None = None,
     ) -> None:
         self.repository = repository
         self.config = config
@@ -88,6 +90,7 @@ class BrainService(Service):
         self.file_service = file_service
         self.gcode = gcode
         self.teach = teach
+        self.fabricate = fabricate
 
     async def start(self) -> None:
         logger.info("Starting BrainService")

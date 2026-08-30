@@ -382,6 +382,8 @@ class TemplateMeta(BaseModel):
     source: str
     brain_compatibility: str = ""
     firmware_compatibility: str = ""
+    content_hash: str = ""
+    ref: str = "in-tree"
 
 
 class MachineDescription(BaseModel):

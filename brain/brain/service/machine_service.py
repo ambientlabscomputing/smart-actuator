@@ -86,6 +86,16 @@ class MachineService:
         )
         template_id = description.template_ref.template_id
         tmpl = await self._templates.get_template(template_id)
+        if tmpl is not None:
+            from brain.models.machine import TemplateRef
+
+            description.template_ref = TemplateRef(
+                source=tmpl.source,
+                template_id=tmpl.template_id,
+                version=tmpl.version,
+                content_hash=tmpl.content_hash,
+                ref=tmpl.ref,
+            )
 
         # ── Resolve / seed the DH chain ──────────────────────────────────────
         if tmpl and tmpl.dh:
@@ -173,6 +183,19 @@ class MachineService:
         try:
             template_id = machine.description.template_ref.template_id
             tmpl = await self._templates.get_template(template_id)
+            if tmpl is not None:
+                from brain.models.machine import TemplateRef
+
+                canonical_ref = TemplateRef(
+                    source=tmpl.source,
+                    template_id=tmpl.template_id,
+                    version=tmpl.version,
+                    content_hash=tmpl.content_hash,
+                    ref=tmpl.ref,
+                )
+                if machine.description.template_ref != canonical_ref:
+                    machine.description.template_ref = canonical_ref
+                    await self._persist(machine, created_by="system:template-normalization")
             machine.joint_names = (
                 [j["name"] for j in tmpl.joints]
                 if tmpl and tmpl.joints

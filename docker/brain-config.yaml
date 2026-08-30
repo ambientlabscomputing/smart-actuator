@@ -45,3 +45,13 @@ safety:
   floor_z: 0.0
   floor_margin_m: 0.005
   link_collision_samples: 8
+
+fabricate:
+  api_url: https://fabricate.ambientlabs.com/api/v1
+  cloud_url: https://fabricate.ambientlabs.com
+  state_dir: /data/fabricate
+  timeout_seconds: 30
+  client_version: "0.1.0"
+  snapshot_versions: ["1.0"]
+  release_versions: ["1.0"]
+  max_snapshot_bytes: 52428800

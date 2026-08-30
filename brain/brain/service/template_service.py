@@ -1,3 +1,4 @@
+import hashlib
 import math
 from pathlib import Path
 
@@ -65,7 +66,7 @@ class TemplateService:
         for manifest in sorted(self._templates_dir.glob("*/template.yaml")):
             try:
                 data = yaml.safe_load(manifest.read_text())
-                metas.append(self._parse_meta(data))
+                metas.append(self._parse_meta(data, manifest.parent))
             except Exception:
                 logger.exception("TemplateService: failed to parse {}", manifest)
         return metas
@@ -77,7 +78,7 @@ class TemplateService:
             return None
         try:
             data = yaml.safe_load(manifest.read_text())
-            meta = self._parse_meta(data)
+            meta = self._parse_meta(data, manifest.parent)
             dh_schema = self._parse_dh_schema(data) if "dh" in data else None
             easy = self._parse_easy(data) if "easy" in data else []
             end_effector = self._parse_end_effector(data) if "end_effector" in data else None
@@ -120,6 +121,13 @@ class TemplateService:
 
         return template.render(**ctx)
 
+    def raw_template(self, template_id: str) -> dict | None:
+        manifest = self._templates_dir / template_id / "template.yaml"
+        if not manifest.exists():
+            return None
+        raw = yaml.safe_load(manifest.read_text())
+        return raw if isinstance(raw, dict) else None
+
     async def update_templates(self) -> list[TemplateUpdateInfo]:
         """No-op for in-tree templates (no remote fetch needed)."""
         return []
@@ -130,16 +138,24 @@ class TemplateService:
         )
 
     @staticmethod
-    def _parse_meta(data: dict) -> TemplateMeta:
+    def _parse_meta(data: dict, bundle: Path) -> TemplateMeta:
+        digest = hashlib.sha256()
+        for path in sorted(item for item in bundle.rglob("*") if item.is_file()):
+            digest.update(path.relative_to(bundle).as_posix().encode())
+            digest.update(b"\0")
+            digest.update(path.read_bytes())
+            digest.update(b"\0")
         return TemplateMeta(
             template_id=data["id"],
             name=data.get("name", data["id"]),
             summary=data.get("summary", ""),
             version=data.get("version", "0.0.0"),
             publisher=data.get("publisher", ""),
-            source="in-tree",
+            source="builtin://smart-actuator/templates",
             brain_compatibility=data.get("brain_compatibility", ""),
             firmware_compatibility=data.get("firmware_compatibility", ""),
+            content_hash=digest.hexdigest(),
+            ref=f"builtin-{data.get('version', '0.0.0')}",
         )
 
     @staticmethod

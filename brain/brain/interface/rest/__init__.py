@@ -1,6 +1,7 @@
 from brain.interface.rest.actuators import router as actuators_router
 from brain.interface.rest.calibrations import router as calibrations_router
 from brain.interface.rest.events import router as events_router
+from brain.interface.rest.fabricate import router as fabricate_router
 from brain.interface.rest.files import router as files_router
 from brain.interface.rest.gcode import router as gcode_router
 from brain.interface.rest.machine import router as machine_router
@@ -16,6 +17,7 @@ __all__ = [
     "actuators_router",
     "calibrations_router",
     "events_router",
+    "fabricate_router",
     "files_router",
     "gcode_router",
     "machine_router",

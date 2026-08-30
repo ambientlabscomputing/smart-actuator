@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -101,8 +102,22 @@ class SafetyConfig(BaseModel):
     )
     link_collision_samples: int = Field(
         default=8,
-        description="Number of intermediate points sampled per link segment for collision detection",
+        description=(
+            "Number of intermediate points sampled per link segment for collision detection"
+        ),
     )
+
+
+class FabricateConfig(BaseModel):
+    api_url: str = "http://localhost:8081/api/v1"
+    cloud_url: str = "http://localhost:5173"
+    state_dir: str = "~/.brain/fabricate"
+    timeout_seconds: float = 30.0
+    client_version: str = "0.1.0"
+    snapshot_versions: list[str] = Field(default_factory=lambda: ["1.0"])
+    release_versions: list[str] = Field(default_factory=lambda: ["1.0"])
+    max_snapshot_bytes: int = 50 * 1024 * 1024
+    release_signing_public_keys: dict[str, str] = Field(default_factory=dict)
 
 
 class OAuthConfig(BaseModel):
@@ -143,6 +158,7 @@ class Config(BaseModel):
     safety: SafetyConfig = Field(
         default_factory=SafetyConfig, description="Safety and collision detection configuration"
     )
+    fabricate: FabricateConfig = Field(default_factory=FabricateConfig)
 
 
 config: Config | None = None
@@ -152,8 +168,8 @@ def load_config() -> Config:
     """Load configuration from a YAML file."""
     path = CONFIG_PATH
     if os.environ.get("BRAIN_CONFIG_PATH"):
-        path = os.environ["BRAIN_CONFIG_PATH"]
-    if not Path(path).exists():
+        path = Path(os.environ["BRAIN_CONFIG_PATH"])
+    if not path.exists():
         raise FileNotFoundError(
             f"Config file not found at {path}. Please create one or set BRAIN_CONFIG_PATH."
         )
@@ -161,6 +177,17 @@ def load_config() -> Config:
     with open(path) as f:
         data = yaml.safe_load(f)
     config = Config(**data)
+    if os.environ.get("FABRICATE_API_URL"):
+        config.fabricate.api_url = os.environ["FABRICATE_API_URL"]
+    if os.environ.get("FABRICATE_CLOUD_URL"):
+        config.fabricate.cloud_url = os.environ["FABRICATE_CLOUD_URL"]
+    if os.environ.get("FABRICATE_RELEASE_SIGNING_KEYS_JSON"):
+        keys = json.loads(os.environ["FABRICATE_RELEASE_SIGNING_KEYS_JSON"])
+        if not isinstance(keys, dict) or not all(
+            isinstance(key, str) and isinstance(value, str) for key, value in keys.items()
+        ):
+            raise ValueError("FABRICATE_RELEASE_SIGNING_KEYS_JSON must be a string map")
+        config.fabricate.release_signing_public_keys = keys
     return config
 
 
