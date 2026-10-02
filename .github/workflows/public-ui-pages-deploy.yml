@@ -52,6 +52,11 @@ jobs:
           make public-ui-docs
 
       - name: Build WASM and static site
+        env:
+          VITE_UMAMI_HOST: https://umami.ambientlabs.io
+          VITE_UMAMI_WEBSITE_ID: 4e5f9334-746b-4488-9c28-fb01cbf037c9
+          VITE_GLITCHTIP_DSN: https://f839ffc1fc054ec286b0b9c41345eefa@glitchtip.ambientlabs.io/5
+          VITE_RELEASE: ${{ github.ref_name }}
         run: make public-ui-build
 
       - name: Install Wrangler CLI

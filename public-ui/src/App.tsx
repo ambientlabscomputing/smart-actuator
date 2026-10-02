@@ -5,6 +5,7 @@ import { BuildMachineSection } from './components/BuildMachineSection'
 import { ProgramBehaviorSection } from './components/ProgramBehaviorSection'
 import { color, font, space } from './design/tokens'
 import heroBuilder from './assets/screenshots/hero-builder.jpg'
+import { recordPage } from './lib/telemetry'
 import './index.css'
 
 function App() {
@@ -15,6 +16,10 @@ function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  useEffect(() => {
+    recordPage(path)
+  }, [path])
 
   const isGetStarted = path === '/get-started'
   const isDocs = path === '/docs'

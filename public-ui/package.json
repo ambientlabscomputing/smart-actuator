@@ -13,7 +13,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sentry/browser": "8.55.2",
     "actuator-wasm": "file:../smart-actuator/pkg-wasm",
+    "ambient-telemetry": "github:ambientlabscomputing/ambient_telemetry_ts#v0.3.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
